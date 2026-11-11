@@ -7,11 +7,11 @@ to be downloaded to use it.
 ```python
 from flybrain_data import load_pack
 
-pack = load_pack("central_complex")                      # FlyWire v783 connectome
-pack.W            # (151, 151) float32 signed weights, W[post, pre]
-pack.table()      # root_id, cell_type, side, nt, sign, ring_angle, degrees (pandas)
-rew = load_pack("central_complex", "rewired", seed=1)    # control
-rnd = load_pack("central_complex", "random", seed=1)     # control
+pack = load_pack("central_complex")  # FlyWire v783 connectome
+pack.W  # (151, 151) float32 signed weights, W[post, pre]
+pack.table()  # root_id, cell_type, side, nt, sign, ring_angle, degrees (pandas)
+rew = load_pack("central_complex", "rewired", seed=1)  # control
+rnd = load_pack("central_complex", "random", seed=1)  # control
 ```
 
 ```bash

@@ -84,6 +84,8 @@ class Bittle:
         self.recent_lines: deque[tuple[float, str]] = deque(maxlen=300)
         self._samples: deque[ImuSample] = deque(maxlen=2000)
         self._new_samples: deque[ImuSample] = deque(maxlen=2000)
+        self._poll_thread: threading.Thread | None = None
+        self._poll_stop = threading.Event()
         self._sample_listeners: list[Callable[[ImuSample], None]] = []
         self._splitter = P.LineSplitter()
         self._cv = threading.Condition()
@@ -299,6 +301,33 @@ class Bittle:
         self.send((cmd + "\n").encode(), echo="g", timeout=1.0)
         self.streaming = on
 
+    def poll_imu(self, rate_hz: float = 20.0) -> None:
+        """Ask for one IMU line ('gp') ``rate_hz`` times a second from a background thread.
+
+        Preferred over ``stream_imu`` on a real robot: firmware B10_250330 has no print rate
+        limit, so 'gP' saturates the 115200 baud link and the host receives the lines in clumps
+        about every 1.4 s with useless timestamps. A single 'gp' is answered in about 13 ms."""
+        if self._poll_thread is not None:
+            return
+        self._poll_stop.clear()
+        period = 1.0 / max(1.0, rate_hz)
+
+        def run() -> None:
+            nxt = time.monotonic()
+            while not self._poll_stop.is_set() and self.connected:
+                self.send((P.GYRO_PRINT_ONCE + "\n").encode(), echo="g", timeout=0.3)
+                nxt = max(nxt + period, time.monotonic())
+                self._poll_stop.wait(max(0.0, nxt - time.monotonic()))
+
+        self._poll_thread = threading.Thread(target=run, name="bittle-imu-poll", daemon=True)
+        self._poll_thread.start()
+
+    def stop_poll_imu(self) -> None:
+        self._poll_stop.set()
+        t, self._poll_thread = self._poll_thread, None
+        if t is not None and t is not threading.current_thread():
+            t.join(timeout=1.0)
+
     def read_yaw(self, timeout: float = 1.5) -> ImuSample | None:
         """Return the next IMU sample. Uses 'gp' (OpenCatEsp32) and, if that yields nothing,
         the legacy 'v' token of older firmware."""
@@ -380,6 +409,7 @@ class Bittle:
     def close(self) -> None:
         """Stop streaming and leave the robot resting, whatever state it was in."""
         try:
+            self.stop_poll_imu()
             self.forget_joint_targets()
             if self.connected and self.transport.is_open:
                 try:

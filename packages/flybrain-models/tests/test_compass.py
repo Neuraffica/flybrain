@@ -11,10 +11,19 @@ from flybrain_models.compass_tasks import Trajectory, benchmark_set, memory_tria
 
 VARIANTS = ["connectome", "rewired", "random"]
 KEY_NUMBERS = [
-    "dead_reckoning_mae_deg", "cue_tracking_mae_deg", "cue_tracking_noisy_mae_deg",
-    "cue_tracking_lag_ms", "memory_held_frac_5s", "memory_held_frac_30s",
-    "memory_held_frac_60s", "memory_err_deg_5s", "memory_err_deg_30s", "memory_err_deg_60s",
-    "memory_bump_frac_60s", "dark_rotation_err_deg", "dark_rotation_held_frac",
+    "dead_reckoning_mae_deg",
+    "cue_tracking_mae_deg",
+    "cue_tracking_noisy_mae_deg",
+    "cue_tracking_lag_ms",
+    "memory_held_frac_5s",
+    "memory_held_frac_30s",
+    "memory_held_frac_60s",
+    "memory_err_deg_5s",
+    "memory_err_deg_30s",
+    "memory_err_deg_60s",
+    "memory_bump_frac_60s",
+    "dark_rotation_err_deg",
+    "dark_rotation_held_frac",
 ]
 
 
@@ -140,8 +149,13 @@ def test_benchmark_json_shipped():
         assert n in names
     for k in KEY_NUMBERS:
         assert k in data["key_numbers"]
-        assert set(data["key_numbers"][k]) >= {"connectome", "rewired", "random",
-                                               "no_recurrence", "complementary_filter"}
+        assert set(data["key_numbers"][k]) >= {
+            "connectome",
+            "rewired",
+            "random",
+            "no_recurrence",
+            "complementary_filter",
+        }
 
 
 def _held_frac(m, dark_s: float = 30.0, n: int = 12) -> float:

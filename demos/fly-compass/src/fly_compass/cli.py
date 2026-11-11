@@ -122,6 +122,14 @@ def build_parser() -> argparse.ArgumentParser:
         default="i",
         help="'i' ASCII (smooth, keeps the posture loop; beeps) or 'I' binary",
     )
+    hw.add_argument(
+        "--imu",
+        choices=["auto", "poll", "stream"],
+        default="auto",
+        help="how to read the IMU: poll = one 'gp' per reading (default on a real robot; "
+        "firmware B10_250330 floods the link when streaming), stream = 'gP'",
+    )
+    hw.add_argument("--imu-rate", type=float, default=20.0, help="IMU polls per second")
     hw.add_argument("--joint-rate", type=float, default=15.0, help="max head commands per second")
     hw.add_argument("--boot-timeout", type=float, default=12.0)
     mk = ap.add_argument_group("mock")
@@ -283,6 +291,8 @@ def main(argv: list[str] | None = None) -> int:
         scenario=a.mock_script if a.mock and a.mock_script in SCENARIOS else None,
         exit_after_scenario=a.no_dashboard or a.exit_after_script,
     )
+    app.imu_mode = ("stream" if a.mock else "poll") if a.imu == "auto" else a.imu
+    app.imu_rate_hz = a.imu_rate
     if a.mock_script in SCENARIOS:
 
         def _done(res):

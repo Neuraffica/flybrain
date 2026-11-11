@@ -13,16 +13,26 @@ def main(argv: list[str] | None = None) -> int:
 
     d = sub.add_parser("download", help="fetch FlyWire v783 connections + annotations")
     d.add_argument("--data-dir", type=Path, default=None)
-    d.add_argument("--only", choices=["connections", "annotations", "neuropil_pre",
-                                      "neuropil_post"], default=None)
-    d.add_argument("--required-only", action="store_true",
-                   help="skip the optional per-neuron neuropil count files (~250 MB)")
+    d.add_argument(
+        "--only",
+        choices=["connections", "annotations", "neuropil_pre", "neuropil_post"],
+        default=None,
+    )
+    d.add_argument(
+        "--required-only",
+        action="store_true",
+        help="skip the optional per-neuron neuropil count files (~250 MB)",
+    )
 
     b = sub.add_parser("build-pack", help="extract a circuit pack from the raw files")
     b.add_argument("name", nargs="?", default="central_complex")
     b.add_argument("--data-dir", type=Path, default=None)
-    b.add_argument("--out", type=Path, default=None,
-                   help="output .npz (default: the shipped pack inside the package)")
+    b.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="output .npz (default: the shipped pack inside the package)",
+    )
     b.add_argument("--download", action="store_true", help="download raw files if missing")
 
     i = sub.add_parser("info", help="print a pack summary and its metadata")

@@ -92,8 +92,10 @@ def velocity_response(model) -> dict:
             u = np.unwrap(np.array([h, *hs]))
             r.append(np.degrees(u[-1] - u[50]) / 2.0 / wdeg)
         ratios[str(wdeg)] = float(np.mean(r))
-    return {"speed_ratio_90": (ratios["90"] + ratios["-90"]) / 2,
-            "speed_ratio_180": (ratios["180"] + ratios["-180"]) / 2}
+    return {
+        "speed_ratio_90": (ratios["90"] + ratios["-90"]) / 2,
+        "speed_ratio_180": (ratios["180"] + ratios["-180"]) / 2,
+    }
 
 
 # ---- B. cue tracking -----------------------------------------------------------------------
@@ -105,17 +107,23 @@ def cue_tracking(model, trajs, noise_deg: float) -> dict:
         coh.append(out["coherent"])
         dec, true = out["decoded"], tr.heading
         shifts = np.arange(0, 51)  # 0..1 s
-        cost = [np.abs(np.angle(np.exp(1j * (dec[s:] - true[:len(true) - s])))).mean()
-                for s in shifts]
+        cost = [
+            np.abs(np.angle(np.exp(1j * (dec[s:] - true[: len(true) - s])))).mean() for s in shifts
+        ]
         lags.append(shifts[int(np.argmin(cost))] * tr.dt * 1000.0)
-    return {"mae_deg": float(np.concatenate(errs).mean()), "lag_ms": float(np.mean(lags)),
-            "coherent_frac": float(np.concatenate(coh).mean())}
+    return {
+        "mae_deg": float(np.concatenate(errs).mean()),
+        "lag_ms": float(np.mean(lags)),
+        "coherent_frac": float(np.concatenate(coh).mean()),
+    }
 
 
 # ---- C/D. memory -----------------------------------------------------------------------------
 def memory(model, omega_dark: float = 0.0, dark_s=DARK_S) -> dict:
-    trials = [memory_trial(model, float(h), cue_s=3.0, dark_s=dark_s, omega_dark=omega_dark)
-              for h in MEMORY_HEADINGS]
+    trials = [
+        memory_trial(model, float(h), cue_s=3.0, dark_s=dark_s, omega_dark=omega_dark)
+        for h in MEMORY_HEADINGS
+    ]
     out = {}
     for key in ("cue_end", *dark_s):
         err = np.degrees(np.abs([t[key][0] for t in trials]))
@@ -152,38 +160,57 @@ def build_models(rewired_seeds: int, random_seeds: int):
     fits = json.loads(params_path().read_text())["fits"]
 
     def ring(variant, seed, params):
-        return RingAttractor.from_pack("central_complex", variant=variant, seed=seed,
-                                       params=params)
+        return RingAttractor.from_pack("central_complex", variant=variant, seed=seed, params=params)
 
     shipped = load_params("connectome")
     groups = {
         "connectome": ("FlyWire connectome, shipped scalars", [ring("connectome", 0, shipped)]),
-        "rewired": ((f"degree-preserving rewire within type blocks, x{rewired_seeds} seeds, "
-                    "connectome scalars"),
-                    [ring("rewired", s, shipped) for s in range(rewired_seeds)]),
-        "random": ((f"random graph, same size/density/sign ratio, x{random_seeds} seeds, "
-                   "connectome scalars"),
-                   [ring("random", s, shipped) for s in range(random_seeds)]),
-        "no_recurrence": (("ablation: same neurons, leak, biases and cue input, all recurrent "
-                          "weights set to zero"),
-                          [ring("connectome", 0, {**shipped, "ablate_recurrence": True})]),
+        "rewired": (
+            (
+                f"degree-preserving rewire within type blocks, x{rewired_seeds} seeds, "
+                "connectome scalars"
+            ),
+            [ring("rewired", s, shipped) for s in range(rewired_seeds)],
+        ),
+        "random": (
+            (
+                f"random graph, same size/density/sign ratio, x{random_seeds} seeds, "
+                "connectome scalars"
+            ),
+            [ring("random", s, shipped) for s in range(random_seeds)],
+        ),
+        "no_recurrence": (
+            (
+                "ablation: same neurons, leak, biases and cue input, all recurrent "
+                "weights set to zero"
+            ),
+            [ring("connectome", 0, {**shipped, "ablate_recurrence": True})],
+        ),
     }
     if "connectome_dead_reckoning" in fits:
         groups["connectome_dead_reckoning_fit"] = (
             "FlyWire connectome, earlier velocity-only fit (plain summed weights, no cue fit)",
-            [ring("connectome", 0, "connectome_dead_reckoning")])
+            [ring("connectome", 0, "connectome_dead_reckoning")],
+        )
     for key in sorted(fits):
         if key.startswith(("rewired_seed", "random_seed")) and not key.endswith("_base"):
             variant, seed = key.split("_seed")
             seed = seed.split("_")[0]
-            groups[f"{key}_refit"] = ((f"{variant} control (seed {seed}) with scalars "
-                                      f"re-fitted on it ({fits[key].get('objective', 'traj')})"),
-                                      [ring(variant, int(seed), key)])
+            groups[f"{key}_refit"] = (
+                (
+                    f"{variant} control (seed {seed}) with scalars "
+                    f"re-fitted on it ({fits[key].get('objective', 'traj')})"
+                ),
+                [ring(variant, int(seed), key)],
+            )
     groups["complementary_filter"] = (
         "engineering baseline: integrate gyro, pull 30% toward each cue sample",
-        [GyroIntegrator()])
-    groups["static_null"] = ("null: ignores gyro and cue, keeps the start heading",
-                             [StaticHeading()])
+        [GyroIntegrator()],
+    )
+    groups["static_null"] = (
+        "null: ignores gyro and cue, keeps the start heading",
+        [StaticHeading()],
+    )
     return groups
 
 
@@ -193,8 +220,9 @@ def _fmt(v, sd=None, w=7, d=1):
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--rewired-seeds", type=int, default=5)
     ap.add_argument("--random-seeds", type=int, default=3)
     ap.add_argument("--no-write", action="store_true")
@@ -209,22 +237,37 @@ def main(argv=None) -> int:
     for name, (desc, models) in groups.items():
         per = []
         for m in models:
-            per.append({
-                "dead_reckoning": {**dead_reckoning(m, trajs, st_clean, st_noisy),
-                                   **(velocity_response(m) if isinstance(m, RingAttractor)
-                                      else {"speed_ratio_90": 1.0 * (name != "static_null"),
-                                            "speed_ratio_180": 1.0 * (name != "static_null")})},
-                "cue_tracking": cue_tracking(m, clean, 0.0),
-                "cue_tracking_noisy": cue_tracking(m, clean, 5.0),
-                "memory": memory(m),
-                "dark_rotation": memory(m, omega_dark=np.radians(90.0), dark_s=(4.0,)),
-            })
+            per.append(
+                {
+                    "dead_reckoning": {
+                        **dead_reckoning(m, trajs, st_clean, st_noisy),
+                        **(
+                            velocity_response(m)
+                            if isinstance(m, RingAttractor)
+                            else {
+                                "speed_ratio_90": 1.0 * (name != "static_null"),
+                                "speed_ratio_180": 1.0 * (name != "static_null"),
+                            }
+                        ),
+                    },
+                    "cue_tracking": cue_tracking(m, clean, 0.0),
+                    "cue_tracking_noisy": cue_tracking(m, clean, 5.0),
+                    "memory": memory(m),
+                    "dark_rotation": memory(m, omega_dark=np.radians(90.0), dark_s=(4.0,)),
+                }
+            )
         m0 = models[0]
-        rows.append({"model": name, "description": desc, "n_instances": len(models),
-                     "n_neurons": int(getattr(m0, "n_neurons", 0)),
-                     "fitted_scalars": int(getattr(m0, "n_params_fitted", 0)),
-                     "connectome_weights": int(getattr(m0, "n_synapse_weights", 0)),
-                     **_mean(per)})
+        rows.append(
+            {
+                "model": name,
+                "description": desc,
+                "n_instances": len(models),
+                "n_neurons": int(getattr(m0, "n_neurons", 0)),
+                "fitted_scalars": int(getattr(m0, "n_params_fitted", 0)),
+                "connectome_weights": int(getattr(m0, "n_synapse_weights", 0)),
+                **_mean(per),
+            }
+        )
 
     def table(title, cols):
         print(f"\n{title}")
@@ -240,41 +283,59 @@ def main(argv=None) -> int:
                 cells.append(_fmt(node[path[-1]], node.get(path[-1] + "_sd"), 12))
             print(f"{r['model']:<26}" + "".join(cells))
 
-    table("A. Dead reckoning, no cue (errors deg, drift deg/min, speed = bump/commanded)", [
-        ("MAE", ("dead_reckoning", "mae_deg")),
-        ("MAE noisy", ("dead_reckoning", "mae_noisy_deg")),
-        ("bump frac", ("dead_reckoning", "coherent_frac")),
-        ("drift", ("dead_reckoning", "drift_deg_per_min")),
-        ("speed@90", ("dead_reckoning", "speed_ratio_90")),
-        ("speed@180", ("dead_reckoning", "speed_ratio_180")),
-        ("us/step", ("dead_reckoning", "us_per_step")),
-    ])
-    table("B. Cue tracking, 5 Hz cue (MAE deg, lag ms)", [
-        ("MAE", ("cue_tracking", "mae_deg")),
-        ("lag", ("cue_tracking", "lag_ms")),
-        ("MAE 5deg", ("cue_tracking_noisy", "mae_deg")),
-        ("lag 5deg", ("cue_tracking_noisy", "lag_ms")),
-    ])
-    table("C. Heading memory, cue 3 s then darkness at rest (held = bump within 30 deg; "
-          "err deg, no-bump trials count as 90)", [
-        ("held@cue", ("memory", "cue_end", "held_frac")),
-        ("held@5s", ("memory", "5s", "held_frac")),
-        ("held@30s", ("memory", "30s", "held_frac")),
-        ("held@60s", ("memory", "60s", "held_frac")),
-        ("err@5s", ("memory", "5s", "err_deg")),
-        ("err@30s", ("memory", "30s", "err_deg")),
-        ("err@60s", ("memory", "60s", "err_deg")),
-        ("bump@60s", ("memory", "60s", "bump_frac")),
-    ])
-    table("D. Darkness while turning 90 deg/s for 4 s (dead reckoning)", [
-        ("held", ("dark_rotation", "4s", "held_frac")),
-        ("err", ("dark_rotation", "4s", "err_deg")),
-        ("bump", ("dark_rotation", "4s", "bump_frac")),
-    ])
+    table(
+        "A. Dead reckoning, no cue (errors deg, drift deg/min, speed = bump/commanded)",
+        [
+            ("MAE", ("dead_reckoning", "mae_deg")),
+            ("MAE noisy", ("dead_reckoning", "mae_noisy_deg")),
+            ("bump frac", ("dead_reckoning", "coherent_frac")),
+            ("drift", ("dead_reckoning", "drift_deg_per_min")),
+            ("speed@90", ("dead_reckoning", "speed_ratio_90")),
+            ("speed@180", ("dead_reckoning", "speed_ratio_180")),
+            ("us/step", ("dead_reckoning", "us_per_step")),
+        ],
+    )
+    table(
+        "B. Cue tracking, 5 Hz cue (MAE deg, lag ms)",
+        [
+            ("MAE", ("cue_tracking", "mae_deg")),
+            ("lag", ("cue_tracking", "lag_ms")),
+            ("MAE 5deg", ("cue_tracking_noisy", "mae_deg")),
+            ("lag 5deg", ("cue_tracking_noisy", "lag_ms")),
+        ],
+    )
+    table(
+        "C. Heading memory, cue 3 s then darkness at rest (held = bump within 30 deg; "
+        "err deg, no-bump trials count as 90)",
+        [
+            ("held@cue", ("memory", "cue_end", "held_frac")),
+            ("held@5s", ("memory", "5s", "held_frac")),
+            ("held@30s", ("memory", "30s", "held_frac")),
+            ("held@60s", ("memory", "60s", "held_frac")),
+            ("err@5s", ("memory", "5s", "err_deg")),
+            ("err@30s", ("memory", "30s", "err_deg")),
+            ("err@60s", ("memory", "60s", "err_deg")),
+            ("bump@60s", ("memory", "60s", "bump_frac")),
+        ],
+    )
+    table(
+        "D. Darkness while turning 90 deg/s for 4 s (dead reckoning)",
+        [
+            ("held", ("dark_rotation", "4s", "held_frac")),
+            ("err", ("dark_rotation", "4s", "err_deg")),
+            ("bump", ("dark_rotation", "4s", "bump_frac")),
+        ],
+    )
 
     by = {r["model"]: r for r in rows}
-    cmp = ("connectome", "rewired", "random", "no_recurrence", "complementary_filter",
-           "static_null")
+    cmp = (
+        "connectome",
+        "rewired",
+        "random",
+        "no_recurrence",
+        "complementary_filter",
+        "static_null",
+    )
 
     def pick(path):
         out = {}
@@ -290,8 +351,7 @@ def main(argv=None) -> int:
         "cue_tracking_mae_deg": pick(("cue_tracking", "mae_deg")),
         "cue_tracking_noisy_mae_deg": pick(("cue_tracking_noisy", "mae_deg")),
         "cue_tracking_lag_ms": pick(("cue_tracking", "lag_ms")),
-        **{f"memory_held_frac_{t}": pick(("memory", t, "held_frac"))
-           for t in ("5s", "30s", "60s")},
+        **{f"memory_held_frac_{t}": pick(("memory", t, "held_frac")) for t in ("5s", "30s", "60s")},
         **{f"memory_err_deg_{t}": pick(("memory", t, "err_deg")) for t in ("5s", "30s", "60s")},
         "memory_bump_frac_60s": pick(("memory", "60s", "bump_frac")),
         "dark_rotation_err_deg": pick(("dark_rotation", "4s", "err_deg")),
@@ -299,34 +359,39 @@ def main(argv=None) -> int:
     }
     result = {
         "about": "flybrain_models.compass_benchmark output; regenerate with "
-                 "`uv run python -m flybrain_models.compass_benchmark`",
+        "`uv run python -m flybrain_models.compass_benchmark`",
         "date": _dt.date.today().isoformat(),
         "machine": f"{platform.system()} {platform.machine()} python {platform.python_version()}",
         "key_numbers": key_numbers,
         "key_numbers_doc": {
             "models": "connectome = shipped RingAttractor; rewired / random = mean over 5 / 3 "
-                      "control seeds with the connectome's scalars; no_recurrence = ablation "
-                      "(W = 0); complementary_filter = GyroIntegrator; static_null = never moves",
+            "control seeds with the connectome's scalars; no_recurrence = ablation "
+            "(W = 0); complementary_filter = GyroIntegrator; static_null = never moves",
             "dead_reckoning_mae_deg": "test A: mean abs heading error, gyro only (deg)",
             "cue_tracking_mae_deg": "test B: mean abs error with an exact 5 Hz cue (deg)",
             "cue_tracking_noisy_mae_deg": "test B with 5 deg sd noise on the cue (deg)",
             "cue_tracking_lag_ms": "test B: delay that best aligns decoded and true heading",
             "memory_held_frac_{5s,30s,60s}": "test C: fraction of 24 headings where a bump "
-                                             "(confidence > 0.3) is within 30 deg of the last "
-                                             "cue after that long in darkness at rest",
+            "(confidence > 0.3) is within 30 deg of the last "
+            "cue after that long in darkness at rest",
             "memory_err_deg_{5s,30s,60s}": "test C: mean abs error vs the last cue; trials "
-                                           "without a bump count as 90 deg (chance)",
+            "without a bump count as 90 deg (chance)",
             "memory_bump_frac_60s": "test C: fraction of trials with any bump after 60 s",
             "dark_rotation_err_deg": "test D: error after turning 90 deg/s for 4 s in darkness",
             "dark_rotation_held_frac": "test D: fraction within 30 deg with a bump",
         },
         "protocols": {
             "cue": "landmark = true heading, sampled at 5 Hz; RingAttractor holds each sample "
-                   "for 0.25 s (CUE_HOLD_S), so the stream acts as a continuous cue",
+            "for 0.25 s (CUE_HOLD_S), so the stream acts as a continuous cue",
             "memory": "reset 90 deg away from the target, cue 3 s at 5 Hz, then no cue",
-            "trajectories": [{"name": t.name, "duration_s": round(t.duration, 2),
-                              "max_abs_deg_s": round(float(np.degrees(np.abs(t.omega).max())),
-                                                     1)} for t in trajs],
+            "trajectories": [
+                {
+                    "name": t.name,
+                    "duration_s": round(t.duration, 2),
+                    "max_abs_deg_s": round(float(np.degrees(np.abs(t.omega).max())), 1),
+                }
+                for t in trajs
+            ],
         },
         "params_connectome": load_params("connectome"),
         "results": rows,

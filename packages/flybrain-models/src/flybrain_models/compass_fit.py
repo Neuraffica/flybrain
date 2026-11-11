@@ -51,10 +51,29 @@ CONFIGS["point_blocks"] = {**CONFIGS["point"], "fit_blocks": True}
 CONFIGS["pen_dendrites_blocks"] = {**CONFIGS["pen_dendrites"], "fit_blocks": True}
 
 # Blocks with at least 5 connected pairs in the connectome (others keep gain 1 x type gain 1).
-BLOCKS = ("EPG->EPG", "EPG->PEN_a", "EPG->PEN_b", "EPG->PEG", "EPG->Delta7", "PEN_a->EPG",
-          "PEN_a->PEN_a", "PEN_a->PEN_b", "PEN_a->PEG", "PEN_b->EPG", "PEN_b->PEN_a",
-          "PEN_b->PEN_b", "PEN_b->PEG", "PEG->EPG", "PEG->PEN_b", "PEG->Delta7",
-          "Delta7->EPG", "Delta7->PEN_a", "Delta7->PEN_b", "Delta7->PEG", "Delta7->Delta7")
+BLOCKS = (
+    "EPG->EPG",
+    "EPG->PEN_a",
+    "EPG->PEN_b",
+    "EPG->PEG",
+    "EPG->Delta7",
+    "PEN_a->EPG",
+    "PEN_a->PEN_a",
+    "PEN_a->PEN_b",
+    "PEN_a->PEG",
+    "PEN_b->EPG",
+    "PEN_b->PEN_a",
+    "PEN_b->PEN_b",
+    "PEN_b->PEG",
+    "PEG->EPG",
+    "PEG->PEN_b",
+    "PEG->Delta7",
+    "Delta7->EPG",
+    "Delta7->PEN_a",
+    "Delta7->PEN_b",
+    "Delta7->PEG",
+    "Delta7->Delta7",
+)
 DEFAULT_CONFIG = "point"
 
 FIXED = {"w_scale": 100.0, "cue_gain": 1.0, "cue_kappa": 2.0}
@@ -71,15 +90,16 @@ X0 = np.array([0.0, -1.0, -1.0, 0.0, 1.0, -0.5, 0.5, -0.5, 1.0, -0.5, math.log(0
 
 def space_for(config: str) -> list[tuple[str, str]]:
     if CONFIGS[config].get("fit_blocks"):
-        return [(f"block_gain.{b}", "log") for b in BLOCKS] + SPACE[len(TYPES):]
+        return [(f"block_gain.{b}", "log") for b in BLOCKS] + SPACE[len(TYPES) :]
     return SPACE
 
 
 def x0_for(config: str) -> np.ndarray:
     if CONFIGS[config].get("fit_blocks"):
         pre = {t: X0[i] for i, t in enumerate(TYPES)}
-        return np.concatenate([[pre[b.split("->")[0]] for b in BLOCKS], X0[len(TYPES):]])
+        return np.concatenate([[pre[b.split("->")[0]] for b in BLOCKS], X0[len(TYPES) :]])
     return X0.copy()
+
 
 PROBE_W_DEG = (0, 20, 60, 120, 200, -20, -60, -120, -200)
 
@@ -87,15 +107,21 @@ PROBE_W_DEG = (0, 20, 60, 120, 200, -20, -60, -120, -200)
 CUE_SPACE: list[tuple[str, str]] = [("cue_gain", "log"), ("cue_kappa", "log")]
 CUE_X0 = np.array([0.0, math.log(3.0)])
 # Memory-fit headings: 8 headings offset from the benchmark's 24 so they are not reused.
-MEMORY_FIT_HEADINGS = tuple(float(x) for x in np.linspace(-np.pi, np.pi, 8, endpoint=False)
-                            + 0.2)
+MEMORY_FIT_HEADINGS = tuple(float(x) for x in np.linspace(-np.pi, np.pi, 8, endpoint=False) + 0.2)
 
 
-def decode(theta: np.ndarray, config: str, ring_direction: float = 1.0,
-           tau_max: float | None = None) -> dict:
+def decode(
+    theta: np.ndarray, config: str, ring_direction: float = 1.0, tau_max: float | None = None
+) -> dict:
     cfg = {k: v for k, v in CONFIGS[config].items() if k != "fit_blocks"}
-    p: dict = {**FIXED, **json.loads(json.dumps(cfg)), "gain": {}, "bias": {},
-               "ring_direction": ring_direction, "tau_max": tau_max}
+    p: dict = {
+        **FIXED,
+        **json.loads(json.dumps(cfg)),
+        "gain": {},
+        "bias": {},
+        "ring_direction": ring_direction,
+        "tau_max": tau_max,
+    }
     space = space_for(config)
     if len(theta) == len(space) + len(CUE_SPACE):
         space = space + CUE_SPACE
@@ -137,8 +163,10 @@ def traj_loss(params: dict, pack, trajs, window_s: float = 2.0) -> float:
         true = t.heading
         k = round(window_s / t.dt)
         win = (dec[k:] - dec[:-k]) - (true[k:] - true[:-k])
-        vals.append(np.degrees(np.abs(win).mean() + 0.25 * np.abs(out["error"]).mean())
-                    + 100.0 * np.maximum(0.0, 0.5 - out["confidence"]).mean())
+        vals.append(
+            np.degrees(np.abs(win).mean() + 0.25 * np.abs(out["error"]).mean())
+            + 100.0 * np.maximum(0.0, 0.5 - out["confidence"]).mean()
+        )
     return float(np.mean(vals))
 
 
@@ -211,8 +239,9 @@ def _eval(args) -> float:
     return val if np.isfinite(val) else 1e6
 
 
-def cma_es(f_batch, x0: np.ndarray, sigma0: float, iters: int, popsize: int, seed: int,
-           log=print) -> tuple[np.ndarray, float, list[float]]:
+def cma_es(
+    f_batch, x0: np.ndarray, sigma0: float, iters: int, popsize: int, seed: int, log=print
+) -> tuple[np.ndarray, float, list[float]]:
     """Minimal (mu/mu_w, lambda)-CMA-ES (Hansen's tutorial defaults)."""
     rng = np.random.default_rng(seed)
     n = len(x0)
@@ -245,22 +274,37 @@ def cma_es(f_batch, x0: np.ndarray, sigma0: float, iters: int, popsize: int, see
         mean = mean + sigma * y_w
         invsqrt = B @ np.diag(1 / D) @ B.T
         ps = (1 - cs) * ps + math.sqrt(cs * (2 - cs) * mueff) * invsqrt @ y_w
-        hsig = (np.linalg.norm(ps) / math.sqrt(1 - (1 - cs) ** (2 * (g + 1))) / chin
-                < 1.4 + 2 / (n + 1))
+        hsig = np.linalg.norm(ps) / math.sqrt(1 - (1 - cs) ** (2 * (g + 1))) / chin < 1.4 + 2 / (
+            n + 1
+        )
         pc = (1 - cc) * pc + hsig * math.sqrt(cc * (2 - cc) * mueff) * y_w
-        C = ((1 - c1 - cmu) * C + c1 * (np.outer(pc, pc) + (1 - hsig) * cc * (2 - cc) * C)
-             + cmu * (y_sel.T * w) @ y_sel)
+        C = (
+            (1 - c1 - cmu) * C
+            + c1 * (np.outer(pc, pc) + (1 - hsig) * cc * (2 - cc) * C)
+            + cmu * (y_sel.T * w) @ y_sel
+        )
         sigma *= math.exp((cs / damps) * (np.linalg.norm(ps) / chin - 1))
         if (g + 1) % 10 == 0 or g == 0:
-            log(f"  gen {g + 1:3d}  best {F[idx[0]]:8.3f}  median {np.median(F):8.3f}  "
-                f"overall {best_f:8.3f}  sigma {sigma:.3f}")
+            log(
+                f"  gen {g + 1:3d}  best {F[idx[0]]:8.3f}  median {np.median(F):8.3f}  "
+                f"overall {best_f:8.3f}  sigma {sigma:.3f}"
+            )
     return best_x, best_f, hist
 
 
-def fit(config: str = DEFAULT_CONFIG, variant: str = "connectome", seed: int = 0,
-        probe_iters: int = 60, traj_iters: int = 60, popsize: int = 24,
-        x0: np.ndarray | None = None, workers: int | None = None, log=print,
-        tau_max: float | None = None, jitter_seed: int | None = None) -> dict:
+def fit(
+    config: str = DEFAULT_CONFIG,
+    variant: str = "connectome",
+    seed: int = 0,
+    probe_iters: int = 60,
+    traj_iters: int = 60,
+    popsize: int = 24,
+    x0: np.ndarray | None = None,
+    workers: int | None = None,
+    log=print,
+    tau_max: float | None = None,
+    jitter_seed: int | None = None,
+) -> dict:
     """Two-stage fit (velocity probe, then trajectories). ``tau_max`` lowers the time-constant
     bound; ``jitter_seed`` perturbs the default start (gains and biases, N(0, 0.7)) and starts
     tau at 50 ms, a multi-start device."""
@@ -275,21 +319,18 @@ def fit(config: str = DEFAULT_CONFIG, variant: str = "connectome", seed: int = 0
     t0 = time.time()
     workers = workers or min(8, os.cpu_count() or 1)
     stages = {}
-    with ProcessPoolExecutor(workers, initializer=_init_worker,
-                             initargs=(variant, seed)) as ex:
+    with ProcessPoolExecutor(workers, initializer=_init_worker, initargs=(variant, seed)) as ex:
         for stage, iters, sigma in (("probe", probe_iters, 0.8), ("traj", traj_iters, 0.3)):
             if iters <= 0:
                 continue
             log(f"[{config}/{variant}/seed{seed}] stage {stage}: {iters} generations")
 
             def f_batch(X, stage=stage):
-                return list(ex.map(_eval, [(xi, config, ring_dir, stage, tau_max)
-                                           for xi in X]))
+                return list(ex.map(_eval, [(xi, config, ring_dir, stage, tau_max) for xi in X]))
 
             cma_seed = seed if jitter_seed is None else jitter_seed
             x, fbest, hist = cma_es(f_batch, x, sigma, iters, popsize, seed=cma_seed, log=log)
-            stages[stage] = {"best_loss": round(fbest, 4),
-                             "history": [round(h, 3) for h in hist]}
+            stages[stage] = {"best_loss": round(fbest, 4), "history": [round(h, 3) for h in hist]}
     params = decode(x, config, ring_dir, tau_max)
     return {
         "params": params,
@@ -306,9 +347,16 @@ def fit(config: str = DEFAULT_CONFIG, variant: str = "connectome", seed: int = 0
     }
 
 
-def fit_memory(base_key: str, variant: str = "connectome", seed: int = 0,
-               joint: bool = True, iters: int = 50, popsize: int = 24,
-               workers: int | None = None, log=print) -> dict:
+def fit_memory(
+    base_key: str,
+    variant: str = "connectome",
+    seed: int = 0,
+    joint: bool = True,
+    iters: int = 50,
+    popsize: int = 24,
+    workers: int | None = None,
+    log=print,
+) -> dict:
     """Fit the 2 cue scalars (``joint=False``: the 13 scalars of ``base_key`` stay fixed) or
     all 15 jointly, starting from ``base_key``, on ``memory_loss``."""
 
@@ -323,15 +371,17 @@ def fit_memory(base_key: str, variant: str = "connectome", seed: int = 0,
     workers = workers or min(8, os.cpu_count() or 1)
     stage = "memory" if joint else "cue_only"
     x0 = np.concatenate([base_theta, CUE_X0]) if joint else CUE_X0.copy()
-    with ProcessPoolExecutor(workers, initializer=_init_worker,
-                             initargs=(variant, seed, None if joint else base_theta)) as ex:
+    with ProcessPoolExecutor(
+        workers, initializer=_init_worker, initargs=(variant, seed, None if joint else base_theta)
+    ) as ex:
         log(f"[{config}/{variant}/seed{seed}] stage {stage} from {base_key}: {iters} gens")
 
         def f_batch(X):
             return list(ex.map(_eval, [(xi, config, ring_dir, stage, tau_max) for xi in X]))
 
-        x, fbest, hist = cma_es(f_batch, x0, 0.5 if joint else 1.0, iters, popsize, seed=seed,
-                                log=log)
+        x, fbest, hist = cma_es(
+            f_batch, x0, 0.5 if joint else 1.0, iters, popsize, seed=seed, log=log
+        )
     full = x if joint else np.concatenate([base_theta, x])
     params = decode(full, config, ring_dir, tau_max)
     return {
@@ -344,8 +394,7 @@ def fit_memory(base_key: str, variant: str = "connectome", seed: int = 0,
         "base_fit": base_key,
         "objective": "memory_loss (cue + darkness)",
         "joint": joint,
-        "stages": {stage: {"best_loss": round(fbest, 4),
-                           "history": [round(h, 3) for h in hist]}},
+        "stages": {stage: {"best_loss": round(fbest, 4), "history": [round(h, 3) for h in hist]}},
         "popsize": popsize,
         "fit_seconds": round(time.time() - t0, 1),
         "date": _dt.date.today().isoformat(),
@@ -388,11 +437,11 @@ def default_key(config: str, variant: str, seed: int) -> str:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--config", default=DEFAULT_CONFIG, choices=sorted(CONFIGS))
-    ap.add_argument("--variant", default="connectome",
-                    choices=["connectome", "rewired", "random"])
+    ap.add_argument("--variant", default="connectome", choices=["connectome", "rewired", "random"])
     ap.add_argument("--seed", type=int, default=0, help="control seed (also seeds CMA-ES)")
     ap.add_argument("--probe-iters", type=int, default=60)
     ap.add_argument("--traj-iters", type=int, default=60)
@@ -401,21 +450,40 @@ def main(argv=None) -> int:
     ap.add_argument("--key", default=None, help="key in compass_params.json")
     ap.add_argument("--tau-max", type=float, default=None)
     ap.add_argument("--jitter-seed", type=int, default=None)
-    ap.add_argument("--memory-from", default=None, metavar="BASE_KEY",
-                    help="fit the cue scalars on the cue+darkness objective starting from "
-                         "this fit (all 15 scalars jointly unless --cue-only)")
+    ap.add_argument(
+        "--memory-from",
+        default=None,
+        metavar="BASE_KEY",
+        help="fit the cue scalars on the cue+darkness objective starting from "
+        "this fit (all 15 scalars jointly unless --cue-only)",
+    )
     ap.add_argument("--cue-only", action="store_true")
     ap.add_argument("--iters", type=int, default=50, help="generations for --memory-from")
     args = ap.parse_args(argv)
     if args.memory_from:
-        res = fit_memory(args.memory_from, args.variant, args.seed, not args.cue_only,
-                         args.iters, args.popsize, workers=args.workers)
+        res = fit_memory(
+            args.memory_from,
+            args.variant,
+            args.seed,
+            not args.cue_only,
+            args.iters,
+            args.popsize,
+            workers=args.workers,
+        )
         print(json.dumps(res["params"], indent=1))
         save_fit(args.key or f"{args.variant}_seed{args.seed}_memory", res)
         return 0
-    res = fit(args.config, args.variant, args.seed, args.probe_iters, args.traj_iters,
-              args.popsize, workers=args.workers, tau_max=args.tau_max,
-              jitter_seed=args.jitter_seed)
+    res = fit(
+        args.config,
+        args.variant,
+        args.seed,
+        args.probe_iters,
+        args.traj_iters,
+        args.popsize,
+        workers=args.workers,
+        tau_max=args.tau_max,
+        jitter_seed=args.jitter_seed,
+    )
     print(json.dumps(res["params"], indent=1))
     save_fit(args.key or default_key(args.config, args.variant, args.seed), res)
     return 0

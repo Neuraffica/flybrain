@@ -13,8 +13,11 @@ def pack():
 
 
 def block_sums(p: CircuitPack) -> dict:
-    return {(a, b): int(p.counts[np.ix_(p.index(b), p.index(a))].sum())
-            for a in p.cell_types for b in p.cell_types}
+    return {
+        (a, b): int(p.counts[np.ix_(p.index(b), p.index(a))].sum())
+        for a in p.cell_types
+        for b in p.cell_types
+    }
 
 
 def test_pack_shipped_and_shapes(pack):
@@ -99,7 +102,8 @@ def test_rewired_preserves_blocks_and_degrees(pack):
     # each presynaptic neuron keeps its own synapse counts
     for j in range(pack.n_neurons):
         assert sorted(pack.counts[:, j][pack.counts[:, j] > 0]) == sorted(
-            r.counts[:, j][r.counts[:, j] > 0])
+            r.counts[:, j][r.counts[:, j] > 0]
+        )
     assert np.array_equal(r.by_neuropil.sum(0), r.counts)
     moved = (r.counts > 0) & (pack.counts == 0)
     assert moved.sum() > 0.3 * pack.n_edges  # wiring actually scrambled

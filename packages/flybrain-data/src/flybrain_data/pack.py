@@ -87,8 +87,10 @@ class CircuitPack:
         )
 
     def summary(self) -> str:
-        head = (f"CircuitPack {self.name!r} ({self.variant}): {self.n_neurons} neurons, "
-                f"{self.n_edges} edges, {int(self.counts.sum())} synapses")
+        head = (
+            f"CircuitPack {self.name!r} ({self.variant}): {self.n_neurons} neurons, "
+            f"{self.n_edges} edges, {int(self.counts.sum())} synapses"
+        )
         lines = [head]
         for t in self.cell_types:
             idx = self.index(t)
@@ -151,9 +153,14 @@ class CircuitPack:
                 neuropils=nps,
             )
 
-    def replace_counts(self, counts: np.ndarray, sign: np.ndarray | None = None,
-                       variant: str = "", by_neuropil: np.ndarray | None = None,
-                       **meta) -> CircuitPack:
+    def replace_counts(
+        self,
+        counts: np.ndarray,
+        sign: np.ndarray | None = None,
+        variant: str = "",
+        by_neuropil: np.ndarray | None = None,
+        **meta,
+    ) -> CircuitPack:
         return CircuitPack(
             name=self.name,
             counts=counts.astype(np.int32),
@@ -179,8 +186,9 @@ def pack_path(name: str) -> Path:
     return Path(str(resources.files("flybrain_data") / PACK_DIR / f"{name}.npz"))
 
 
-def load_pack(name: str = "central_complex", variant: str = "connectome",
-              seed: int = 0) -> CircuitPack:
+def load_pack(
+    name: str = "central_complex", variant: str = "connectome", seed: int = 0
+) -> CircuitPack:
     """Load a shipped circuit pack, optionally as a ``rewired`` or ``random`` control."""
     path = pack_path(name)
     if not path.exists():

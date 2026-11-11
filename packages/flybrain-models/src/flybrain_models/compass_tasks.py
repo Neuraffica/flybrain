@@ -51,15 +51,17 @@ def piecewise(segments: list[tuple[float, float]], dt: float) -> np.ndarray:
     return _smooth(raw, dt)
 
 
-def add_noise(omega: np.ndarray, rng: np.random.Generator, white_deg_s: float = 10.0,
-              bias_deg_s: float = 0.5) -> np.ndarray:
+def add_noise(
+    omega: np.ndarray, rng: np.random.Generator, white_deg_s: float = 10.0, bias_deg_s: float = 0.5
+) -> np.ndarray:
     """MEMS-gyro-like reading: white noise plus a small constant bias."""
     bias = bias_deg_s * DEG * rng.choice([-1.0, 1.0])
     return omega + bias + rng.normal(0.0, white_deg_s * DEG, size=omega.shape)
 
 
-def random_segments(rng: np.random.Generator, duration: float,
-                    vmax_deg_s: float = 200.0) -> list[tuple[float, float]]:
+def random_segments(
+    rng: np.random.Generator, duration: float, vmax_deg_s: float = 200.0
+) -> list[tuple[float, float]]:
     segs, t = [], 0.0
     while t < duration:
         kind = rng.choice(["stop", "slow", "fast"], p=[0.25, 0.4, 0.35])
@@ -75,16 +77,18 @@ def random_segments(rng: np.random.Generator, duration: float,
     return segs
 
 
-def training_set(seed: int = 123, n: int = 6, duration: float = 20.0,
-                 dt: float = 0.02) -> list[Trajectory]:
+def training_set(
+    seed: int = 123, n: int = 6, duration: float = 20.0, dt: float = 0.02
+) -> list[Trajectory]:
     """Random turn sequences used for fitting (disjoint seeds from the benchmark)."""
     rng = np.random.default_rng(seed)
     out = []
     for i in range(n):
         om = piecewise(random_segments(rng, duration), dt)
         meas = add_noise(om, rng) if i % 2 else om.copy()
-        out.append(Trajectory(f"train{i}", dt, om, meas, heading0=float(rng.uniform(-np.pi,
-                                                                                      np.pi))))
+        out.append(
+            Trajectory(f"train{i}", dt, om, meas, heading0=float(rng.uniform(-np.pi, np.pi)))
+        )
     return out
 
 
@@ -96,8 +100,17 @@ def benchmark_set(dt: float = 0.02, seed: int = 2026) -> list[Trajectory]:
         "slow_cw": [(0, 1), (-30, 12), (0, 2)],
         "fast_ccw": [(0, 1), (180, 6), (0, 2)],
         "fast_cw": [(0, 1), (-180, 6), (0, 2)],
-        "stop_and_go": [(0, 1), (90, 2), (0, 3), (-120, 2), (0, 3), (45, 4), (0, 3),
-                        (-200, 1.5), (0, 3)],
+        "stop_and_go": [
+            (0, 1),
+            (90, 2),
+            (0, 3),
+            (-120, 2),
+            (0, 3),
+            (45, 4),
+            (0, 3),
+            (-200, 1.5),
+            (0, 3),
+        ],
         "mixed": random_segments(np.random.default_rng(seed), 40.0),
     }
     out = []
@@ -109,15 +122,21 @@ def benchmark_set(dt: float = 0.02, seed: int = 2026) -> list[Trajectory]:
     return out
 
 
-def stationary(duration: float = 60.0, dt: float = 0.02, noisy: bool = False,
-               seed: int = 7) -> Trajectory:
+def stationary(
+    duration: float = 60.0, dt: float = 0.02, noisy: bool = False, seed: int = 7
+) -> Trajectory:
     om = np.zeros(round(duration / dt))
     meas = add_noise(om, np.random.default_rng(seed)) if noisy else om.copy()
     return Trajectory("stationary" + ("+noise" if noisy else ""), dt, om, meas)
 
 
-def with_cue(traj: Trajectory, rate_hz: float = 5.0, noise_deg: float = 0.0,
-             seed: int = 0, until_s: float | None = None) -> Trajectory:
+def with_cue(
+    traj: Trajectory,
+    rate_hz: float = 5.0,
+    noise_deg: float = 0.0,
+    seed: int = 0,
+    until_s: float | None = None,
+) -> Trajectory:
     """Copy of ``traj`` with a landmark cue = true heading sampled at ``rate_hz`` (plus
     Gaussian noise), None on the other steps; no cue after ``until_s`` seconds."""
     rng = np.random.default_rng(seed)
@@ -129,8 +148,9 @@ def with_cue(traj: Trajectory, rate_hz: float = 5.0, noise_deg: float = 0.0,
         idx = idx[idx * traj.dt < until_s]
     cue[idx] = traj.heading[idx] + rng.normal(0.0, noise_deg * DEG, size=len(idx))
     suffix = f"+cue{rate_hz:g}Hz" + (f"~{noise_deg:g}deg" if noise_deg else "")
-    return Trajectory(traj.name + suffix, traj.dt, traj.omega, traj.measured, traj.heading0,
-                      cue=cue)
+    return Trajectory(
+        traj.name + suffix, traj.dt, traj.omega, traj.measured, traj.heading0, cue=cue
+    )
 
 
 def run(model, traj: Trajectory, conf_threshold: float = 0.3) -> dict[str, np.ndarray]:
@@ -145,13 +165,20 @@ def run(model, traj: Trajectory, conf_threshold: float = 0.3) -> dict[str, np.nd
         dec[i] = model.step(float(traj.measured[i]), traj.dt, c)
         conf[i] = model.confidence
     err = np.angle(np.exp(1j * (dec - traj.heading)))
-    return {"decoded": dec, "error": err, "confidence": conf,
-            "coherent": conf > conf_threshold}
+    return {"decoded": dec, "error": err, "confidence": conf, "coherent": conf > conf_threshold}
 
 
-def memory_trial(model, heading: float, cue_s: float = 3.0, dark_s: tuple = (5.0, 30.0, 60.0),
-                 dt: float = 0.02, rate_hz: float = 5.0, start: float | None = None,
-                 omega_dark: float = 0.0, conf_threshold: float = 0.3) -> dict:
+def memory_trial(
+    model,
+    heading: float,
+    cue_s: float = 3.0,
+    dark_s: tuple = (5.0, 30.0, 60.0),
+    dt: float = 0.02,
+    rate_hz: float = 5.0,
+    start: float | None = None,
+    omega_dark: float = 0.0,
+    conf_threshold: float = 0.3,
+) -> dict:
     """Heading memory. Reset at ``start`` (default: heading + 90 deg, so the cue has to move
     the bump), show the cue at ``heading`` at ``rate_hz`` for ``cue_s``, then darkness for
     max(dark_s) seconds while rotating at ``omega_dark`` (rad/s; 0 = stationary). Returns
@@ -161,8 +188,7 @@ def memory_trial(model, heading: float, cue_s: float = 3.0, dark_s: tuple = (5.0
     n_cue = round(cue_s / dt)
     for i in range(n_cue):
         model.step(0.0, dt, heading if i % every == 0 else None)
-    out = {"cue_end": (float(np.angle(np.exp(1j * (model.heading - heading)))),
-                       model.confidence)}
+    out = {"cue_end": (float(np.angle(np.exp(1j * (model.heading - heading)))), model.confidence)}
     t, true = 0.0, heading
     for target in sorted(dark_s):
         while t < target - 1e-9:

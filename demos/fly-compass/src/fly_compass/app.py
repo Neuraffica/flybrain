@@ -40,6 +40,9 @@ class CompassApp:
         if (bittle is None) == (replay is None):
             raise ValueError("exactly one of bittle / replay is required")
         self.loop = loop
+        # "stream" = firmware prints continuously ('gP'); "poll" = one 'gp' per reading.
+        self.imu_mode = "stream"
+        self.imu_rate_hz = 20.0
         self.hub = hub or FrameHub()
         self.bittle = bittle
         self.mock = mock
@@ -142,7 +145,10 @@ class CompassApp:
         if b is None:
             return
         b.stand(balance=False)
-        b.stream_imu(True)
+        if self.imu_mode == "poll":
+            b.poll_imu(self.imu_rate_hz)
+        else:
+            b.stream_imu(True)
 
     def status(self, now: float) -> dict[str, Any]:
         st: dict[str, Any] = {"source": self.source_label, "mock": self.mock is not None}

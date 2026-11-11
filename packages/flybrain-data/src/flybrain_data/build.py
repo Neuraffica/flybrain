@@ -59,8 +59,7 @@ def load_annotations(path: Path):
     import pandas as pd
 
     cols = ["root_id", "cell_type", "side", "top_nt", "hemibrain_type"]
-    return pd.read_csv(path, sep="\t", usecols=cols, dtype={"root_id": "int64"},
-                       low_memory=False)
+    return pd.read_csv(path, sep="\t", usecols=cols, dtype={"root_id": "int64"}, low_memory=False)
 
 
 def load_edges(path: Path, root_ids: np.ndarray):
@@ -69,16 +68,25 @@ def load_edges(path: Path, root_ids: np.ndarray):
     import pyarrow.compute as pc
     from pyarrow import feather
 
-    table = feather.read_table(path, columns=["pre_pt_root_id", "post_pt_root_id",
-                                              "neuropil", "syn_count"], memory_map=True)
+    table = feather.read_table(
+        path,
+        columns=["pre_pt_root_id", "post_pt_root_id", "neuropil", "syn_count"],
+        memory_map=True,
+    )
     ids = pa.array(root_ids, type=table.schema.field("pre_pt_root_id").type)
-    mask = pc.and_(pc.is_in(table["pre_pt_root_id"], value_set=ids),
-                   pc.is_in(table["post_pt_root_id"], value_set=ids))
+    mask = pc.and_(
+        pc.is_in(table["pre_pt_root_id"], value_set=ids),
+        pc.is_in(table["post_pt_root_id"], value_set=ids),
+    )
     return table.filter(mask).to_pandas()
 
 
-def build_pack(name: str = "central_complex", data_dir: Path | None = None,
-               out: Path | None = None, verbose: bool = True) -> CircuitPack:
+def build_pack(
+    name: str = "central_complex",
+    data_dir: Path | None = None,
+    out: Path | None = None,
+    verbose: bool = True,
+) -> CircuitPack:
     spec = SPECS[name]
     data_dir = Path(data_dir) if data_dir else default_data_dir()
     ann_path = data_dir / FILES["annotations"].name
@@ -130,22 +138,26 @@ def build_pack(name: str = "central_complex", data_dir: Path | None = None,
 
     # Order the ring neurons by angle inside their (type, side) group for readability.
     side_rank = (sel.side != "left").to_numpy().astype(int)
-    order = np.lexsort((ids, side_rank, np.nan_to_num(ring_angle, nan=99.0),
-                        sel.type_rank.to_numpy()))
+    order = np.lexsort(
+        (ids, side_rank, np.nan_to_num(ring_angle, nan=99.0), sel.type_rank.to_numpy())
+    )
     counts = counts[np.ix_(order, order)]
     by_group = by_group[:, order][:, :, order]
     ids, cell_type, side, nt, sign, ring_angle = (
-        a[order] for a in (ids, cell_type, side, nt, sign, ring_angle))
+        a[order] for a in (ids, cell_type, side, nt, sign, ring_angle)
+    )
 
     np_syn = {k: int(v.sum()) for k, v in sorted(by_np.items(), key=lambda kv: -kv[1].sum())}
     meta = {
         "dataset": "FlyWire FAFB proofread connections v783",
         "description": spec.description,
         "cell_types": list(spec.cell_types),
-        "weight": ("synapse count summed over all neuropils for each (pre, post) pair, "
-                   "multiplied by the sign of the presynaptic neuron's predicted "
-                   "neurotransmitter (top_nt): acetylcholine +1, GABA/glutamate -1, "
-                   "other/unknown +1 (Shiu et al. 2024 convention)"),
+        "weight": (
+            "synapse count summed over all neuropils for each (pre, post) pair, "
+            "multiplied by the sign of the presynaptic neuron's predicted "
+            "neurotransmitter (top_nt): acetylcholine +1, GABA/glutamate -1, "
+            "other/unknown +1 (Shiu et al. 2024 convention)"
+        ),
         "matrix_convention": "W[post, pre]",
         "min_synapses": spec.min_synapses,
         "threshold_rule": f"pairs with summed synapse count >= {spec.min_synapses} kept",
@@ -155,14 +167,13 @@ def build_pack(name: str = "central_complex", data_dir: Path | None = None,
         "synapses_after_threshold": int(counts.sum()),
         "synapses_by_neuropil": np_syn,
         "side": "soma side from the annotation table; for these types it is the "
-                "protocerebral-bridge side",
+        "protocerebral-bridge side",
         "ring_angle": ring_meta,
         "built": _dt.date.today().isoformat(),
         "sources": {
             "connections": f"{ZENODO_RECORD} ({FILES['connections'].name}, md5 "
-                           f"{FILES['connections'].md5})",
-            "annotations": f"{ANNOTATIONS_REPO} (supplemental_files/"
-                           f"{FILES['annotations'].name})",
+            f"{FILES['connections'].md5})",
+            "annotations": f"{ANNOTATIONS_REPO} (supplemental_files/{FILES['annotations'].name})",
         },
         "license": "CC BY 4.0",
         "attribution": CITATION,
@@ -170,9 +181,19 @@ def build_pack(name: str = "central_complex", data_dir: Path | None = None,
     io = input_fraction(data_dir, ids, cell_type)
     if io is not None:
         meta["input_fraction_by_neuropil"] = io
-    pack = CircuitPack(name=name, counts=counts, sign=sign, root_id=ids,
-                       cell_type=cell_type, side=side, nt=nt, ring_angle=ring_angle,
-                       metadata=meta, by_neuropil=by_group, neuropils=NEUROPIL_GROUPS)
+    pack = CircuitPack(
+        name=name,
+        counts=counts,
+        sign=sign,
+        root_id=ids,
+        cell_type=cell_type,
+        side=side,
+        nt=nt,
+        ring_angle=ring_angle,
+        metadata=meta,
+        by_neuropil=by_group,
+        neuropils=NEUROPIL_GROUPS,
+    )
     path = pack.save(out or pack_path(name))
     if verbose:
         print(pack.summary())
@@ -201,12 +222,14 @@ def input_fraction(data_dir: Path, ids: np.ndarray, cell_type: np.ndarray) -> di
         t = feather.read_table(path, memory_map=True)
         t = t.filter(pc.is_in(t[col], value_set=pa.array(ids))).to_pandas()
         for rid, npl, cnt in zip(t[col], t["neuropil"], t["count"], strict=True):
-            g = next((x for x in NEUROPIL_GROUPS[:-1] if str(npl).upper().startswith(x)),
-                     "other")
+            g = next((x for x in NEUROPIL_GROUPS[:-1] if str(npl).upper().startswith(x)), "other")
             tot.setdefault((tmap[rid], g), [0, 0])[j] += int(cnt)
     for (ct, g), (npre, npost) in sorted(tot.items()):
-        out.setdefault(ct, {})[g] = {"pre": npre, "post": npost,
-                                     "input_fraction": round(npost / max(npre + npost, 1), 3)}
+        out.setdefault(ct, {})[g] = {
+            "pre": npre,
+            "post": npost,
+            "input_fraction": round(npost / max(npre + npost, 1), 3),
+        }
     return out
 
 
@@ -218,8 +241,13 @@ def _neuropil_counts(by_np: dict[str, np.ndarray], prefix: str, shape) -> np.nda
     return out
 
 
-def infer_ring(counts: np.ndarray, by_np: dict[str, np.ndarray], cell_type: np.ndarray,
-               side: np.ndarray, ring_type: str) -> tuple[np.ndarray, dict]:
+def infer_ring(
+    counts: np.ndarray,
+    by_np: dict[str, np.ndarray],
+    cell_type: np.ndarray,
+    side: np.ndarray,
+    ring_type: str,
+) -> tuple[np.ndarray, dict]:
     """Ring angles for ``ring_type`` neurons from connectivity (see ``ring.py``)."""
     rows = np.flatnonzero(cell_type == ring_type)
     phase, diag = spectral_ring(partner_profiles(counts, rows))
@@ -233,13 +261,10 @@ def infer_ring(counts: np.ndarray, by_np: dict[str, np.ndarray], cell_type: np.n
         if sub[rows].sum() + sub[:, rows].sum() == 0:
             continue
         ph, d = spectral_ring(partner_profiles(sub, rows))
-        checks[label] = {"circular_corr_with_total": round(circular_corr(ph, phase), 3),
-                         "eigen": d}
+        checks[label] = {"circular_corr_with_total": round(circular_corr(ph, phase), 3), "eigen": d}
     if "EB_only" in checks and "PB_only" in checks:
-        eb = spectral_ring(partner_profiles(_neuropil_counts(by_np, "EB", counts.shape),
-                                            rows))[0]
-        pb = spectral_ring(partner_profiles(_neuropil_counts(by_np, "PB", counts.shape),
-                                            rows))[0]
+        eb = spectral_ring(partner_profiles(_neuropil_counts(by_np, "EB", counts.shape), rows))[0]
+        pb = spectral_ring(partner_profiles(_neuropil_counts(by_np, "PB", counts.shape), rows))[0]
         checks["EB_vs_PB_circular_corr"] = round(circular_corr(eb, pb), 3)
 
     # Anatomy check: left-bridge and right-bridge EPGs each tile the whole ellipsoid body
@@ -251,17 +276,21 @@ def infer_ring(counts: np.ndarray, by_np: dict[str, np.ndarray], cell_type: np.n
         if len(a) == 0:
             continue
         gaps = np.diff(np.concatenate([a, a[:1] + 2 * np.pi]))
-        side_cov[sd] = {"n": len(a),
-                        "resultant_length": round(float(np.abs(np.exp(1j * a).mean())), 3),
-                        "max_gap_deg": round(float(np.degrees(gaps.max())), 1)}
+        side_cov[sd] = {
+            "n": len(a),
+            "resultant_length": round(float(np.abs(np.exp(1j * a).mean())), 3),
+            "max_gap_deg": round(float(np.degrees(gaps.max())), 1),
+        }
     out = np.full(len(cell_type), np.nan)
     out[rows] = angles
     meta = {
         "status": "INFERRED from connectivity (no glomerulus/wedge labels in FlyWire v783 "
-                  "annotations)",
-        "method": ("spectral circular seriation of EPG partner profiles (sqrt synapse counts, "
-                   "inputs+outputs, cosine similarity, normalised Laplacian eigenvectors 2-3); "
-                   "angles = evenly spaced ranks; defined up to rotation and reflection"),
+        "annotations)",
+        "method": (
+            "spectral circular seriation of EPG partner profiles (sqrt synapse counts, "
+            "inputs+outputs, cosine similarity, normalised Laplacian eigenvectors 2-3); "
+            "angles = evenly spaced ranks; defined up to rotation and reflection"
+        ),
         "eigen": diag,
         "cross_checks": checks,
         "side_coverage": side_cov,

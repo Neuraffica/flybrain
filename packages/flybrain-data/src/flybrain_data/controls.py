@@ -33,8 +33,13 @@ def make_control(pack: CircuitPack, variant: str, seed: int = 0) -> CircuitPack:
     raise ValueError(f"unknown variant {variant!r}; expected one of {VARIANTS}")
 
 
-def _swap_block(edges_post: np.ndarray, edges_pre: np.ndarray, allow_self: bool,
-                rng: np.random.Generator, n_swaps: int) -> tuple[np.ndarray, int]:
+def _swap_block(
+    edges_post: np.ndarray,
+    edges_pre: np.ndarray,
+    allow_self: bool,
+    rng: np.random.Generator,
+    n_swaps: int,
+) -> tuple[np.ndarray, int]:
     """Degree-preserving double-edge swaps on a directed bipartite edge list.
 
     Returns the new post array (pre ends never move) and the number of accepted swaps.
@@ -92,10 +97,16 @@ def rewire(pack: CircuitPack, seed: int = 0, swaps_per_edge: int = 20) -> Circui
             total_changed += changed
             stats[f"{t_pre}->{t_post}"] = {"edges": len(r), "moved": changed}
     return pack.replace_counts(
-        new, variant="rewired", by_neuropil=new_np, control_seed=seed,
-        control=("degree-preserving double-edge swaps within each pre-type->post-type block; "
-                 f"{swaps_per_edge} attempted swaps per edge"),
-        control_edges_moved=int(total_changed), control_block_stats=stats,
+        new,
+        variant="rewired",
+        by_neuropil=new_np,
+        control_seed=seed,
+        control=(
+            "degree-preserving double-edge swaps within each pre-type->post-type block; "
+            f"{swaps_per_edge} attempted swaps per edge"
+        ),
+        control_edges_moved=int(total_changed),
+        control_block_stats=stats,
     )
 
 
@@ -123,7 +134,12 @@ def random_like(pack: CircuitPack, seed: int = 0) -> CircuitPack:
         if new_np is not None:
             new_np[:, pp, qq] = bynp[:, src_post[perm], src_pre[perm]]
     return pack.replace_counts(
-        new, variant="random", by_neuropil=new_np, control_seed=seed,
-        control=("uniform random edge placement (no self-loops) with the same number of "
-                 "excitatory and inhibitory edges, synapse counts permuted within sign class"),
+        new,
+        variant="random",
+        by_neuropil=new_np,
+        control_seed=seed,
+        control=(
+            "uniform random edge placement (no self-loops) with the same number of "
+            "excitatory and inhibitory edges, synapse counts permuted within sign class"
+        ),
     )

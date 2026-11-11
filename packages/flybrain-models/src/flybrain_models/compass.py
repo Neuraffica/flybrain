@@ -140,8 +140,13 @@ class RingAttractor:
 
     # ---- construction --------------------------------------------------------------------
     @classmethod
-    def from_pack(cls, pack="central_complex", variant: str = "connectome", seed: int = 0,
-                  params: dict[str, Any] | str | None = None) -> RingAttractor:
+    def from_pack(
+        cls,
+        pack="central_complex",
+        variant: str = "connectome",
+        seed: int = 0,
+        params: dict[str, Any] | str | None = None,
+    ) -> RingAttractor:
         """Build from a pack name or ``CircuitPack``.
 
         ``variant`` in {"connectome", "rewired", "random"}; ``seed`` seeds the control.
@@ -186,7 +191,8 @@ class RingAttractor:
         """External current onto EPGs: von Mises bump centred at ``cue_rad`` (heading frame)."""
         drive = np.zeros(self.n_neurons)
         drive[self._epg] = self._cue_gain * np.exp(
-            self._cue_kappa * (np.cos(self._angles - cue_rad) - 1.0))
+            self._cue_kappa * (np.cos(self._angles - cue_rad) - 1.0)
+        )
         return drive
 
     def reset(self, heading_rad: float = 0.0) -> None:
@@ -200,8 +206,7 @@ class RingAttractor:
         self._heading, self._conf = self._decode()
         self._heading = float(wrap(self._heading))
 
-    def step(self, angular_velocity_rad_s: float, dt: float,
-             cue_rad: float | None = None) -> float:
+    def step(self, angular_velocity_rad_s: float, dt: float, cue_rad: float | None = None) -> float:
         """Advance by ``dt`` seconds; return the decoded heading in (-pi, pi].
 
         ``cue_rad``: landmark heading (allothetic cue, e.g. an IMU yaw sample) in the heading
@@ -290,13 +295,13 @@ class GyroIntegrator:
     def reset(self, heading_rad: float = 0.0) -> None:
         self._heading = float(wrap(heading_rad))
 
-    def step(self, angular_velocity_rad_s: float, dt: float,
-             cue_rad: float | None = None) -> float:
+    def step(self, angular_velocity_rad_s: float, dt: float, cue_rad: float | None = None) -> float:
         h = self._heading + float(angular_velocity_rad_s) * float(dt)
         if cue_rad is not None:
             h += self.cue_alpha * float(wrap(float(cue_rad) - h))
         self._heading = float(wrap(h))
         return self._heading
+
     @property
     def heading(self) -> float:
         return self._heading

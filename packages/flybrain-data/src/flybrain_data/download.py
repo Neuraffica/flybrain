@@ -49,16 +49,20 @@ FILES: dict[str, RemoteFile] = {
     # compartment table in the pack metadata).
     "neuropil_pre": RemoteFile(
         name="per_neuron_neuropil_count_pre_783.feather",
-        url=("https://zenodo.org/api/records/10676866/files/"
-             "per_neuron_neuropil_count_pre_783.feather/content"),
+        url=(
+            "https://zenodo.org/api/records/10676866/files/"
+            "per_neuron_neuropil_count_pre_783.feather/content"
+        ),
         size=16_853_770,
         md5="90fcdb42c1ba05ed92820840fa1e6ba0",
         page=ZENODO_RECORD,
     ),
     "neuropil_post": RemoteFile(
         name="per_neuron_neuropil_count_post_783.feather",
-        url=("https://zenodo.org/api/records/10676866/files/"
-             "per_neuron_neuropil_count_post_783.feather/content"),
+        url=(
+            "https://zenodo.org/api/records/10676866/files/"
+            "per_neuron_neuropil_count_post_783.feather/content"
+        ),
         size=233_843_050,
         md5="bb5999f10920ade803d9f37097a43a56",
         page=ZENODO_RECORD,
@@ -100,8 +104,9 @@ def _md5(path: Path, chunk: int = 1 << 22) -> str:
     return h.hexdigest()
 
 
-def download(remote: RemoteFile, data_dir: Path | None = None, *, verify: bool = True,
-             retries: int = 5) -> Path:
+def download(
+    remote: RemoteFile, data_dir: Path | None = None, *, verify: bool = True, retries: int = 5
+) -> Path:
     """Fetch ``remote`` into ``data_dir`` (resuming a ``.part`` file) and return its path."""
     data_dir = Path(data_dir) if data_dir else default_data_dir()
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -163,7 +168,9 @@ def _fetch(remote: RemoteFile, part: Path) -> None:
                     print(
                         f"\r[flybrain-data] {remote.name}: {pct} {_fmt_bytes(done)}"
                         f"{' / ' + _fmt_bytes(total) if total else ''} at {_fmt_bytes(rate)}/s",
-                        end="", file=sys.stderr, flush=True,
+                        end="",
+                        file=sys.stderr,
+                        flush=True,
                     )
         print(file=sys.stderr)
         if total is not None and done != total:

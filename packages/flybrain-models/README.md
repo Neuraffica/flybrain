@@ -7,14 +7,14 @@ ring attractor on the FlyWire central-complex connectome, plus an engineering ba
 import math
 from flybrain_models.compass import RingAttractor, GyroIntegrator
 
-fly = RingAttractor.from_pack("central_complex")                  # connectome
+fly = RingAttractor.from_pack("central_complex")  # connectome
 ctrl = RingAttractor.from_pack("central_complex", "rewired", seed=1)
-base = GyroIntegrator()                                           # complementary filter
+base = GyroIntegrator()  # complementary filter
 for m in (fly, ctrl, base):
     m.reset(0.0)
-h = fly.step(math.radians(90), 0.02, cue_rad=0.4)   # gyro rad/s (CCW +), dt s, landmark or None
-h = fly.step(math.radians(90), 0.02)                # no cue sample this tick
-fly.bump, fly.bump_angles, fly.confidence           # EPG activity, angles (heading frame), [0, 1]
+h = fly.step(math.radians(90), 0.02, cue_rad=0.4)  # gyro rad/s (CCW +), dt s, landmark or None
+h = fly.step(math.radians(90), 0.02)  # no cue sample this tick
+fly.bump, fly.bump_angles, fly.confidence  # EPG activity, angles (heading frame), [0, 1]
 ```
 
 `step` is pure NumPy, about 20-40 us per 20 ms step on an Apple-silicon laptop.
