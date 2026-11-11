@@ -86,6 +86,7 @@ class Bittle:
         self._samples: deque[ImuSample] = deque(maxlen=2000)
         self._new_samples: deque[ImuSample] = deque(maxlen=2000)
         self._poll_thread: threading.Thread | None = None
+        self.low_power: str | None = None  # last 'Low power' line from the firmware
         self.yaw_drift_dps = 0.0  # subtracted from every sample once measured
         self._drift_t0 = 0.0
         self._poll_stop = threading.Event()
@@ -213,6 +214,16 @@ class Bittle:
             if r is not None:
                 self._add_sample(r, now, line)
             rest = rest.strip()
+            if "Low power" in rest:
+                # e.g. "Low power: 2.18V. The robot won't move." (battery off or flat). The
+                # firmware repeats it every 10 s and blocks for about 1.3 s each time.
+                if self.low_power is None:
+                    log.error(
+                        "ROBOT REPORTS: %s  Servos are unpowered: long-press the "
+                        "battery button to switch it on, or charge it.",
+                        rest,
+                    )
+                self.low_power = rest
             if rest:
                 self.stats.other_lines += 1
                 with self._cv:

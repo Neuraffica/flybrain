@@ -135,3 +135,7 @@ Read-only probe only; the robot has not been moved by this code yet.
   stayed within about 3 degrees over 45 s. The firmware's own IMU calibration has not been run.
 - Observe mode works end to end: `kup`, `gb`, polling, and `d` on exit.
 - Still unverified: yaw sign, pan sign, head/arm motion (needle), hold mode, Bluetooth.
+- All of the runs above were made with the battery OFF (USB power only): the firmware printed
+  `Low power: 2.18V. The robot won't move.` every 10 s. So no servo has moved yet, `kup` did
+  nothing, and the 1.3 s silence every 10 s is the low-power warning. Drift figures were taken
+  lying down, not standing. The link now logs this message as an error.

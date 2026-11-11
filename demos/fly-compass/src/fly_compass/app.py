@@ -150,6 +150,12 @@ class CompassApp:
             b.poll_imu(self.imu_rate_hz)
         else:
             b.stream_imu(True)
+        if b.low_power:
+            print(
+                f"fly-compass: THE ROBOT WILL NOT MOVE: it reports '{b.low_power}'. "
+                "Long-press the battery button to switch the battery on (or charge it).",
+                flush=True,
+            )
         if self.drift_cal_s > 0:
             print(
                 f"fly-compass: measuring heading drift for {self.drift_cal_s:.0f} s. "
