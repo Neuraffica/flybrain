@@ -153,3 +153,6 @@ Read-only probe only; the robot has not been moved by this code yet.
   faster than the earlier bare `kvtL` test), overshoot after `kup` was 3 to 9 deg, and head
   commands kept flowing during the gait. Whether the arm visibly held its direction (pan sign)
   has not been confirmed by eye.
+- Pan sign CONFIRMED by the owner watching the sweep run: the arm held its direction while the
+  body turned, so the default `--pan-sign 1` is right on this firmware (with `--yaw-sign -1`).
+  This supersedes the "unverified" pan-sign remarks above.
