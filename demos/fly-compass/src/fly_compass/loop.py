@@ -43,6 +43,9 @@ def wrap_deg(a: float) -> float:
     return a - 180.0
 
 
+RATE_WINDOW_S = 0.04  # shortest span over which a yaw rate is estimated
+
+
 @dataclass
 class LoopConfig:
     rate_hz: float = 20.0
@@ -164,6 +167,8 @@ class CompassLoop:
         self.n_cues = 0
         # yaw bookkeeping
         self._last_raw: float | None = None
+        self._rate_anchor_t: float | None = None
+        self._rate_anchor_yaw = 0.0
         self.yaw_unwrapped = 0.0
         self.zero_offset = 0.0
         self.zeroed = False
@@ -253,13 +258,21 @@ class CompassLoop:
             else:
                 self.yaw_unwrapped += step
             self._last_raw = y
-            if self.last_sample_t is not None:
-                dt = s.t - self.last_sample_t
-                if 1e-3 < dt < 2.0:
-                    self.interval_ema = 0.8 * self.interval_ema + 0.2 * dt
-                    self.rate_est = step / dt
-                else:
+            # Rate over a window of at least RATE_WINDOW_S, not between neighbouring samples.
+            # Newer firmware prints at most 5 Hz, so each sample is its own window; firmware
+            # B10_250330 streams ~360 lines/s in USB bursts with 0.1 deg resolution, where a
+            # sample-to-sample difference is either zero or a huge spike.
+            if self._rate_anchor_t is None:
+                self._rate_anchor_t, self._rate_anchor_yaw = s.t, self.yaw_unwrapped
+            else:
+                dt = s.t - self._rate_anchor_t
+                if dt >= 2.0:
                     self.rate_est = 0.0
+                    self._rate_anchor_t, self._rate_anchor_yaw = s.t, self.yaw_unwrapped
+                elif dt >= RATE_WINDOW_S:
+                    self.interval_ema = 0.8 * self.interval_ema + 0.2 * dt
+                    self.rate_est = (self.yaw_unwrapped - self._rate_anchor_yaw) / dt
+                    self._rate_anchor_t, self._rate_anchor_yaw = s.t, self.yaw_unwrapped
             self.last_sample_t = s.t
             self.n_samples += 1
         if samples and not self.zeroed:

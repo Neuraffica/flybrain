@@ -152,7 +152,9 @@ def clamp_joint(
 # so the IMU text gets glued to whatever prints next, e.g. "ICM: ...\tg". Fields are fixed
 # width with no separator, so "-0.34-10.05" is two numbers; the regex keys on the exact
 # number of decimals (2 for accel, 1 for angles) to split them.
-_ACC = r"\s*([-+]?\d+\.\d{2})"
+# Firmware B10_250330 (seen on a real Bittle X+Arm) prints acceleration with ONE decimal and
+# spaces between fields: "ICM:  -1.3  -0.8   9.9  130.8   -7.6   -4.5\t". Accept 1 or 2.
+_ACC = r"\s*([-+]?\d+\.\d{1,2})(?!\d)"
 _ANG = r"\s*([-+]?\d+\.\d)(?!\d)"
 IMU_RE = re.compile(r"(ICM|MCU):" + _ACC * 3 + _ANG * 3)
 IMU_RE_NOACC = re.compile(r"(ICM|MCU)(?!:)" + _ANG * 3)  # build without PRINT_ACCELERATION

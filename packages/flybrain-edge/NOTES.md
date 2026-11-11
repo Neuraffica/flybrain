@@ -114,3 +114,20 @@ So the host **can** read the horizontal position of the first detected box (pixe
 centre, 240-wide frame) and its size. It **cannot** get images, choose the model over serial,
 or know which way +x points relative to the robot without testing. `protocol.parse_camera()`
 is an EXPERIMENTAL parser for that line; nothing in the demo uses it.
+
+## Checked on a real Bittle X+Arm (firmware B10_250330, USB, 2026-11-11)
+
+Read-only probe only; the robot has not been moved by this code yet.
+
+- Identifies as `Bittle X+Arm`, version `B10_250330` (older than the source read above, DATE 261024).
+- `gp` / `gP` work and echo `g`; `v` answers `Undefined token!`, as expected.
+- IMU line is `ICM:  -1.3  -0.8   9.9  130.8   -7.6   -4.5\t`: acceleration has ONE decimal and
+  fields are space separated. The parser now accepts 1 or 2 decimals.
+- `gP` is NOT capped at 5 Hz on this firmware: about 230 to 360 lines per second arrive, in USB
+  bursts, with 0.1 degree resolution. The demo loop now estimates turn rate over a window of at
+  least 40 ms instead of between neighbouring samples.
+- Yaw is not wrapped to +-180 (values above 400 were seen); the loop unwraps differences, so
+  this is harmless.
+- Yaw drifted about 9 degrees in 20 s with the robot apparently still (about 0.4 deg/s). Not
+  yet confirmed that nobody was touching it. If real, the "truth" heading itself drifts.
+- Still unverified: yaw sign, pan sign, and everything that moves the robot.

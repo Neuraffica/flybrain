@@ -127,3 +127,15 @@ def test_camera_experimental_parse():
     c = P.parse_camera("-35.00\t12.00\tsize = 40\t52\t")
     assert c == P.CameraTarget(-35.0, 12.0, 40, 52)
     assert P.parse_camera("Ready!") is None
+
+
+def test_parse_imu_real_b10_250330_line():
+    """Captured from a real Bittle X+Arm, firmware B10_250330, over USB."""
+    from flybrain_edge.bittle import protocol as P
+
+    readings, rest = P.parse_imu("ICM:  -1.3  -0.8   9.9  130.8   -7.6   -4.5\t")
+    assert len(readings) == 1
+    r = readings[0]
+    assert (r.source, r.yaw_deg, r.pitch_deg, r.roll_deg) == ("ICM", 130.8, -7.6, -4.5)
+    assert r.accel == (-1.3, -0.8, 9.9)
+    assert rest.strip() == ""
