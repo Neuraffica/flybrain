@@ -43,6 +43,7 @@ class CompassApp:
         # "stream" = firmware prints continuously ('gP'); "poll" = one 'gp' per reading.
         self.imu_mode = "stream"
         self.imu_rate_hz = 20.0
+        self.drift_cal_s = 0.0  # seconds of stillness used to measure IMU yaw drift at start
         self.hub = hub or FrameHub()
         self.bittle = bittle
         self.mock = mock
@@ -149,6 +150,15 @@ class CompassApp:
             b.poll_imu(self.imu_rate_hz)
         else:
             b.stream_imu(True)
+        if self.drift_cal_s > 0:
+            print(
+                f"fly-compass: measuring heading drift for {self.drift_cal_s:.0f} s. "
+                "Do not touch the dog ...",
+                flush=True,
+            )
+            rate = b.measure_yaw_drift(self.drift_cal_s)
+            used = "compensating" if b.yaw_drift_dps else "NOT compensating"
+            print(f"fly-compass: heading drift {rate:+.2f} deg/s, {used}", flush=True)
 
     def status(self, now: float) -> dict[str, Any]:
         st: dict[str, Any] = {"source": self.source_label, "mock": self.mock is not None}

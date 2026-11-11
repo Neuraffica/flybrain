@@ -128,6 +128,10 @@ Read-only probe only; the robot has not been moved by this code yet.
   least 40 ms instead of between neighbouring samples.
 - Yaw is not wrapped to +-180 (values above 400 were seen); the loop unwraps differences, so
   this is harmless.
-- Yaw drifted about 9 degrees in 20 s with the robot apparently still (about 0.4 deg/s). Not
-  yet confirmed that nobody was touching it. If real, the "truth" heading itself drifts.
-- Still unverified: yaw sign, pan sign, and everything that moves the robot.
+- With `gP` the lines reach the host in clumps about every 1.4 s (the link is saturated), so
+  the demo polls `gp` instead: about 18 readings/s, a few gaps over 0.2 s (longest seen 1.3 s).
+- Yaw drifts while the robot stands untouched: about -2.5 deg/s, steady over 30 s. The demo
+  measures the drift for 5 s at start (`--drift-cal`) and subtracts it; after that the heading
+  stayed within about 3 degrees over 45 s. The firmware's own IMU calibration has not been run.
+- Observe mode works end to end: `kup`, `gb`, polling, and `d` on exit.
+- Still unverified: yaw sign, pan sign, head/arm motion (needle), hold mode, Bluetooth.

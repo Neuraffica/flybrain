@@ -129,6 +129,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="how to read the IMU: poll = one 'gp' per reading (default on a real robot; "
         "firmware B10_250330 floods the link when streaming), stream = 'gP'",
     )
+    hw.add_argument(
+        "--drift-cal",
+        type=float,
+        default=None,
+        metavar="S",
+        help="seconds to hold still at start while heading drift is measured and then "
+        "subtracted (default 5 on a real robot, 0 on the simulator; 0 disables)",
+    )
     hw.add_argument("--imu-rate", type=float, default=20.0, help="IMU polls per second")
     hw.add_argument("--joint-rate", type=float, default=15.0, help="max head commands per second")
     hw.add_argument("--boot-timeout", type=float, default=12.0)
@@ -293,6 +301,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     app.imu_mode = ("stream" if a.mock else "poll") if a.imu == "auto" else a.imu
     app.imu_rate_hz = a.imu_rate
+    app.drift_cal_s = (0.0 if a.mock else 5.0) if a.drift_cal is None else a.drift_cal
     if a.mock_script in SCENARIOS:
 
         def _done(res):

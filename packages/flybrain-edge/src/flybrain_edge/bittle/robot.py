@@ -14,6 +14,7 @@ second (src/moduleManager.h:405-445).
 
 from __future__ import annotations
 
+import itertools
 import logging
 import threading
 import time
@@ -85,6 +86,8 @@ class Bittle:
         self._samples: deque[ImuSample] = deque(maxlen=2000)
         self._new_samples: deque[ImuSample] = deque(maxlen=2000)
         self._poll_thread: threading.Thread | None = None
+        self.yaw_drift_dps = 0.0  # subtracted from every sample once measured
+        self._drift_t0 = 0.0
         self._poll_stop = threading.Event()
         self._sample_listeners: list[Callable[[ImuSample], None]] = []
         self._splitter = P.LineSplitter()
@@ -218,7 +221,11 @@ class Bittle:
                     self._cv.notify_all()
 
     def _add_sample(self, r: P.ImuReading, now: float, raw: str) -> None:
-        s = ImuSample(now, self.yaw_sign * r.yaw_deg, r.pitch_deg, r.roll_deg, r.source, raw)
+        yaw = self.yaw_sign * r.yaw_deg
+        if self.yaw_drift_dps:
+            # remove the constant drift measured by measure_yaw_drift()
+            yaw -= self.yaw_drift_dps * (now - self._drift_t0)
+        s = ImuSample(now, yaw, r.pitch_deg, r.roll_deg, r.source, raw)
         if self.stats.last_sample_t:
             dt = now - self.stats.last_sample_t
             if dt > 1e-4:
@@ -327,6 +334,35 @@ class Bittle:
         t, self._poll_thread = self._poll_thread, None
         if t is not None and t is not threading.current_thread():
             t.join(timeout=1.0)
+
+    def measure_yaw_drift(self, seconds: float = 4.0, max_dps: float = 8.0) -> float:
+        """Measure how fast the reported yaw moves while the robot is NOT moving, and subtract
+        that rate from every later sample. Needs IMU readings flowing (poll_imu / stream_imu).
+
+        A real Bittle X+Arm (firmware B10_250330) drifted about 2.5 deg/s while standing still.
+        Returns the measured rate in deg/s (after yaw_sign). A rate above ``max_dps`` is taken
+        to mean the robot was being moved, and nothing is subtracted."""
+        self.yaw_drift_dps = 0.0
+        time.sleep(0.3)
+        self.drain_samples()
+        time.sleep(seconds)
+        pts = self.drain_samples()
+        if len(pts) < 8:
+            log.warning("yaw drift: only %d samples, no compensation", len(pts))
+            return 0.0
+        ys = [pts[0].yaw_deg]
+        for a, b in itertools.pairwise(pts):
+            ys.append(ys[-1] + (b.yaw_deg - a.yaw_deg + 180.0) % 360.0 - 180.0)
+        ts = [q.t for q in pts]
+        tm, ym = sum(ts) / len(ts), sum(ys) / len(ys)
+        den = sum((t - tm) ** 2 for t in ts)
+        slope = sum((t - tm) * (y - ym) for t, y in zip(ts, ys, strict=True)) / den if den else 0.0
+        if abs(slope) > max_dps:
+            log.warning("yaw moved %.1f deg/s during drift measurement: robot not still?", slope)
+            return slope
+        self._drift_t0 = ts[-1]
+        self.yaw_drift_dps = slope
+        return slope
 
     def read_yaw(self, timeout: float = 1.5) -> ImuSample | None:
         """Return the next IMU sample. Uses 'gp' (OpenCatEsp32) and, if that yields nothing,
