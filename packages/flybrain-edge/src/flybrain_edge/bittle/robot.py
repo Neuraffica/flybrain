@@ -257,7 +257,9 @@ class Bittle:
             cb(s)
 
     # ---- commands ---------------------------------------------------------------------
-    def send(self, data: bytes, echo: str | None = None, timeout: float = 1.0) -> list[str] | None:
+    def send(
+        self, data: bytes, echo: str | None = None, timeout: float = 1.0, quiet: bool = False
+    ) -> list[str] | None:
         """Write one command; if ``echo`` is given wait for that token line.
 
         Returns the non-IMU lines received while waiting (including the echo), or None on
@@ -291,7 +293,9 @@ class Bittle:
                     remaining = deadline - time.monotonic()
                     if remaining <= 0 or not self.connected:
                         self.stats.echo_timeouts += 1
-                        log.warning("no echo %r for %r within %.1fs", echo, data[:24], timeout)
+                        (log.debug if quiet else log.warning)(
+                            "no echo %r for %r within %.1fs", echo, data[:24], timeout
+                        )
                         return None
                     self._cv.wait(remaining)
 
@@ -441,7 +445,10 @@ class Bittle:
             t0 = time.monotonic()
             for i, a in todo.items():
                 cmd = P.encode_joint(i, a, self.joint_token)
-                self.send(cmd, echo=self.joint_token, timeout=0.25)
+                # quiet: a head command sent while a posture transition blocks the firmware
+                # (e.g. 'kup' at the end of a turn) is acknowledged late; that is expected and
+                # still counted in stats.echo_timeouts
+                self.send(cmd, echo=self.joint_token, timeout=0.25, quiet=True)
                 self._joint_sent[i] = a
             spare = period - (time.monotonic() - t0)
             if spare > 0:

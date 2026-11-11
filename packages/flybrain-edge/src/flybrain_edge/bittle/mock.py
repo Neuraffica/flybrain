@@ -86,7 +86,9 @@ class MockBittle:
         initial_world_yaw_deg: float = 37.0,
         imu_noise_deg: float = 0.25,
         imu_drift_deg_s: float = 0.0,
-        turn_rate_deg_s: float = 38.0,
+        turn_rate_deg_s: float = 8.0,
+        turn_unevenness: float = 0.4,
+        gait_stall_after_s: float | None = None,
         hand_slew_deg_s: float = 240.0,
         imu: str = "ICM",
         ble_framing: bool = False,
@@ -100,7 +102,14 @@ class MockBittle:
         self.tick_s = tick_s
         self.imu_noise = imu_noise_deg
         self.imu_drift = imu_drift_deg_s
+        # In-place turning on a real Bittle on carpet: 2-7 deg/s and uneven (NOTES.md).
         self.turn_rate = turn_rate_deg_s
+        self.turn_unevenness = turn_unevenness  # +- fraction, varying over a few seconds
+        # Test hook: a turning gait silently stops this long after it was (re)issued.
+        self.gait_stall_after_s = gait_stall_after_s
+        self._gait_started = 0.0
+        self._uneven_phase = self.rng.uniform(0, 2 * math.pi)
+        self.turn_commands = 0
         self.hand_slew = hand_slew_deg_s
         self.imu_kind = imu
         self.ble_framing = ble_framing
@@ -239,9 +248,20 @@ class MockBittle:
             if self.trajectory is not None:
                 self.world_yaw = self.trajectory(t)
             else:
-                if self.period > 1 and self.skill in ("vtL", "vtR") and self.powered:
+                stalled = (
+                    self.gait_stall_after_s is not None
+                    and now - self._gait_started > self.gait_stall_after_s
+                )
+                if (
+                    self.period > 1
+                    and self.skill in ("vtL", "vtR")
+                    and self.powered
+                    and not stalled
+                ):
                     rate = self.turn_rate if self.skill == "vtL" else -self.turn_rate
-                    self.world_yaw += rate * dt * (1 + 0.05 * self.rng.uniform(-1, 1))
+                    # slow wobble in speed (steps catch on carpet), plus a little jitter
+                    wobble = self.turn_unevenness * math.sin(0.9 * t + self._uneven_phase)
+                    self.world_yaw += rate * dt * (1 + wobble + 0.05 * self.rng.uniform(-1, 1))
                     if self.turning_target is not None:
                         done = (rate > 0 and self.imu_yaw_raw() >= self.turning_target) or (
                             rate < 0 and self.imu_yaw_raw() <= self.turning_target
@@ -375,6 +395,9 @@ class MockBittle:
             prev = self.skill
             self._load(name, now)  # unknown names load nothing but still echo 'k'
             self.token = "k"
+            if name in ("vtL", "vtR"):
+                self.turn_commands += 1
+                self._gait_started = now  # (re)issuing restarts a stalled gait
             if arg and self.period > 1 and name[-1] in "LR":
                 ang = float(arg)
                 self.turning_target = self.imu_yaw_raw() + (ang if name[-1] == "L" else -ang)

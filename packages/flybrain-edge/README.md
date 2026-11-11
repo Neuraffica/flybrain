@@ -17,8 +17,9 @@ from flybrain_edge.bittle import Bittle, open_transport
 bot = Bittle(open_transport(mock=True))  # or port="/dev/cu.usbmodem1101", or ble=""
 bot.connect()  # waits for the boot banner, sends '?', reads model and version
 bot.stand()  # 'kup', then 'gb' (balance reflex off, IMU still running)
-bot.stream_imu()  # 'gP': IMU lines at the firmware's 5 Hz maximum
-s = bot.read_yaw()  # ImuSample(t, yaw_deg (+ = CCW), pitch_deg, roll_deg, source)
+bot.poll_imu(20)  # one 'gp' per reading (~18/s on firmware B10_250330); stream_imu() = 'gP'
+bot.measure_yaw_drift(5)  # standing drift, subtracted from later samples
+s = bot.read_yaw()  # ImuSample(t, yaw_deg (+ = CCW after yaw_sign), pitch_deg, roll_deg, source)
 bot.set_joint(0, 30)  # head pan; clamped, latest value sent at most 15 times a second
 bot.skill("vtL")  # step in place, turning left
 bot.close()  # stops printing and always sends 'd' (rest)
@@ -28,7 +29,7 @@ bot.close()  # stops printing and always sends 'd' (rest)
 |---|---|
 | `protocol` | tokens, joint map and limits, BLE UUIDs, encoders, the IMU line parser (works on fixed-width fields that run together and on BLE text without newlines), the experimental camera-line parser |
 | `transport` | `SerialTransport` (macOS auto-detect: `/dev/cu.usbmodem*`, then `cu.wchusbserial*`, then `cu.usbserial*`), `BleTransport` (bleak, Nordic-UART service), `MockTransport` |
-| `mock` | `MockBittle`: boot banner, token echoes, rate-limited IMU print, `g` options, head slewing, `kvtL`/`kvtR` turning, rest. Its yaw can follow a script (`trajectory(t)`, with `t` measured from `clock_origin()`), the turn gaits, or `set_world_yaw()` / `nudge()`. The fly-compass demo's blindfold scenarios drive it through `trajectory` |
+| `mock` | `MockBittle`: boot banner, token echoes, rate-limited IMU print, `g` options, head slewing, `kvtL`/`kvtR` turning (default 8°/s with a slow wobble, `turn_rate_deg_s`, `turn_unevenness`; `gait_stall_after_s` makes a gait stop silently until it is re-issued), rest. Its yaw can follow a script (`trajectory(t)`, with `t` measured from `clock_origin()`), the turn gaits, or `set_world_yaw()` / `nudge()`. The fly-compass demo's blindfold scenarios drive it through `trajectory` |
 | `robot` | `Bittle`: reader thread (tolerates unsolicited prints), one-command-at-a-time writer that waits for each echo, non-blocking joint streamer, `close()` that always rests |
 | `probe` | `flybrain-bittle probe`: read-only queries with raw bytes and timings |
 
@@ -61,13 +62,17 @@ verdict says CHECK, paste the whole output into an issue.
 | BLE: robot lies down when you connect | Expected: the firmware forces rest on every BLE connection |
 | A beep with every head move | `i` commands beep in this firmware. `--joint-token I` avoids it (with caveats, see NOTES.md) or mute the robot with `b0` yourself (stored on the board) |
 
-## Not tested on hardware
+## Checked on hardware, and not
 
-No robot was attached while this was written. Everything was exercised against `MockBittle`,
-which was itself written from the firmware source. Specifically unverified: the yaw sign, the
-head-pan sign and safe range with the arm attached, how much USB/BLE latency and jitter the IMU
-timestamps carry, whether 15 `i` commands per second stay smooth, BLE on macOS with this board,
-and the camera line format.
+The link has run against a real Bittle X+Arm (firmware B10_250330, USB); the measurements are
+in [NOTES.md](NOTES.md), section "Checked on a real Bittle X+Arm". In short: identification,
+IMU polling (`gp`, about 18 readings/s; streaming with `gP` floods the link on that firmware),
+drift measurement, `kup`, head pan with `i 0 <deg>`, `kvtL` / `kvtR`, and `d` work; the
+firmware yaw is positive clockwise (`yaw_sign=-1`).
+
+Still unverified: the head-pan sign and safe range with the arm attached, whether a turning
+gait keeps running while head commands stream, whether 15 `i` commands per second stay smooth,
+BLE on macOS with this board, and the camera line format.
 
 ## Tests
 

@@ -5,6 +5,7 @@ uv run fly-compass --port /dev/cu.usbmodem1101 # real dog over USB (needle mode)
 uv run fly-compass --ble                       # real dog over Bluetooth LE
 uv run fly-compass --replay runs/20261111-101500
 uv run fly-compass --port ... --mode hold --i-have-space
+uv run fly-compass --mock --mode sweep --i-have-space   # the dog turns itself +-35 deg
 uv run fly-compass --mock --mock-script memory      # cue on, then 20 s blindfolded and still
 uv run fly-compass --mock --mock-script dark-turn   # blindfolded 90 deg turn
 uv run fly-compass --port ... --blindfold-after 30
@@ -29,7 +30,7 @@ from flybrain_edge.bittle.robot import BittleError
 
 from .app import CompassApp
 from .benchmark import find_benchmark
-from .loop import MODES, CompassLoop, LoopConfig
+from .loop import LEG_MODES, MODES, CompassLoop, LoopConfig
 from .models import MODEL_KEYS, ModelMissing, load_models
 from .scenarios import SCENARIOS, SCRIPT_CHOICES
 from .server import DashboardServer, FrameHub
@@ -68,12 +69,44 @@ def build_parser() -> argparse.ArgumentParser:
         "--replay", metavar="RUN", help="feed a recorded runs/<stamp> (or samples.csv) back"
     )
     ap.add_argument(
-        "--mode", choices=MODES, default="needle", help="needle (default), hold, observe"
+        "--mode",
+        choices=MODES,
+        default="needle",
+        help="needle (default), hold, sweep (the dog turns itself back and forth), observe",
     )
     ap.add_argument(
         "--i-have-space",
         action="store_true",
-        help="allow hold mode, which makes the robot step and turn in place",
+        help="allow hold and sweep modes, which make the robot step and turn in place",
+    )
+    sw = ap.add_argument_group("sweep mode")
+    sw.add_argument(
+        "--sweep-angle",
+        type=float,
+        default=35.0,
+        metavar="DEG",
+        help="turn to +DEG and -DEG of the start heading (default 35)",
+    )
+    sw.add_argument(
+        "--sweep-pause",
+        type=float,
+        default=3.0,
+        metavar="S",
+        help="stand still this long at each end (default 3)",
+    )
+    sw.add_argument(
+        "--sweep-timeout",
+        type=float,
+        default=25.0,
+        metavar="S",
+        help="give up on a turn after this long and turn back (default 25)",
+    )
+    sw.add_argument(
+        "--sweep-cycles",
+        type=int,
+        default=None,
+        metavar="N",
+        help="stop after N left+right cycles (default: until Ctrl-C/--duration)",
     )
     ap.add_argument(
         "--rate", type=float, default=20.0, help="control/model rate in Hz (default 20)"
@@ -157,6 +190,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     mk.add_argument("--mock-noise", type=float, default=0.25, help="IMU yaw noise, deg")
     mk.add_argument("--mock-drift", type=float, default=0.0, help="IMU yaw drift, deg/s")
+    mk.add_argument(
+        "--mock-turn-rate",
+        type=float,
+        default=8.0,
+        metavar="DEG_S",
+        help="how fast kvtL/kvtR turn the simulated dog (default 8; real carpet 2-7)",
+    )
+    mk.add_argument(
+        "--mock-gait-stall",
+        type=float,
+        default=None,
+        metavar="S",
+        help="a turning gait silently stops after S s until it is re-issued "
+        "(tests the sweep watchdog)",
+    )
     ap.add_argument(
         "--blindfold-after",
         type=float,
@@ -196,9 +244,25 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.INFO if a.verbose else logging.WARNING,
         format="%(levelname)s %(name)s: %(message)s",
     )
-    if a.mode == "hold" and not a.i_have_space:
+    if a.mode in LEG_MODES and not a.i_have_space:
         print(
-            "hold mode makes the robot walk in place. Clear a 50 cm circle and add --i-have-space.",
+            f"{a.mode} mode makes the robot walk in place. Clear a 50 cm circle and add "
+            "--i-have-space.",
+            file=sys.stderr,
+        )
+        return 2
+    if not 5 <= a.sweep_angle <= 90 or a.sweep_pause < 0 or a.sweep_timeout <= 0:
+        print(
+            "--sweep-angle must be 5..90, --sweep-pause >= 0, --sweep-timeout > 0", file=sys.stderr
+        )
+        return 2
+    if a.sweep_cycles is not None and a.sweep_cycles < 1:
+        print("--sweep-cycles must be at least 1", file=sys.stderr)
+        return 2
+    if a.mode == "sweep" and a.mock_script != "none":
+        print(
+            "fly-compass: --mode sweep turns the dog with its gaits; it cannot be combined "
+            "with --mock-script, which moves the simulated dog itself",
             file=sys.stderr,
         )
         return 2
@@ -216,15 +280,28 @@ def main(argv: list[str] | None = None) -> int:
         return 3
 
     cfg = LoopConfig(
-        rate_hz=a.rate, pan_limit_deg=a.pan_limit, pan_sign=a.pan_sign, pan_rate_dps=a.pan_rate
+        rate_hz=a.rate,
+        pan_limit_deg=a.pan_limit,
+        pan_sign=a.pan_sign,
+        pan_rate_dps=a.pan_rate,
+        sweep_angle_deg=a.sweep_angle,
+        sweep_pause_s=a.sweep_pause,
+        sweep_timeout_s=a.sweep_timeout,
+        sweep_cycles=a.sweep_cycles,
     )
     loop = CompassLoop(models, cfg, mode=a.mode, allow_hold=a.i_have_space, driver=a.driver)
 
-    # SIGTERM behaves like Ctrl-C so the robot is always rested
-    def _term(*_):
+    # SIGTERM behaves like Ctrl-C so the robot is always rested. Only the FIRST signal
+    # interrupts: a second Ctrl-C or SIGTERM must not abort the cleanup that stops the gait and
+    # sends the rest command.
+    def _stop(*_):
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
         raise KeyboardInterrupt
 
-    signal.signal(signal.SIGTERM, _term)
+    prev_handlers = signal.getsignal(signal.SIGINT), signal.getsignal(signal.SIGTERM)
+    signal.signal(signal.SIGTERM, _stop)
+    signal.signal(signal.SIGINT, _stop)
 
     bittle = mock = replay = None
     label = ""
@@ -239,7 +316,13 @@ def main(argv: list[str] | None = None) -> int:
         loop.set_mode("observe")
     else:
         if a.mock:
-            mock = MockBittle(imu_noise_deg=a.mock_noise, imu_drift_deg_s=a.mock_drift, seed=a.seed)
+            mock = MockBittle(
+                imu_noise_deg=a.mock_noise,
+                imu_drift_deg_s=a.mock_drift,
+                seed=a.seed,
+                turn_rate_deg_s=a.mock_turn_rate,
+                gait_stall_after_s=a.mock_gait_stall,
+            )
             if a.mock_script == "sweep":
                 mock.trajectory = sweep_trajectory
             transport = MockTransport(mock)
@@ -248,8 +331,8 @@ def main(argv: list[str] | None = None) -> int:
             transport = open_transport(port=a.port, ble=a.ble)
             label = transport.name
             print("fly-compass: real robot.\n" + SAFETY.format(lim=a.pan_limit))
-            if a.mode == "hold":
-                print("  HOLD MODE: the legs will step. Keep hands and cables clear.")
+            if a.mode in LEG_MODES:
+                print(f"  {a.mode.upper()} MODE: the legs will step. Keep hands and cables clear.")
             print("  Starting in 3 s ...", flush=True)
             try:
                 time.sleep(3)
@@ -306,6 +389,7 @@ def main(argv: list[str] | None = None) -> int:
     app.imu_mode = ("stream" if a.mock else "poll") if a.imu == "auto" else a.imu
     app.imu_rate_hz = a.imu_rate
     app.drift_cal_s = (0.0 if a.mock else 5.0) if a.drift_cal is None else a.drift_cal
+    app.on_event = lambda ev: print(f"fly-compass: {ev}", flush=True)
     if a.mock_script in SCENARIOS:
 
         def _done(res):
@@ -367,6 +451,8 @@ def main(argv: list[str] | None = None) -> int:
     print_phase_table(app.phase_summary())
     if session:
         print(f"session log: {session.dir}")
+    signal.signal(signal.SIGINT, prev_handlers[0])
+    signal.signal(signal.SIGTERM, prev_handlers[1])
     return code
 
 

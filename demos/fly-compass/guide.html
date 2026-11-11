@@ -100,7 +100,7 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line);
     <div class="kicker">Fly Brain &amp; Tiny Machines · demo</div>
     <h1>Fly compass</h1>
     <p class="lede">151 neurons from a real fruit fly's brain, wired exactly as they are in the fly, remember which way a robot dog is facing. The dog's arm points there like a compass needle.</p>
-    <div class="status"><b>Partly checked on a real Bittle X+Arm.</b> Reading the heading and observe mode work. Head and arm motion is not yet tried.</div>
+    <div class="status"><b>Partly checked on a real Bittle X+Arm.</b> It reads its heading, stands, turns its head and steps in place. Which way the head turns, hold mode and sweep mode are not yet confirmed.</div>
   </div>
   <svg viewBox="0 0 360 360" role="img" aria-label="A ring of 47 neurons with a bump of activity on one side">
     <circle cx="180" cy="180" r="128" fill="none" stroke="var(--line)" stroke-width="1"/>
@@ -168,7 +168,7 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line);
 <h2>How it works</h2>
 <p class="sub">The model runs on the laptop. The dog is the body: it reports its orientation and moves its head.</p>
 <div class="flow">
-  <div class="box"><h3>Bittle X</h3><small>Its motion sensor reports which way it faces, 5 times a second, over USB or Bluetooth.</small></div>
+  <div class="box"><h3>Bittle X</h3><small>Its motion sensor reports which way it faces, about 18 times a second over USB, or over Bluetooth.</small></div>
   <div class="arrow"><span>→</span>heading</div>
   <div class="box mid"><h3>Fly circuit on the laptop</h3><small>151 neurons and 2,665 connections of the head-direction circuit, taken from the FlyWire map of a fly brain. The heading is shown to the ring as a landmark; the ring's own wiring holds it.</small></div>
   <div class="arrow"><span>→</span>angle</div>
@@ -227,7 +227,7 @@ uv run fly-compass --mock</code></pre>
     <p>You want the verdict line to say OK. If it does not, copy the output: it shows exactly what your firmware sent.</p></li>
   <li><h3>Check the turn direction <span class="tag still">no movement</span></h3>
     <pre><code>uv run flybrain-bittle probe --rotate-test</code></pre>
-    <p>Turn the dog to its left by hand when asked. If the reported heading goes the wrong way, add <code>--yaw-sign -1</code> to every command below.</p></li>
+    <p>Turn the dog to its left by hand when asked. The app already allows for this firmware counting clockwise as positive (measured on a real dog). If the heading on the dashboard still goes the wrong way, add <code>--yaw-sign 1</code> to every command below.</p></li>
   <li><h3>Observe <span class="tag still">stands, then still</span></h3>
     <pre><code>uv run fly-compass --mode observe</code></pre>
     <p>The dog stands up. For the first 5 seconds do not touch it: the app measures how fast the motion sensor drifts and subtracts that. Then open the dashboard and turn the dog by hand: the white pointer and the bump should follow.</p></li>
@@ -239,6 +239,9 @@ uv run fly-compass --mock</code></pre>
   <li><h3>Hold heading, optional <span class="tag moves">the dog walks</span></h3>
     <pre><code>uv run fly-compass --mode hold --i-have-space</code></pre>
     <p>The dog steps in place to turn itself back when it is more than 20° off. Put it on the floor for this one.</p></li>
+  <li><h3>Sweep, optional <span class="tag moves">the dog walks</span></h3>
+    <pre><code>uv run fly-compass --mode sweep --i-have-space</code></pre>
+    <p>Nobody touches the dog. It steps in place to the left until it faces 35° left of where it started, stands for 3 seconds, steps round to 35° right, and keeps going. The arm should keep pointing at the start direction while the body swings under it. Put it on the floor with about a metre clear around it. Turning is slow on carpet, a few degrees a second, so one swing can take half a minute. If a turn takes too long the dog gives up and turns back; after three of those it stops walking and stays in needle mode.</p></li>
 </ol>
 
 <p style="margin-top:24px"><b>To stop:</b> press <code>Ctrl-C</code> in the terminal. The dog lies down and its servos switch off. If the cable comes out mid-run nothing can be sent, and the dog stays in its last pose until you switch it off.</p>
@@ -265,17 +268,17 @@ uv run fly-compass --mock</code></pre>
 </div>
 
 <h2>What has not been checked on a real dog</h2>
-<p class="sub">The link was written from the firmware's source code. These are the assumptions most likely to need a flag.</p>
+<p class="sub">The link was written from the firmware's source code and has since been run on one real dog. These are the things still to confirm.</p>
 <div class="two">
   <div class="card"><h3>Likely to need a flag</h3><ul>
-    <li>Which way the heading counts (left or right as positive).</li>
     <li>Which way the head joint turns.</li>
     <li>Whether 80° of swing is clear of the arm's cables.</li>
   </ul></div>
   <div class="card"><h3>Unknown until tried</h3><ul>
-    <li>How smooth the head looks at 15 commands a second, with the heading arriving only 5 times a second.</li>
+    <li>How smooth the head looks at 15 commands a second.</li>
     <li>Bluetooth from macOS to this board.</li>
     <li>Turn speed and overshoot in hold mode on a real floor.</li>
+    <li>Sweep: whether the stepping keeps going while the head moves. The app re-sends the turn if the dog stops making progress.</li>
   </ul></div>
 </div>
 <p class="note">The Petoi camera is not used. The firmware can report where a detected object is and how big it looks, but not pictures. Using that position as a real visual landmark for the ring is the natural next step.</p>

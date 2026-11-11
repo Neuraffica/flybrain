@@ -4,8 +4,9 @@ Files:
   meta.json    command line, transport, firmware id, config
   samples.csv  every IMU sample as consumed by the loop: t (s since start), yaw_deg, pitch_deg,
                roll_deg, source, blindfold (1 = no cue was given), phase (scenario phase or "")
-  frames.csv   per tick: truth, omega, cue given this tick, blindfold, phase, and each
-               model's heading, error and confidence
+  frames.csv   per tick: truth, omega, cue given this tick, blindfold, phase, hold state,
+               sweep state ("turning left", "pausing", ...), and each model's heading,
+               error and confidence
 
 Replay reads samples.csv (yaw is the only sensor input the models ever see, and the blindfold
 column says whether it was also given as a cue) and feeds it back through fresh models on a
@@ -35,6 +36,7 @@ FRAME_FIELDS = [
     "phase",
     "pan_cmd",
     "hold_state",
+    "sweep_state",
 ] + [f"{k}_{f}" for k in MODEL_KEYS for f in ("heading", "err", "confidence")]
 
 
@@ -89,6 +91,7 @@ class SessionLog:
             fr["phase"],
             fr["needle"]["cmd"],
             fr["hold"]["state"],
+            fr["sweep"]["label"] if fr["mode"] == "sweep" else "",
         ]
         for k in MODEL_KEYS:
             m = fr["models"][k]

@@ -62,8 +62,10 @@ class CompassApp:
         self.pending_scenario = scenario
         self.scenario: ScenarioRunner | None = None
         self.exit_after_scenario = exit_after_scenario
+        self.exit_after_sweep = True  # --sweep-cycles N: end the run when the sweep is done
         self.scenario_results: dict[str, Any] | None = None
         self.on_scenario_done = None  # callable(phase_summary) or None
+        self.on_event = None  # callable(str): loop events (re-zero, sweep turns, timeouts)
 
     # ---- dashboard commands (called from HTTP threads) --------------------------------
     def on_command(self, cmd: dict[str, Any]) -> dict[str, Any]:
@@ -84,13 +86,10 @@ class CompassApp:
             lp.reset_scores()
             return {"ok": True}
         if action == "mode":
-            prev = lp.mode
             err = lp.set_mode(str(cmd.get("mode")))
             if err:
                 return {"ok": False, "error": err}
-            if prev == "hold" and lp.mode != "hold" and lp.hold_state == "turning":
-                self._skill(P.SKILL_STAND)
-                lp.hold_state = "idle"
+            # leaving hold/sweep mid-turn: the loop issues "up" on its next tick
             if lp.mode == "observe" and self.bittle:
                 self.bittle.set_joint(P.JOINT_HEAD_PAN, 0)
                 lp.pan_cmd = lp.pan_filtered = 0.0
@@ -288,6 +287,8 @@ class CompassApp:
             for ev in lp.events:
                 self.messages.append(ev)
                 log.info(ev)
+                if self.on_event is not None:
+                    self.on_event(ev)
             lp.events.clear()
             if self.bittle is not None:
                 if acts.pan_deg is not None:
@@ -302,6 +303,8 @@ class CompassApp:
             if self.session is not None:
                 self.session.frame(now, frame)
 
+            if lp.mode == "sweep" and lp.sweep_state == "done" and self.exit_after_sweep:
+                break
             if self.scenario is not None and self.scenario.done and self.exit_after_scenario:
                 break
             if self.replay is not None and self.replay.done and not self.finished:
@@ -347,8 +350,9 @@ class CompassApp:
         self.stop_event.set()
         if self.bittle is not None:
             try:
-                if self.loop.hold_state == "turning":
-                    self.bittle.skill(P.SKILL_STAND, wait=True, timeout=2.0)
+                stop = self.loop.stop_gait()
+                if stop:
+                    self.bittle.skill(stop, wait=True, timeout=2.0)
             except Exception as e:  # noqa: BLE001 - still rest the robot below
                 log.error("stop gait failed: %s", e)
             self.bittle.close()  # rests the robot

@@ -9,7 +9,9 @@ Signal path, per tick:
             demo is "blindfolded" (then None on every tick)
         --> step connectome ring, rewired ring, gyro integrator with the same (omega, dt, cue)
         --> needle: head pan = target - heading of the driving model (clamped, smoothed,
-            rate-limited);  hold: in-place turn skills with hysteresis
+            rate-limited);  hold: in-place turn skills with hysteresis;
+            sweep: the dog turns itself between +A and -A (measured heading) while the
+            needle keeps working
 
 Angular velocity is DERIVED FROM THE IMU's fused yaw: the OpenCatEsp32 firmware prints yaw,
 pitch, roll and acceleration but no raw gyro rate (src/imu.h:599-611). omega is the rate
@@ -33,7 +35,19 @@ from typing import Any
 
 from .models import MODEL_KEYS, bump_of, confidence_of, n_neurons_of
 
-MODES = ("needle", "hold", "observe")
+MODES = ("needle", "hold", "sweep", "observe")
+LEG_MODES = ("hold", "sweep")  # modes that make the legs step: need --i-have-space
+
+TURN_LEFT, TURN_RIGHT, STAND = "vtL", "vtR", "up"  # in-place turning gaits and the stand posture
+
+# Sweep gait watchdog. On a real Bittle (firmware B10_250330) it is not certain that a turning
+# gait keeps running while head commands are streamed, so a leg that makes too little progress
+# re-issues its turn skill. Re-sending the same gait is harmless on the firmware: it does not
+# reload a gait that is already running (src/reaction.h:1467-1471).
+SWEEP_STALL_WINDOW_S = 3.0  # look back this far ...
+SWEEP_STALL_MIN_DEG = 3.0  # ... and expect at least this much turn in the commanded direction
+SWEEP_REISSUE_S = 3.0  # never re-issue the turn skill more often than this
+SWEEP_MAX_TIMEOUTS = 3  # consecutive leg timeouts before sweep gives up (falls back to needle)
 
 
 def wrap_deg(a: float) -> float:
@@ -66,6 +80,11 @@ class LoopConfig:
     hold_max_turn_s: float = 6.0
     hold_cooldown_s: float = 1.5
     hold_max_failures: int = 3
+    # sweep: turn left to +sweep_angle, pause, turn right to -sweep_angle, pause, repeat
+    sweep_angle_deg: float = 35.0
+    sweep_pause_s: float = 3.0
+    sweep_timeout_s: float = 25.0  # per turning leg
+    sweep_cycles: int | None = None  # stop after this many left+right cycles (None: forever)
 
 
 @dataclass
@@ -156,6 +175,10 @@ class CompassLoop:
         self.models = models
         self.cfg = config or LoopConfig()
         self.allow_hold = allow_hold
+        # legs: True from issuing a turn gait until "up" has been issued
+        self.gait_active = False
+        self._stop_requested = False
+        self._init_sweep()
         self.mode = "observe"
         self.set_mode(mode)
         self.driver = driver if driver in models else "connectome"
@@ -201,10 +224,26 @@ class CompassLoop:
         """Returns an error message, or None when the mode was applied."""
         if mode not in MODES:
             return f"unknown mode {mode!r}"
-        if mode == "hold" and not self.allow_hold:
-            return "hold mode moves the legs: restart with --i-have-space to allow it"
+        if mode in LEG_MODES and not self.allow_hold:
+            return f"{mode} mode moves the legs: restart with --i-have-space to allow it"
+        if mode != self.mode:
+            if self.gait_active:
+                self._stop_requested = True  # the next update() issues "up"
+            self.hold_state = "idle"
+            self._init_sweep()
         self.mode = mode
         return None
+
+    def _init_sweep(self) -> None:
+        self.sweep_state = "idle"  # idle | turning | pausing | done
+        self.sweep_dir = 0  # +1 turning/next turn left, -1 right
+        self.sweep_since = 0.0
+        self.sweep_cycles_done = 0
+        self.sweep_timeouts = 0  # consecutive
+        self.sweep_reissues = 0
+        self.sweep_last_issue = 0.0
+        self.sweep_legs_done = 0
+        self._sweep_hist: list[tuple[float, float]] = []
 
     def set_driver(self, key: str) -> str | None:
         if key not in self.models:
@@ -348,16 +387,133 @@ class CompassLoop:
                 ph.add(st.err_deg, conf)
 
         h_drive = self.state[self.driver].heading_deg
-        if self.mode == "needle":
-            acts.pan_deg = self._needle(h_drive, dt)
+        if self.mode in ("needle", "sweep"):
+            acts.pan_deg = self._needle(h_drive, dt)  # sweep keeps the needle working
+        elif self.mode == "hold":
+            acts.pan_deg = self._pan_towards(0.0, dt)
+        if self._stop_requested:
+            # left a legs mode mid-turn: stand first, start any new leg logic next tick
+            self._stop_requested = False
+            acts.skill = STAND
         elif self.mode == "hold":
             acts.skill = self._hold(h_drive, now)
-            acts.pan_deg = self._pan_towards(0.0, dt)
-        else:
-            if self.hold_state == "turning":
-                acts.skill = "up"
-                self.hold_state = "idle"
+        elif self.mode == "sweep":
+            acts.skill = self._sweep(now)
+        if acts.skill in (TURN_LEFT, TURN_RIGHT):
+            self.gait_active = True
+        elif acts.skill == STAND:
+            self.gait_active = False
         return acts
+
+    def stop_gait(self) -> str | None:
+        """For shutdown: the skill to send now ("up") if a turning gait may be running."""
+        if not self.gait_active:
+            return None
+        self.gait_active = False
+        self._stop_requested = False
+        return STAND
+
+    # ---- sweep ----------------------------------------------------------------------
+    def _sweep(self, now: float) -> str | None:
+        """Turn left to +A, pause, turn right to -A, pause, ... on the MEASURED heading
+        (truth relative to the zero taken at start), not on a model's heading."""
+        c = self.cfg
+        h = self.truth_rel
+        hist = self._sweep_hist
+        hist.append((now, h))
+        while len(hist) > 2 and hist[1][0] <= now - SWEEP_STALL_WINDOW_S:
+            hist.pop(0)
+        st = self.sweep_state
+        if st == "done":
+            return None
+        if st == "idle":
+            # first leg: towards the target we are further from, normally left
+            return self._sweep_turn(1 if h < c.sweep_angle_deg else -1, now)
+        if st == "pausing":
+            if now - self.sweep_since < c.sweep_pause_s:
+                return None
+            if c.sweep_cycles is not None and self.sweep_cycles_done >= c.sweep_cycles:
+                self.sweep_state = "done"
+                self.sweep_since = now
+                self.events.append(f"sweep finished after {self.sweep_cycles_done} cycles")
+                return None
+            return self._sweep_turn(self.sweep_dir, now)
+        # turning
+        d = self.sweep_dir
+        if d * h >= c.sweep_angle_deg:
+            self.sweep_timeouts = 0
+            return self._sweep_leg_done(now)
+        if now - self.sweep_since > c.sweep_timeout_s:
+            self.sweep_timeouts += 1
+            side = "left" if d > 0 else "right"
+            self.events.append(
+                f"sweep: turn {side} timed out after {c.sweep_timeout_s:.0f} s at {h:+.0f} deg"
+            )
+            if self.sweep_timeouts >= SWEEP_MAX_TIMEOUTS:
+                self.events.append(
+                    f"sweep: {SWEEP_MAX_TIMEOUTS} timeouts in a row, switching to needle mode"
+                )
+                self.mode = "needle"
+                self._init_sweep()
+                return STAND
+            return self._sweep_leg_done(now)
+        # watchdog: has the gait silently stopped?
+        t_old, h_old = hist[0]
+        if (
+            now - self.sweep_since >= SWEEP_STALL_WINDOW_S
+            and now - t_old >= SWEEP_STALL_WINDOW_S - 0.1
+            and d * (h - h_old) < SWEEP_STALL_MIN_DEG
+            and now - self.sweep_last_issue >= SWEEP_REISSUE_S
+        ):
+            self.sweep_last_issue = now
+            self.sweep_reissues += 1
+            self.events.append(
+                f"sweep: only {d * (h - h_old):+.1f} deg in {SWEEP_STALL_WINDOW_S:.0f} s, "
+                "re-issuing the turn"
+            )
+            return TURN_LEFT if d > 0 else TURN_RIGHT
+        return None
+
+    def _sweep_turn(self, direction: int, now: float) -> str:
+        self.sweep_state = "turning"
+        self.sweep_dir = direction
+        self.sweep_since = now
+        self.sweep_last_issue = now
+        self._sweep_hist = [(now, self.truth_rel)]
+        return TURN_LEFT if direction > 0 else TURN_RIGHT
+
+    def _sweep_leg_done(self, now: float) -> str:
+        """Stand, pause, and turn the other way next. A cycle is one left and one right leg."""
+        self.sweep_legs_done += 1
+        if self.sweep_dir < 0:
+            self.sweep_cycles_done += 1
+        self.sweep_state = "pausing"
+        self.sweep_dir = -self.sweep_dir
+        self.sweep_since = now
+        return STAND
+
+    def sweep_status(self, now: float) -> dict[str, Any]:
+        st = self.sweep_state
+        label = {
+            "turning": "turning left" if self.sweep_dir > 0 else "turning right",
+            "pausing": "pausing",
+            "done": "done",
+            "idle": "idle",
+        }[st]
+        a = self.cfg.sweep_angle_deg
+        return {
+            "state": st,
+            "label": label,
+            "direction": self.sweep_dir,
+            "target": (a if self.sweep_dir > 0 else -a) if st in ("turning", "pausing") else None,
+            "angle": a,
+            "time_in_state": round(now - self.sweep_since, 1) if st != "idle" else 0.0,
+            "cycles": self.sweep_cycles_done,
+            "max_cycles": self.cfg.sweep_cycles,
+            "timeouts": self.sweep_timeouts,
+            "reissues": self.sweep_reissues,
+            "allowed": self.allow_hold,
+        }
 
     # ---- needle ---------------------------------------------------------------------
     def _needle(self, heading_deg: float, dt: float) -> int | None:
@@ -470,6 +626,8 @@ class CompassLoop:
                 "limit": self.cfg.pan_limit_deg,
             },
             "hold": {"state": self.hold_state, "allowed": self.allow_hold},
+            "sweep": self.sweep_status(now),
+            "gait_active": self.gait_active,
             "cue": self.cue_this_tick,
             "phase": self.phase,
             "blindfold": {

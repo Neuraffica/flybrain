@@ -148,3 +148,8 @@ Read-only probe only; the robot has not been moved by this code yet.
 - Turning in place on carpet is slow: roughly 2 to 3.5 deg/s after removing drift.
 - Still unverified: pan sign (which way the head turns for a positive command), hold mode,
   Bluetooth.
+- Sweep mode ran on the real robot (2 cycles, +-25 deg, carpet, 29 s): every leg reached its
+  target with no timeout and no stall re-issue. Legs took 1.4 to 7.3 s (about 8 to 20 deg/s,
+  faster than the earlier bare `kvtL` test), overshoot after `kup` was 3 to 9 deg, and head
+  commands kept flowing during the gait. Whether the arm visibly held its direction (pan sign)
+  has not been confirmed by eye.
