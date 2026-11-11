@@ -201,12 +201,9 @@ reading the IMU by polling, drift measurement, observe mode, `kup`, head pan wit
 `kvtL` / `kvtR` stepping in place, and `d`. The yaw sign was measured (the firmware counts
 clockwise as positive, hence `--yaw-sign -1` on a real robot).
 
-Sweep mode ran on the robot (2 cycles at +-25 degrees on carpet, 29 s, no timeouts or
-re-issues), and the arm was seen to hold its direction, so the default pan sign (+1) is right
-on this firmware and the turning gait keeps running while head commands stream.
-
-Not yet checked on the robot: the safe pan range with the arm beyond about 45 degrees, hold
-mode, sweep on a hard floor or at larger angles, and Bluetooth.
+Not yet checked on the robot: the pan sign, the safe pan range with the arm, hold mode, sweep
+mode as a whole (in particular whether a turning gait keeps running while head commands
+stream, which the watchdog is there for), and Bluetooth.
 
 ## Tests
 
