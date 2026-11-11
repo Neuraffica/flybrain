@@ -139,3 +139,12 @@ Read-only probe only; the robot has not been moved by this code yet.
   `Low power: 2.18V. The robot won't move.` every 10 s. So no servo has moved yet, `kup` did
   nothing, and the 1.3 s silence every 10 s is the low-power warning. Drift figures were taken
   lying down, not standing. The link now logs this message as an error.
+- With the battery on (2026-11-11): `kup` stands the robot, `i 0 <deg>` pans the head (seen on
+  video), `kvtL` / `kvtR` step in place, `d` rests. No echo timeouts and no 1.3 s gaps.
+- Yaw DOES follow a real turn, with the opposite sign to the one inferred from source: stepping
+  left (`kvtL`, 4 s) changed the yaw by -16 deg, stepping right (`kvtR`, 4 s) by +8 deg, against
+  a standing drift of about -0.6 deg/s. The demo therefore defaults to `--yaw-sign -1` on a real
+  robot. This rests on `kvtL` turning the robot to its own left; not yet confirmed by eye.
+- Turning in place on carpet is slow: roughly 2 to 3.5 deg/s after removing drift.
+- Still unverified: pan sign (which way the head turns for a positive command), hold mode,
+  Bluetooth.

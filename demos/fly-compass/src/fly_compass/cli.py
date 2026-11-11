@@ -99,8 +99,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--yaw-sign",
         type=int,
         choices=(1, -1),
-        default=1,
-        help="+1 if the firmware yaw grows when the dog turns left (CCW)",
+        default=None,
+        help="+1 if the firmware yaw grows when the dog turns left (CCW). Default -1 on a real "
+        "robot (measured on firmware B10_250330: stepping left lowers the yaw), +1 on the "
+        "simulator",
     )
     hw.add_argument(
         "--pan-sign",
@@ -188,6 +190,8 @@ def print_phase_table(phases: dict, out=None) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     a = build_parser().parse_args(argv)
+    if a.yaw_sign is None:
+        a.yaw_sign = 1 if (a.mock or a.replay) else -1
     logging.basicConfig(
         level=logging.INFO if a.verbose else logging.WARNING,
         format="%(levelname)s %(name)s: %(message)s",
