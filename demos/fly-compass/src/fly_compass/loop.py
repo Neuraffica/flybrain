@@ -43,6 +43,8 @@ def wrap_deg(a: float) -> float:
     return a - 180.0
 
 
+CUE_LINK_HOLD_S = 2.0  # keep giving the last cue across link gaps this long
+CUE_REISSUE_S = 0.19  # just under the models' 0.25 s cue hold and the 5 Hz sample period
 RATE_WINDOW_S = 0.04  # shortest span over which a yaw rate is estimated
 
 
@@ -168,6 +170,7 @@ class CompassLoop:
         # yaw bookkeeping
         self._last_raw: float | None = None
         self._rate_anchor_t: float | None = None
+        self._last_cue_t: float | None = None
         self._rate_anchor_yaw = 0.0
         self.yaw_unwrapped = 0.0
         self.zero_offset = 0.0
@@ -307,7 +310,22 @@ class CompassLoop:
         truth = wrap_deg(target)
         # Landmark cue: the measured yaw in the models' heading frame (re-zeroed to 0), only on
         # ticks with a fresh sample, never while blindfolded.
-        cue_rad = math.radians(truth) if samples and not self.blindfolded else None
+        # A short silence on the link is not darkness: a real Bittle (firmware B10_250330)
+        # stops answering for about 1.3 s every 10 s, and the ring would slide to a preferred
+        # position in that time and twitch the head. So the last cue is held for up to
+        # CUE_LINK_HOLD_S after the latest sample; only the blindfold removes it.
+        # The held cue is re-issued only when the last one is CUE_REISSUE_S old, so normal
+        # operation still gives a cue just on fresh samples.
+        link_gap = (
+            not samples
+            and self.last_sample_t is not None
+            and now - self.last_sample_t <= CUE_LINK_HOLD_S
+            and self._last_cue_t is not None
+            and now - self._last_cue_t >= CUE_REISSUE_S
+        )
+        cue_rad = math.radians(truth) if (samples or link_gap) and not self.blindfolded else None
+        if cue_rad is not None:
+            self._last_cue_t = now
         self.cue_this_tick = cue_rad is not None
         self.n_cues += int(self.cue_this_tick)
         phase = self.phase
