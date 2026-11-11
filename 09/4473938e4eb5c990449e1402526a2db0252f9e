@@ -1,0 +1,20 @@
+demos/fly-compass/src/fly_compass/loop.py
+  s_8da33b2ad5b96f::t_70367a2f478b42 46,313-316
+  s_8da33b2ad5b96f::t_307a7f44d66a46 47,173,317-328
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "094473938e4eb5c990449e1402526a2db0252f9e",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
