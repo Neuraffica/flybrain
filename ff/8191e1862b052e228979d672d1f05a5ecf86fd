@@ -1,0 +1,51 @@
+demos/fly-compass/src/fly_compass/loop.py
+  s_8da33b2ad5b96f::t_79f618426d0591 12-14,38-50,83-87,178-181,227-233,237-247,390-391,394-405,408-517,629-630
+demos/fly-compass/src/fly_compass/static/index.html
+  s_8da33b2ad5b96f::t_5dec4f5155c43f 165-168,190,223,338-346,519-522,527-541
+packages/flybrain-edge/README.md
+  s_8da33b2ad5b96f::t_754679f739944f 20-22,32,65,67-75
+demos/fly-compass/tests/test_compass_sweep.py
+  s_8da33b2ad5b96f::t_44d009f5647224 3,129
+  s_8da33b2ad5b96f::t_6d128a9f201469 1-2,4-19,21-128,130-220
+  s_8da33b2ad5b96f::t_30d47e3b3385a9 20
+  s_8da33b2ad5b96f::t_41bee8826a7e9a 221-223
+packages/flybrain-edge/src/flybrain_edge/bittle/robot.py
+  s_8da33b2ad5b96f::t_501b57ea7a4797 260-262,296-298,448-451
+demos/fly-compass/src/fly_compass/session.py
+  s_8da33b2ad5b96f::t_2a4cb4bf6bebc2 7-9,39,94
+demos/fly-compass/src/fly_compass/app.py
+  s_8da33b2ad5b96f::t_ea62b02e33aafe 65,92,306-307,353-355
+  s_8da33b2ad5b96f::t_bac253cd6684fb 68,290-291
+demos/fly-compass/guide.html
+  s_8da33b2ad5b96f::t_fd494e2a03edb2 103,171,230,242-244,271,278,281
+demos/fly-compass/README.md
+  s_8da33b2ad5b96f::t_758f7534764c74 5,14-17,26-32,57-60,70,88-123,130-132,135-138,171-172,180-181,197-202,204-206
+demos/fly-compass/src/fly_compass/cli.py
+  s_8da33b2ad5b96f::t_fb79a952ca1d99 8,33,72-75,80-82,247-254,258-261,283-290,319-325,334-335
+  s_8da33b2ad5b96f::t_dff414ec632727 302,454-455
+  s_8da33b2ad5b96f::t_758f7534764c74 262
+  s_8da33b2ad5b96f::t_bac253cd6684fb 392
+  s_8da33b2ad5b96f::t_54969a87741e9d 294-299,303-304
+  s_8da33b2ad5b96f::t_30d47e3b3385a9 83-109,193-207,256-257,263-265
+packages/flybrain-edge/src/flybrain_edge/bittle/mock.py
+  s_8da33b2ad5b96f::t_92a87df90fce8e 89-91,105,107-112,251-254,262-264,398-400
+  s_8da33b2ad5b96f::t_30d47e3b3385a9 255-260
+packages/flybrain-edge/NOTES.md
+  s_8da33b2ad5b96f::t_dd81c3b02530f1 151-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ff8191e1862b052e228979d672d1f05a5ecf86fd",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
