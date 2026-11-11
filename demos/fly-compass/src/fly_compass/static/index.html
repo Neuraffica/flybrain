@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fly compass</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f4f4f2;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-3: #85847f;
+  --line: #e3e2de;
+  --line-2: #cfcec9;
+  --accent-bg: #eceae6;
+  --s1: #2a78d6;   /* connectome */
+  --s2: #eb6834;   /* rewired */
+  --s3: #1baf7a;   /* gyro integrator */
+  --good: #2f7d32;
+  --warn: #b26a00;
+  --bad: #c62828;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #121211;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --ink-3: #8f8e86;
+    --line: #2c2c2a;
+    --line-2: #3d3d3a;
+    --accent-bg: #252523;
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --good: #66bb6a;
+    --warn: #e0a030;
+    --bad: #ef6b6b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #121211; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #8f8e86;
+  --line: #2c2c2a; --line-2: #3d3d3a; --accent-bg: #252523;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --good: #66bb6a; --warn: #e0a030; --bad: #ef6b6b;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--page); color: var(--ink);
+  font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.num { font-variant-numeric: tabular-nums; }
+header {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+  padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--surface);
+}
+.brand h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+.brand p { margin: 2px 0 0; color: var(--ink-2); font-size: 13px; }
+.spacer { flex: 1; }
+.pill {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+  background: var(--accent-bg); font-size: 13px; color: var(--ink-2); max-width: 100%;
+}
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.dot.ok { background: var(--good); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-right: 1px solid var(--line-2); border-radius: 0; }
+.seg button:last-child { border-right: 0; }
+button {
+  font: inherit; font-size: 14px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 14px; cursor: pointer;
+}
+button:hover { background: var(--accent-bg); }
+button:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+main {
+  display: grid; gap: 16px; padding: 16px 24px 24px;
+  grid-template-columns: repeat(12, minmax(0, 1fr)); max-width: 1500px; margin: 0 auto;
+}
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 18px; min-width: 0;
+}
+.card h2 {
+  font-size: 13px; font-weight: 600; margin: 0 0 10px; color: var(--ink-2);
+  text-transform: uppercase; letter-spacing: .06em;
+}
+.span-5 { grid-column: span 5; } .span-7 { grid-column: span 7; }
+.span-8 { grid-column: span 8; } .span-4 { grid-column: span 4; }
+.span-6 { grid-column: span 6; } .span-12 { grid-column: span 12; }
+@media (max-width: 1100px) {
+  .span-5, .span-6, .span-7, .span-8, .span-4 { grid-column: span 12; }
+}
+@media (max-width: 600px) {
+  header, main, footer { padding-left: 16px; padding-right: 16px; }
+  .spacer { display: none; }
+  .rings { grid-template-columns: 1fr; }
+}
+.dial-wrap { position: relative; }
+canvas { display: block; width: 100%; }
+#dial { aspect-ratio: 1 / 1; max-height: 460px; margin: 0 auto; touch-action: none; }
+#dial.draggable { cursor: grab; }
+.readouts { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 6px; }
+.readout .k { font-size: 12px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; }
+.readout .v { font-size: 34px; font-weight: 650; letter-spacing: -0.02em; }
+.readout .v small { font-size: 16px; color: var(--ink-2); font-weight: 500; }
+.rings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ring h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.ring canvas { aspect-ratio: 1 / 1; max-height: 330px; margin: 0 auto; }
+.ring .meta { color: var(--ink-2); font-size: 13px; display: flex; justify-content: space-between; gap: 8px; }
+.bar { height: 6px; background: var(--accent-bg); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.bar > i { display: block; height: 100%; width: 0; border-radius: 3px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend .truth { width: 14px; height: 3px; background: var(--ink); border-radius: 2px; }
+.legend .arm { width: 14px; height: 0; border-top: 3px dashed var(--ink-3); }
+#chart { height: 240px; }
+.chart-wrap { position: relative; }
+.tip {
+  position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 4px 16px rgb(0 0 0 / .12);
+  display: none; white-space: nowrap; z-index: 2;
+}
+.tip div { display: flex; gap: 8px; align-items: center; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: right; font-weight: 600; color: var(--ink-2); font-size: 12px; text-transform: uppercase;
+  letter-spacing: .05em; padding: 6px 6px; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; }
+td { text-align: right; padding: 10px 6px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+td.big { font-size: 22px; font-weight: 650; }
+td .name { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.drive { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--ink-2); font-size: 13px; }
+.note { color: var(--ink-2); font-size: 13px; margin: 10px 0 0; }
+#msg { font-size: 13px; color: var(--ink-2); min-height: 18px; }
+#msg.err { color: var(--bad); }
+.hidden { display: none !important; }
+pre { white-space: pre-wrap; font-size: 12px; color: var(--ink-2); margin: 0; }
+.cue-bar {
+  grid-column: span 12; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px;
+  border-radius: var(--radius); padding: 14px 18px; border: 1px solid var(--line);
+  background: var(--surface);
+}
+.cue-bar .state { font-size: 22px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+.cue-bar .facts { font-size: 18px; font-weight: 600; white-space: nowrap; }
+.cue-bar .explain { flex: 1 1 380px; color: var(--ink-2); font-size: 14px; }
+.cue-bar.blind { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.cue-bar.blind .explain { color: var(--surface); opacity: .85; }
+.cue-bar .scen { flex-basis: 100%; font-size: 13px; color: inherit; opacity: .8; }
+.cue-bar .scen:empty { display: none; }
+select { font: inherit; font-size: 14px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 10px; }
+kbd { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid var(--line-2);
+  border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+.legend .band { width: 14px; height: 10px; background: var(--accent-bg); border: 1px solid var(--line-2); }
+.scroll-x { overflow-x: auto; }
+#bench td:first-child { white-space: nowrap; font-weight: 600; }
+.bench-sec { margin: 14px 0 0; }
+.bench-sec h3 { font-size: 14px; margin: 0 0 6px; }
+details > summary { cursor: pointer; color: var(--ink-2); font-size: 13px; margin: 8px 0; }
+dl.gloss { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 13px; margin: 0; }
+dl.gloss dt { font-weight: 600; } dl.gloss dd { margin: 0; color: var(--ink-2); }
+td.small, .small { font-size: 12px; color: var(--ink-3); }
+footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--ink-3); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1>Fly compass</h1>
+    <p>A fruit-fly head-direction circuit steering a robot dog's head</p>
+  </div>
+  <span class="pill" id="conn"><span class="dot" id="conn-dot"></span><span id="conn-text">connecting…</span></span>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="Mode">
+    <button data-mode="needle" title="Head points at the start heading">Needle</button>
+    <button data-mode="hold" title="Robot turns in place back to the start heading">Hold</button>
+    <button data-mode="observe" title="No motion">Observe</button>
+  </div>
+  <button id="blind" aria-pressed="false" title="Withhold the landmark cue (key B)">Blindfold <kbd>B</kbd></button>
+  <span id="scen-box" class="hidden">
+    <select id="scen" aria-label="Mock scenario"></select>
+    <button id="scen-run" title="Run the scripted scenario on the simulated dog">Run</button>
+  </span>
+  <button id="rezero" title="Make the current heading the new target and restart all models (this re-anchors them, like a cue)">Re-zero</button>
+  <button id="reset" title="Clear the mean-error scores">Reset scores</button>
+</header>
+<main>
+  <section class="cue-bar" id="cue-bar" aria-live="polite">
+    <span class="state" id="cue-state">Cue on</span>
+    <span class="facts num" id="cue-facts"></span>
+    <span class="explain" id="cue-explain"></span>
+    <span class="scen" id="cue-scen"></span>
+  </section>
+  <section class="card span-5" aria-labelledby="h-heading">
+    <h2 id="h-heading">Heading</h2>
+    <div class="legend" id="dial-legend">
+      <span><i class="truth"></i>IMU yaw (truth)</span>
+      <span><i class="sw" style="background:var(--s1)"></i>Connectome</span>
+      <span><i class="sw" style="background:var(--s2)"></i>Rewired</span>
+      <span><i class="sw" style="background:var(--s3)"></i>Integrator</span>
+      <span><i class="arm"></i>Head/arm</span>
+    </div>
+    <div class="dial-wrap"><canvas id="dial" aria-label="Compass dial"></canvas></div>
+    <div class="readouts">
+      <div class="readout"><div class="k">Dog heading</div><div class="v num" id="ro-truth">—</div></div>
+      <div class="readout"><div class="k">Turn rate</div><div class="v num" id="ro-omega">—</div></div>
+      <div class="readout"><div class="k">Head pan</div><div class="v num" id="ro-pan">—</div></div>
+    </div>
+    <p class="note" id="mock-hint"></p>
+  </section>
+
+  <section class="card span-7" aria-labelledby="h-rings">
+    <h2 id="h-rings">EPG ring activity</h2>
+    <div class="rings">
+      <div class="ring" id="ring-connectome">
+        <h3><i class="sw" style="background:var(--s1)"></i>Connectome</h3>
+        <canvas></canvas>
+        <div class="meta"><span class="num n"></span><span class="num c"></span></div>
+        <div class="bar"><i style="background:var(--s1)"></i></div>
+      </div>
+      <div class="ring" id="ring-rewired">
+        <h3><i class="sw" style="background:var(--s2)"></i>Rewired control</h3>
+        <canvas></canvas>
+        <div class="meta"><span class="num n"></span><span class="num c"></span></div>
+        <div class="bar"><i style="background:var(--s2)"></i></div>
+      </div>
+    </div>
+    <p class="note">Dots are EPG neurons placed by their preferred angle; size and depth show activity.
+      Coloured tick: the heading decoded from the bump. Dark tick: IMU yaw.</p>
+  </section>
+
+  <section class="card span-6" aria-labelledby="h-err">
+    <h2 id="h-err">Heading error, last 30 s</h2>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--s1)"></i>Connectome</span>
+      <span><i class="sw" style="background:var(--s2)"></i>Rewired</span>
+      <span><i class="sw" style="background:var(--s3)"></i>Integrator</span>
+      <span><i class="band"></i>Blindfolded</span>
+    </div>
+    <div class="chart-wrap"><canvas id="chart" aria-label="Heading error over time"></canvas><div class="tip" id="tip"></div></div>
+  </section>
+
+  <section class="card span-6" aria-labelledby="h-score">
+    <h2 id="h-score">Scoreboard</h2>
+    <div class="scroll-x"><table>
+      <thead><tr><th>Model</th>
+        <th title="Mean |error| over IMU samples while the cue was on. Truth is the same yaw as the cue, so this mostly measures lag.">Cue on</th>
+        <th title="Mean |error| over IMU samples while blindfolded: recurrence and angular velocity only.">Blindfolded</th>
+        <th>Now</th><th title="Bump confidence now (mean while blindfolded below)">Conf.</th><th>ms/step</th></tr></thead>
+      <tbody id="score"></tbody>
+    </table></div>
+    <p class="note" id="neurons"></p>
+    <div id="msg" role="status"></div>
+  </section>
+
+  <section class="card span-12 hidden" id="bench-card" aria-labelledby="h-bench">
+    <h2 id="h-bench">Offline benchmark</h2>
+    <div id="bench"></div>
+  </section>
+</main>
+<footer>
+  "Truth" is the IMU's fused yaw. With the cue on, that same yaw is also given to the models on every
+  sample (about 5 per second) as a stand-in for a visual landmark, so cue-on error mostly measures lag.
+  Angular velocity is derived from the same yaw (the OpenCat firmware prints no raw gyro rate) and goes to
+  all three models on every tick. Blindfolded, the models get angular velocity only.
+</footer>
+<script>
+"use strict";
+const KEYS = ["connectome", "rewired", "gyro"];
+const NAMES = { connectome: "Connectome", rewired: "Rewired", gyro: "Integrator" };
+const VAR = { connectome: "--s1", rewired: "--s2", gyro: "--s3" };
+const HISTORY_S = 30;
+let frame = null, history = [], lastT = -1, lastSamples = -1, dirty = true;
+let css = {};
+function readCss() {
+  const s = getComputedStyle(document.documentElement);
+  for (const v of ["--ink", "--ink-2", "--ink-3", "--line", "--line-2", "--surface", "--s1", "--s2", "--s3", "--accent-bg"])
+    css[v] = s.getPropertyValue(v).trim();
+  dirty = true;
+}
+readCss();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readCss);
+
+const $ = (id) => document.getElementById(id);
+const fmtDeg = (v, sign = true) => v == null ? "—" : (sign && v > 0 ? "+" : "") + v.toFixed(0) + "°";
+const rad = (d) => d * Math.PI / 180;
+
+function setupCanvas(c) {
+  const r = c.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(10, Math.round(r.width)), h = Math.max(10, Math.round(r.height));
+  if (c.width !== w * dpr || c.height !== h * dpr) { c.width = w * dpr; c.height = h * dpr; }
+  const g = c.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  return [g, w, h];
+}
+// Heading h (deg, CCW positive) -> screen point; 0 = up, positive turns to the left.
+function pt(cx, cy, r, h) { return [cx - Math.sin(rad(h)) * r, cy - Math.cos(rad(h)) * r]; }
+
+function drawDial() {
+  const c = $("dial");
+  const [g, w, h] = setupCanvas(c);
+  const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 40;
+  g.lineWidth = 1; g.strokeStyle = css["--line-2"];
+  g.beginPath(); g.arc(cx, cy, R, 0, 2 * Math.PI); g.stroke();
+  for (let a = 0; a < 360; a += 10) {
+    const major = a % 90 === 0, mid = a % 30 === 0;
+    const [x1, y1] = pt(cx, cy, R, a), [x2, y2] = pt(cx, cy, R - (major ? 14 : mid ? 9 : 5), a);
+    g.strokeStyle = major ? css["--ink-2"] : css["--line-2"]; g.lineWidth = major ? 2 : 1;
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  }
+  g.fillStyle = css["--ink-2"]; g.font = "600 12px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  for (const [a, t, align] of [[0, "0°", "center"], [90, "+90°", "right"], [180, "180°", "center"], [-90, "−90°", "left"]]) {
+    const [x, y] = pt(cx, cy, R + (align === "center" ? 14 : 8), a);
+    g.textAlign = align; g.fillText(t, x, y);
+  }
+  g.textAlign = "center";
+  if (!frame) return;
+  // target marker (the heading captured at re-zero)
+  const [tx, ty] = pt(cx, cy, R - 18, 0);
+  g.fillStyle = css["--ink"]; g.beginPath(); g.moveTo(tx, ty - 8); g.lineTo(tx - 7, ty + 6); g.lineTo(tx + 7, ty + 6); g.closePath(); g.fill();
+  // arm direction in the world = dog heading + head pan (pan sign handled by the server)
+  const arm = frame.truth + frame.needle.cmd * (frame.pan_sign || 1);
+  g.setLineDash([6, 6]); g.strokeStyle = css["--ink-3"]; g.lineWidth = 3;
+  const [ax, ay] = pt(cx, cy, R * 0.92, arm);
+  g.beginPath(); g.moveTo(cx, cy); g.lineTo(ax, ay); g.stroke(); g.setLineDash([]);
+  // model needles
+  for (const k of KEYS) {
+    const m = frame.models[k]; if (!m) continue;
+    const [x, y] = pt(cx, cy, R * 0.80, m.heading);
+    g.strokeStyle = css[VAR[k]]; g.lineWidth = k === frame.driver ? 5 : 3; g.lineCap = "round";
+    g.beginPath(); g.moveTo(cx, cy); g.lineTo(x, y); g.stroke();
+    g.fillStyle = css[VAR[k]]; g.beginPath(); g.arc(x, y, 6, 0, 2 * Math.PI); g.fill();
+    g.strokeStyle = css["--surface"]; g.lineWidth = 2; g.stroke();
+  }
+  // the dog (truth): body arrow
+  const [bx, by] = pt(cx, cy, R * 0.62, frame.truth);
+  const [lx, ly] = pt(cx, cy, R * 0.18, frame.truth + 150), [rx, ry] = pt(cx, cy, R * 0.18, frame.truth - 150);
+  g.fillStyle = css["--ink"]; g.beginPath(); g.moveTo(bx, by); g.lineTo(lx, ly); g.lineTo(cx, cy); g.lineTo(rx, ry); g.closePath(); g.fill();
+  g.fillStyle = css["--surface"]; g.beginPath(); g.arc(cx, cy, 5, 0, 2 * Math.PI); g.fill();
+}
+
+function drawRing(key) {
+  const box = $("ring-" + key), c = box.querySelector("canvas");
+  const [g, w, h] = setupCanvas(c);
+  const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 18;
+  g.strokeStyle = css["--line"]; g.lineWidth = 1;
+  g.beginPath(); g.arc(cx, cy, R, 0, 2 * Math.PI); g.stroke();
+  if (!frame) return;
+  const m = frame.models[key];
+  const col = css[VAR[key]];
+  if (m && m.bump && m.bump.length) {
+    const n = m.bump.length;
+    const maxDot = Math.max(4, Math.min(13, (Math.PI * R / n) * 0.9));
+    for (let i = 0; i < n; i++) {
+      const a = m.bump[i], [x, y] = pt(cx, cy, R, m.bump_angles[i]);
+      g.globalAlpha = 1; g.fillStyle = css["--accent-bg"];
+      g.beginPath(); g.arc(x, y, maxDot, 0, 2 * Math.PI); g.fill();
+      g.globalAlpha = 0.15 + 0.85 * a; g.fillStyle = col;
+      g.beginPath(); g.arc(x, y, 2 + (maxDot - 2) * a, 0, 2 * Math.PI); g.fill();
+    }
+    g.globalAlpha = 1;
+  } else {
+    g.fillStyle = css["--ink-3"]; g.font = "13px system-ui, sans-serif"; g.textAlign = "center";
+    g.fillText("no bump data", cx, cy);
+  }
+  // decoded heading and truth ticks
+  const tick = (hd, color, r0, r1, wdt) => {
+    const [x1, y1] = pt(cx, cy, r0, hd), [x2, y2] = pt(cx, cy, r1, hd);
+    g.strokeStyle = color; g.lineWidth = wdt; g.lineCap = "round";
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  };
+  if (m) tick(m.heading, col, R * 0.25, R * 0.78, 4);
+  tick(frame.truth, css["--ink"], R * 0.55, R * 0.78, 2);
+  g.fillStyle = css["--ink"]; g.font = "600 22px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  if (m) g.fillText(fmtDeg(m.err), cx, cy);
+  g.fillStyle = css["--ink-2"]; g.font = "12px system-ui, sans-serif";
+  g.fillText("error", cx, cy + 20);
+  box.querySelector(".n").textContent = m && m.n_neurons ? m.n_neurons + " neurons" : "";
+  box.querySelector(".c").textContent = m && m.confidence != null ? "confidence " + m.confidence.toFixed(2) : "";
+  box.querySelector(".bar > i").style.width = m && m.confidence != null ? (100 * m.confidence).toFixed(0) + "%" : "0";
+}
+
+let hover = null;
+function chartGeom(w, h) { return { l: 44, r: w - 10, t: 10, b: h - 24 }; }
+function drawChart() {
+  const c = $("chart");
+  const [g, w, h] = setupCanvas(c);
+  const G = chartGeom(w, h);
+  const tNow = history.length ? history[history.length - 1].t : 0, t0 = tNow - HISTORY_S;
+  let ymax = 20;
+  for (const p of history) for (const k of KEYS) ymax = Math.max(ymax, Math.abs(p[k] || 0));
+  ymax = Math.min(180, Math.ceil(ymax / 10) * 10);
+  const X = (t) => G.l + (t - t0) / HISTORY_S * (G.r - G.l);
+  const Y = (v) => G.t + (1 - (v + ymax) / (2 * ymax)) * (G.b - G.t);
+  g.font = "12px system-ui, sans-serif"; g.fillStyle = css["--ink-2"]; g.textAlign = "right"; g.textBaseline = "middle";
+  for (const v of [-ymax, -ymax / 2, 0, ymax / 2, ymax]) {
+    g.strokeStyle = v === 0 ? css["--line-2"] : css["--line"]; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(G.l, Y(v)); g.lineTo(G.r, Y(v)); g.stroke();
+    g.fillText((v > 0 ? "+" : "") + v + "°", G.l - 6, Y(v));
+  }
+  g.textAlign = "center"; g.textBaseline = "top";
+  for (let s = 0; s <= HISTORY_S; s += 10) g.fillText(s === 0 ? "now" : "−" + s + " s", X(tNow - s), G.b + 6);
+  g.save(); g.beginPath(); g.rect(G.l, G.t - 2, G.r - G.l, G.b - G.t + 4); g.clip();
+  // blindfolded stretches as background bands, drawn under the lines
+  g.fillStyle = css["--accent-bg"];
+  let bandStart = null;
+  for (let i = 0; i <= history.length; i++) {
+    const p = history[i];
+    if (p && p.blind && bandStart == null) bandStart = p.t;
+    if ((!p || !p.blind) && bandStart != null) {
+      const end = p ? p.t : tNow;
+      g.fillRect(X(bandStart), G.t, Math.max(1, X(end) - X(bandStart)), G.b - G.t);
+      bandStart = null;
+    }
+  }
+  for (const k of KEYS) {
+    g.strokeStyle = css[VAR[k]]; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath();
+    let first = true;
+    for (const p of history) {
+      if (p[k] == null) continue;
+      const x = X(p.t), y = Y(p[k]);
+      if (first) { g.moveTo(x, y); first = false; } else g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+  g.restore();
+  const tip = $("tip");
+  if (hover && history.length) {
+    const t = t0 + (hover.x - G.l) / (G.r - G.l) * HISTORY_S;
+    let best = history[0];
+    for (const p of history) if (Math.abs(p.t - t) < Math.abs(best.t - t)) best = p;
+    const x = X(best.t);
+    g.strokeStyle = css["--ink-3"]; g.lineWidth = 1; g.beginPath(); g.moveTo(x, G.t); g.lineTo(x, G.b); g.stroke();
+    for (const k of KEYS) {
+      if (best[k] == null) continue;
+      g.fillStyle = css[VAR[k]]; g.beginPath(); g.arc(x, Y(best[k]), 4, 0, 2 * Math.PI); g.fill();
+      g.strokeStyle = css["--surface"]; g.lineWidth = 2; g.stroke();
+    }
+    tip.innerHTML = `<div style="color:var(--ink-2)">${(best.t - tNow).toFixed(1)} s${best.blind ? " · blindfolded" : " · cue on"}</div>` +
+      KEYS.map((k) => `<div><i class="sw" style="background:var(${VAR[k]})"></i>${NAMES[k]}<b class="num" style="margin-left:auto">${fmtDeg(best[k])}</b></div>`).join("");
+    tip.style.display = "block";
+    const left = Math.min(x + 12, w - tip.offsetWidth - 4);
+    tip.style.left = left + "px"; tip.style.top = (G.t + 4) + "px";
+  } else tip.style.display = "none";
+}
+$("chart").addEventListener("pointermove", (e) => { const r = e.target.getBoundingClientRect(); hover = { x: e.clientX - r.left }; dirty = true; });
+$("chart").addEventListener("pointerleave", () => { hover = null; dirty = true; });
+
+function renderScore() {
+  const tb = $("score");
+  if (!frame) return;
+  if (!tb.children.length) {
+    for (const k of KEYS) {
+      const tr = document.createElement("tr"); tr.dataset.key = k;
+      tr.innerHTML = `<td><span class="name"><i class="sw" style="background:var(${VAR[k]})"></i>${NAMES[k]}</span><br>
+        <label class="drive"><input type="radio" name="driver" value="${k}"> drives needle</label></td>
+        <td class="big num mcue"></td><td class="big num mblind"></td><td class="num now"></td>
+        <td class="num conf"></td><td class="num ms"></td>`;
+      tb.appendChild(tr);
+    }
+    tb.addEventListener("change", (e) => { if (e.target.name === "driver") send({ action: "driver", model: e.target.value }); });
+  }
+  for (const tr of tb.children) {
+    const m = frame.models[tr.dataset.key];
+    const deg1 = (v) => v == null ? "—" : v.toFixed(1) + "°";
+    tr.querySelector(".mcue").textContent = m.accepts_cue === false ? "no cue input" : deg1(m.mae_cue);
+    tr.querySelector(".mcue").classList.toggle("small", m.accepts_cue === false);
+    tr.querySelector(".mblind").textContent = deg1(m.mae_blind);
+    tr.querySelector(".now").textContent = fmtDeg(m.err);
+    tr.querySelector(".conf").innerHTML = (m.confidence == null ? "—" : m.confidence.toFixed(2)) +
+      (m.conf_blind == null ? "" : `<br><span class="small">blind ${m.conf_blind.toFixed(2)}</span>`);
+    tr.querySelector(".ms").textContent = m.ms.toFixed(2);
+    const r = tr.querySelector("input"); r.checked = frame.driver === tr.dataset.key;
+  }
+  const n = frame.models.connectome.n_neurons, nr = frame.models.rewired.n_neurons;
+  $("neurons").textContent = (n ? `Ring sizes: connectome ${n}, rewired ${nr} neurons. ` : "") +
+    "Mean |error| over IMU samples since the last reset, split by whether the cue was on. " +
+    "Cue-on error mostly measures lag, because truth is the same IMU yaw as the cue.";
+}
+
+function renderHeader() {
+  const st = frame.status || {};
+  const dot = $("conn-dot");
+  let cls = "ok", text = st.source || "";
+  if (!st.connected) { cls = "bad"; text = "disconnected"; }
+  else if (frame.stale) { cls = "warn"; text += " · no IMU data"; }
+  else if (st.imu_rate) text += ` · IMU ${st.imu_rate.toFixed(1)} Hz`;
+  if (st.replay_progress != null) text += ` · ${(100 * st.replay_progress).toFixed(0)}%` + (st.replay_done ? " done" : "");
+  if (st.firmware) text += ` · ${st.firmware}`;
+  dot.className = "dot " + cls; $("conn-text").textContent = text;
+  for (const b of document.querySelectorAll("[data-mode]")) {
+    b.setAttribute("aria-pressed", String(b.dataset.mode === frame.mode));
+    if (b.dataset.mode === "hold") { b.disabled = !frame.hold.allowed; b.title = frame.hold.allowed ? "Robot turns in place back to the start heading" : "Start with --i-have-space to allow"; }
+  }
+  $("ro-truth").textContent = fmtDeg(frame.truth);
+  $("ro-omega").innerHTML = `${frame.omega > 0 ? "+" : ""}${frame.omega.toFixed(0)}<small>°/s</small>`;
+  $("ro-pan").innerHTML = frame.mode === "observe" ? "—" : fmtDeg(frame.needle.cmd) + (frame.needle.saturated ? "<small> limit</small>" : "");
+  $("mock-hint").textContent = st.mock ? "Simulated dog: drag the dial or press ← / → (Shift: 15°) to turn it." :
+    (frame.mode === "hold" ? `Hold: ${frame.hold.state}` : "");
+  $("dial").classList.toggle("draggable", !!st.mock);
+  renderCue(st);
+}
+
+function renderCue(st) {
+  const bf = frame.blindfold || {};
+  const bar = $("cue-bar");
+  bar.classList.toggle("blind", !!bf.on);
+  $("blind").setAttribute("aria-pressed", String(!!bf.on));
+  if (bf.on) {
+    const turned = bf.turned || 0;
+    $("cue-state").textContent = "Blindfolded";
+    $("cue-facts").textContent = `${(bf.elapsed || 0).toFixed(1)} s · dog turned ${fmtDeg(turned)} since`;
+    $("cue-explain").textContent = Math.abs(turned) < 10
+      ? "Dog held still, no cue: a ring whose recurrent wiring holds the bump keeps the last cued heading. Compare the connectome ring with the rewired control."
+      : "Dog turned in the dark: the ring models only get this turn through angular velocity, which they integrate poorly, so expect them to lose track. The integrator (a complementary filter) follows the turn.";
+  } else {
+    $("cue-state").textContent = "Cue on";
+    $("cue-facts").textContent = "";
+    $("cue-explain").textContent = "Each IMU sample is also given to the models as a landmark cue. Truth is that same yaw, so error here mostly measures lag. Press Blindfold (B) to take the cue away.";
+  }
+  const sc = st.scenario;
+  $("cue-scen").textContent = sc ? (sc.done ? `Scenario ${sc.name} finished (results printed in the terminal).`
+    : `Scenario ${sc.name} · phase ${sc.index + 1}/${sc.phases}: ${sc.phase} · ${sc.phase_elapsed.toFixed(0)}/${sc.phase_duration.toFixed(0)} s`) : "";
+  const box = $("scen-box");
+  if (st.scenarios && st.scenarios.length) {
+    box.classList.remove("hidden");
+    const sel = $("scen");
+    if (sel.options.length !== st.scenarios.length) {
+      sel.replaceChildren(...st.scenarios.map((n) => { const o = document.createElement("option"); o.value = n; o.textContent = n; return o; }));
+    }
+  } else box.classList.add("hidden");
+  $("blind").disabled = st.link === "replay";
+}
+
+async function send(cmd) {
+  try {
+    const r = await fetch("/api/command", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cmd) });
+    const j = await r.json();
+    const m = $("msg");
+    if (!j.ok) { m.textContent = j.error || "command failed"; m.className = "err"; }
+    else if (cmd.action !== "mock_turn_to" && cmd.action !== "mock_nudge") { m.textContent = ""; m.className = ""; }
+    if (cmd.action === "rezero" || cmd.action === "reset_scores") history = [];
+  } catch (e) { $("msg").textContent = "server unreachable"; $("msg").className = "err"; }
+}
+for (const b of document.querySelectorAll("[data-mode]")) b.addEventListener("click", () => send({ action: "mode", mode: b.dataset.mode }));
+$("rezero").addEventListener("click", () => send({ action: "rezero" }));
+$("blind").addEventListener("click", () => send({ action: "blindfold" }));
+$("scen-run").addEventListener("click", () => send({ action: "scenario", name: $("scen").value }));
+$("reset").addEventListener("click", () => send({ action: "reset_scores" }));
+
+// mock: drag the dial / arrow keys
+let dragging = false, lastSend = 0;
+function dialAngle(e) {
+  const r = $("dial").getBoundingClientRect();
+  const x = e.clientX - r.left - r.width / 2, y = e.clientY - r.top - r.height / 2;
+  return Math.atan2(-x, -y) * 180 / Math.PI;
+}
+$("dial").addEventListener("pointerdown", (e) => {
+  if (!frame || !frame.status.mock) return;
+  dragging = true; $("dial").setPointerCapture(e.pointerId); send({ action: "mock_turn_to", deg: dialAngle(e) });
+});
+$("dial").addEventListener("pointermove", (e) => {
+  if (!dragging) return;
+  const now = performance.now(); if (now - lastSend < 50) return; lastSend = now;
+  send({ action: "mock_turn_to", deg: dialAngle(e) });
+});
+$("dial").addEventListener("pointerup", () => { dragging = false; });
+window.addEventListener("keydown", (e) => {
+  if (!frame || ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
+  if ((e.key === "b" || e.key === "B") && !e.metaKey && !e.ctrlKey) { send({ action: "blindfold" }); e.preventDefault(); return; }
+  if (!frame.status.mock) return;
+  const step = e.shiftKey ? 15 : 5;
+  if (e.key === "ArrowLeft") { send({ action: "mock_nudge", deg: step }); e.preventDefault(); }
+  if (e.key === "ArrowRight") { send({ action: "mock_nudge", deg: -step }); e.preventDefault(); }
+});
+
+function onFrame(f) {
+  if (lastT >= 0 && f.t < lastT) history = [];
+  lastT = f.t; frame = f;
+  // errors are scored when a fresh IMU sample arrives; plot those points only
+  if (f.samples !== lastSamples) {
+    lastSamples = f.samples;
+    const p = { t: f.t, blind: !!(f.blindfold && f.blindfold.on) };
+    for (const k of KEYS) p[k] = f.models[k] ? f.models[k].err : null;
+    history.push(p);
+  }
+  while (history.length && history[0].t < f.t - HISTORY_S - 1) history.shift();
+  dirty = true;
+}
+function connect() {
+  const es = new EventSource("/api/stream");
+  es.onmessage = (e) => { try { onFrame(JSON.parse(e.data)); } catch (_) {} };
+  es.onerror = () => { $("conn-dot").className = "dot bad"; $("conn-text").textContent = "dashboard disconnected, retrying…"; };
+}
+function loop() {
+  if (dirty) {
+    dirty = false;
+    try { if (frame) { renderHeader(); renderScore(); } drawDial(); drawRing("connectome"); drawRing("rewired"); drawChart(); }
+    catch (e) { console.error(e); }
+  }
+  requestAnimationFrame(loop);
+}
+window.addEventListener("resize", () => { dirty = true; });
+
+// ---- offline benchmark: generic renderer for whatever sections the JSON has -------------
+const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
+const isScalar = (v) => v == null || ["number", "string", "boolean"].includes(typeof v);
+const human = (k) => String(k).replace(/_/g, " ");
+function fmtVal(x) {
+  if (typeof x === "number") {
+    if (Number.isInteger(x) || Math.abs(x) >= 100) return x.toFixed(0);
+    if (Math.abs(x) >= 1) return x.toFixed(2);
+    return x.toPrecision(2);
+  }
+  if (typeof x === "boolean") return x ? "yes" : "no";
+  if (Array.isArray(x)) return x.every(isScalar) ? x.map(fmtVal).join(", ") : `${x.length} items`;
+  if (isObj(x)) return `${Object.keys(x).length} fields`;
+  return x == null ? "—" : String(x);
+}
+function el(tag, text, cls) { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
+// rows: [[label, object]]; scalar fields and flat sub-objects become columns, nested tables
+// (objects of objects) become their own collapsed sub-tables.
+function rowsTable(title, rows, gloss) {
+  const cols = [], seen = new Set(), nested = {}, notes = [];
+  const add = (c) => { if (!seen.has(c)) { seen.add(c); cols.push(c); } };
+  const SEP = " · ";
+  for (const [label, obj] of rows) {
+    for (const [k, v] of Object.entries(obj)) {
+      if (typeof v === "string" && v.length > 40) notes.push([label, k, v]);  // prose, not a cell
+      else if (isScalar(v) || (Array.isArray(v) && v.every(isScalar))) add(k);
+      else if (isObj(v) && Object.values(v).every(isScalar)) for (const sk of Object.keys(v)) add(k + SEP + sk);
+      else if (isObj(v) && Object.values(v).every(isObj)) (nested[k] ||= []).push(...Object.entries(v).map(([sk, sv]) => [rows.length > 1 ? `${label} / ${sk}` : sk, sv]));
+      else add(k);
+    }
+  }
+  const finalCols = cols.filter((c) => !(c in nested));
+  const get = (obj, c) => { const i = c.indexOf(SEP); return i < 0 ? obj[c] : (obj[c.slice(0, i)] || {})[c.slice(i + SEP.length)]; };
+  const head = (c) => { const th = el("th", human(c)); const g = gloss[c.split(SEP)[0]]; if (g) th.title = g; return th; };
+  const wrap = el("div", null, "scroll-x");
+  const t = el("table");
+  const hr = t.createTHead().insertRow();
+  const tb = t.createTBody();
+  if (rows.length <= 12 && finalCols.length > 12 && finalCols.length > rows.length) {
+    // few entities, many measures: one column per entity reads better than a 30-column row
+    hr.appendChild(el("th", ""));
+    for (const [label] of rows) hr.appendChild(el("th", label));
+    for (const c of finalCols) {
+      const tr = tb.insertRow();
+      const td = tr.insertCell(); td.textContent = human(c); const g = gloss[c.split(SEP)[0]]; if (g) td.title = g;
+      for (const [, obj] of rows) tr.insertCell().textContent = fmtVal(get(obj, c));
+    }
+  } else {
+    hr.appendChild(el("th", ""));
+    for (const c of finalCols) hr.appendChild(head(c));
+    for (const [label, obj] of rows) {
+      const tr = tb.insertRow(); const td = tr.insertCell(); td.textContent = label; td.style.fontWeight = 600;
+      for (const c of finalCols) tr.insertCell().textContent = fmtVal(get(obj, c));
+    }
+  }
+  wrap.appendChild(t);
+  const frag = document.createDocumentFragment();
+  frag.appendChild(wrap);
+  for (const [label, k, v] of notes) frag.appendChild(el("p", `${label}, ${human(k)}: ${v}`, "note"));
+  for (const [k, subRows] of Object.entries(nested)) {
+    const det = el("details"); det.appendChild(el("summary", `${human(title)} · ${human(k)} (${subRows.length} rows)`));
+    det.appendChild(rowsTable(k, subRows, gloss)); frag.appendChild(det);
+  }
+  return frag;
+}
+function labelOf(obj, i) {
+  for (const k of ["model", "name", "variant", "id", "label"]) if (isScalar(obj[k]) && obj[k] != null) return String(obj[k]);
+  return "#" + (i + 1);
+}
+function benchSection(key, v, gloss) {
+  const sec = el("div", null, "bench-sec");
+  if (Array.isArray(v) && v.length && v.every(isObj)) {
+    sec.appendChild(el("h3", human(key)));
+    const rows = v.map((o, i) => {
+      const lab = labelOf(o, i), c = { ...o };
+      for (const k of ["model", "name"]) if (c[k] === lab) delete c[k];  // already the row label
+      Object.defineProperty(c, "__label", { value: lab });  // non-enumerable: not a column
+      return [lab, c];
+    });
+    sec.appendChild(rowsTable(key, rows, gloss));
+  } else if (isObj(v) && Object.keys(v).length && Object.values(v).every(isObj)) {
+    sec.appendChild(el("h3", human(key)));
+    sec.appendChild(rowsTable(key, Object.entries(v).map(([k, o]) => { const c = { ...o }; Object.defineProperty(c, "__label", { value: k }); return [k, c]; }), gloss));
+  } else if (isObj(v)) {
+    const det = el("details"); det.appendChild(el("summary", `${human(key)} (${Object.keys(v).length} fields)`));
+    const dl = el("dl", null, "gloss");
+    const flat = (o, pre) => { for (const [k, x] of Object.entries(o)) { if (isObj(x) && Object.keys(x).length) flat(x, pre + k + "."); else { dl.appendChild(el("dt", pre + k)); dl.appendChild(el("dd", fmtVal(x))); } } };
+    flat(v, ""); det.appendChild(dl); sec.appendChild(det);
+  } else {
+    sec.appendChild(el("p", `${human(key)}: ${fmtVal(v)}`, "note"));
+  }
+  return sec;
+}
+function renderBench(b) {
+  const box = $("bench");
+  if (b.error) { box.replaceChildren(el("pre", b.error)); $("bench-card").classList.remove("hidden"); return; }
+  const d = b.data;
+  const nodes = [];
+  if (!isObj(d)) { nodes.push(el("pre", JSON.stringify(d, null, 2))); }
+  else {
+    // a section of plain-text descriptions is a glossary: column tooltips + collapsed list
+    let gloss = {}, glossKey = null;
+    for (const [k, v] of Object.entries(d)) if (isObj(v) && Object.keys(v).length && Object.values(v).every((x) => typeof x === "string")) { gloss = v; glossKey = k; break; }
+    const meta = Object.entries(d).filter(([, v]) => isScalar(v));
+    if (meta.length) nodes.push(el("p", meta.map(([k, v]) => `${human(k)}: ${fmtVal(v)}`).join(" · "), "note"));
+    // tables first (they carry the results), then everything else in file order
+    const entries = Object.entries(d).filter(([k, v]) => !isScalar(v) && k !== glossKey);
+    const tabular = (v) => (Array.isArray(v) && v.length && v.every(isObj)) || (isObj(v) && Object.keys(v).length && Object.values(v).every(isObj));
+    // model tables (rows labelled by a "model" field, or keyed by our model names) come first
+    const byModel = (v) => Array.isArray(v) ? v.some((o) => "model" in o) : Object.keys(v).some((k) => KEYS.includes(k));
+    const tabs = entries.filter(([, v]) => tabular(v));
+    for (const [k, v] of [...tabs.filter(([, v]) => byModel(v)), ...tabs.filter(([, v]) => !byModel(v))]) {
+      if (byModel(v)) nodes.push(benchSection(k, v, gloss));
+      else { const det = el("details"); det.appendChild(el("summary", human(k))); det.appendChild(benchSection(k, v, gloss)); nodes.push(det); }
+    }
+    for (const [k, v] of entries.filter(([, v]) => !tabular(v))) nodes.push(benchSection(k, v, gloss));
+    if (glossKey) {
+      const det = el("details"); det.appendChild(el("summary", `${human(glossKey)}: what the columns mean`));
+      const dl = el("dl", null, "gloss");
+      for (const [k, v] of Object.entries(gloss)) { dl.appendChild(el("dt", human(k))); dl.appendChild(el("dd", v)); }
+      det.appendChild(dl); nodes.push(det);
+    }
+  }
+  nodes.push(el("p", "Source: " + b.source, "note"));
+  box.replaceChildren(...nodes);
+  $("bench-card").classList.remove("hidden");
+}
+fetch("/api/benchmark").then((r) => r.status === 200 ? r.json() : null).then((b) => { if (b) renderBench(b); }).catch(() => {});
+connect(); loop();
+</script>
+</body>
+</html>

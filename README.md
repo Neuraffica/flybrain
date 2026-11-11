@@ -10,7 +10,7 @@ The rules:
 2. **Compare against a standard baseline** and show the numbers.
 3. **Run it on a device**, ours or yours.
 
-> Status: repository scaffold and planning docs. The packages, firmware and tutorials below are outlined but not implemented yet.
+> Status: planning docs plus one working demo, [Fly compass](demos/fly-compass/README.md) ([guide](demos/fly-compass/guide.html)), which has been tested on a simulated robot only. Firmware, simulation and tutorials are outlined but not implemented yet.
 
 ## Start here
 
@@ -46,6 +46,7 @@ Requires [uv](https://docs.astral.sh/uv/) and Python 3.11 or newer.
 
 ```bash
 uv sync
+uv run fly-compass --mock   # the demo on a simulated dog; dashboard at http://127.0.0.1:8765
 ```
 
 ## Data credit

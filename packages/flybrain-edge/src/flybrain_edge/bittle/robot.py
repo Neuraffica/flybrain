@@ -1,0 +1,408 @@
+"""High-level Bittle link: connect, stand, rest, stream IMU yaw, move one joint, run skills.
+
+Threads:
+  * a reader thread turns transport bytes into lines, extracts IMU readings anywhere in the
+    stream (unsolicited prints are tolerated and kept in ``recent_lines``), and signals
+    command echoes;
+  * a joint streamer sends the latest requested joint angle at most ``joint_rate_hz`` times a
+    second, so a control loop can call :meth:`Bittle.set_joint` every tick without blocking.
+
+Every command goes through one lock and waits for its echo (or a short timeout) before the
+next one is written: the firmware merges commands that arrive in one burst and drops the
+second (src/moduleManager.h:405-445).
+"""
+
+from __future__ import annotations
+
+import logging
+import threading
+import time
+from collections import deque
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Self
+
+from . import protocol as P
+from .transport import Transport, TransportError
+
+log = logging.getLogger(__name__)
+
+
+class BittleError(RuntimeError):
+    pass
+
+
+@dataclass(frozen=True)
+class ImuSample:
+    t: float  # host time.monotonic() when the line was parsed
+    yaw_deg: float  # firmware yaw times yaw_sign: + = counter-clockwise seen from above
+    pitch_deg: float
+    roll_deg: float
+    source: str
+    raw: str = ""
+
+
+@dataclass
+class LinkStats:
+    lines: int = 0
+    imu_samples: int = 0
+    other_lines: int = 0
+    echo_timeouts: int = 0
+    commands: int = 0
+    imu_rate_hz: float = 0.0
+    last_sample_t: float = 0.0
+
+
+class Bittle:
+    def __init__(
+        self,
+        transport: Transport,
+        yaw_sign: int = +1,
+        joint_token: str = "i",
+        joint_rate_hz: float = 15.0,
+        min_command_gap_s: float = 0.02,
+        joint_limits: dict[int, tuple[float, float]] | None = None,
+        on_raw: Callable[[str, float, bytes], None] | None = None,
+    ):
+        if joint_token not in ("i", "I"):
+            raise ValueError("joint_token must be 'i' (ASCII) or 'I' (binary)")
+        self.transport = transport
+        self.yaw_sign = 1 if yaw_sign >= 0 else -1
+        self.joint_token = joint_token
+        self.joint_rate_hz = joint_rate_hz
+        self.min_gap = min_command_gap_s
+        self.limits = dict(P.FIRMWARE_ANGLE_LIMITS)
+        self.limits[P.JOINT_HEAD_PAN] = (-P.DEFAULT_PAN_LIMIT_DEG, P.DEFAULT_PAN_LIMIT_DEG)
+        if joint_limits:
+            self.limits.update(joint_limits)
+        self.on_raw = on_raw
+
+        self.model: str | None = None
+        self.version: str | None = None
+        self.boot_text = ""
+        self.stats = LinkStats()
+        self.recent_lines: deque[tuple[float, str]] = deque(maxlen=300)
+        self._samples: deque[ImuSample] = deque(maxlen=2000)
+        self._new_samples: deque[ImuSample] = deque(maxlen=2000)
+        self._sample_listeners: list[Callable[[ImuSample], None]] = []
+        self._splitter = P.LineSplitter()
+        self._cv = threading.Condition()
+        self._line_seq = 0
+        self._write_lock = threading.Lock()
+        self._last_write = 0.0
+        self._running = False
+        self._reader: threading.Thread | None = None
+        self._streamer: threading.Thread | None = None
+        self._joint_targets: dict[int, float] = {}
+        self._joint_sent: dict[int, int] = {}
+        self._joint_cv = threading.Condition()
+        self.streaming = False
+        self.connected = False
+        self.legacy_imu = False
+
+    # ---- connection ---------------------------------------------------------------------
+    def connect(self, boot_timeout: float = 12.0, quiet_s: float = 1.5) -> None:
+        """Open the transport, wait out the boot banner, identify the firmware."""
+        self.transport.open()
+        self._wait_boot(boot_timeout, quiet_s)
+        self._running = True
+        self._reader = threading.Thread(target=self._read_loop, name="bittle-reader", daemon=True)
+        self._reader.start()
+        self._streamer = threading.Thread(
+            target=self._joint_loop, name="bittle-joints", daemon=True
+        )
+        self._streamer.start()
+        self.connected = True
+        lines = self.send(P.encode_ascii(P.T_QUERY), echo=P.T_QUERY, timeout=2.0)
+        if lines is None:
+            log.warning("no echo for '?': firmware may be busy or not OpenCat")
+        else:
+            for i, ln in enumerate(lines):
+                if any(k in ln for k in ("Bittle", "Nybble", "DoF16")):
+                    self.model = ln.strip()
+                    if i + 1 < len(lines):
+                        self.version = lines[i + 1].strip()
+                    break
+        if self.model and "Arm" not in self.model:
+            log.warning(
+                "firmware reports %r, not 'Bittle X+Arm': arm joint 1 limits differ", self.model
+            )
+
+    def _wait_boot(self, max_s: float, quiet_s: float) -> None:
+        buf = bytearray()
+        t0 = time.monotonic()
+        last = t0
+        while time.monotonic() - t0 < max_s:
+            chunk = self.transport.read(0.05)
+            now = time.monotonic()
+            if chunk:
+                self._raw("rx", now, chunk)
+                buf.extend(chunk)
+                last = now
+                text = buf.decode("latin-1")
+                if "(Y/n)" in text:
+                    self.boot_text = text
+                    raise BittleError(
+                        "The board is asking a first-boot setup question (Y/n). Finish setup in "
+                        "the Arduino serial monitor or the Petoi Desktop App first:\n" + text[-400:]
+                    )
+                if "Ready!" in text:
+                    # let the trailing beep/print settle
+                    tail_end = time.monotonic() + 0.3
+                    while time.monotonic() < tail_end:
+                        more = self.transport.read(0.05)
+                        if more:
+                            self._raw("rx", time.monotonic(), more)
+                            buf.extend(more)
+                    break
+            elif now - last >= quiet_s and not (
+                # BLE: the firmware greets with "Petoi <MODEL>" ~1.5 s after connecting and then
+                # forces a rest (src/bleUart.h:160-178); do not race it with our first commands
+                self.transport.name == "ble"
+                and "Petoi" not in buf.decode("latin-1")
+                and now - t0 < 4.0
+            ):
+                break
+        self.boot_text = buf.decode("latin-1")
+        # anything after the boot text is fed through the normal parser
+        self._splitter = P.LineSplitter()
+
+    def _raw(self, direction: str, t: float, data: bytes) -> None:
+        if self.on_raw:
+            try:
+                self.on_raw(direction, t, data)
+            except Exception:  # noqa: BLE001, S110 - a logging hook must not kill the link
+                pass
+
+    # ---- reader -----------------------------------------------------------------------
+    def _read_loop(self) -> None:
+        while self._running:
+            try:
+                data = self.transport.read(0.05)
+            except TransportError as e:
+                log.error("link lost: %s", e)
+                self.connected = False
+                with self._cv:
+                    self._cv.notify_all()
+                return
+            except Exception:
+                log.exception("reader error")
+                time.sleep(0.05)
+                continue
+            if not data:
+                continue
+            now = time.monotonic()
+            self._raw("rx", now, data)
+            self.handle_bytes(data, now)
+
+    def handle_bytes(self, data: bytes, now: float | None = None) -> None:
+        """Parse a chunk of firmware output (public so tests can feed captured text)."""
+        now = time.monotonic() if now is None else now
+        lines = self._splitter.feed(data)
+        for r in self._splitter.take_pending_imu():
+            self._add_sample(r, now, "")
+        for line in lines:
+            self.stats.lines += 1
+            readings, rest = P.parse_imu(line)
+            r = P.preferred_reading(readings)
+            if r is not None:
+                self._add_sample(r, now, line)
+            rest = rest.strip()
+            if rest:
+                self.stats.other_lines += 1
+                with self._cv:
+                    self.recent_lines.append((now, rest))
+                    self._line_seq += 1
+                    self._cv.notify_all()
+
+    def _add_sample(self, r: P.ImuReading, now: float, raw: str) -> None:
+        s = ImuSample(now, self.yaw_sign * r.yaw_deg, r.pitch_deg, r.roll_deg, r.source, raw)
+        if self.stats.last_sample_t:
+            dt = now - self.stats.last_sample_t
+            if dt > 1e-4:
+                inst = 1.0 / dt
+                a = 0.2
+                self.stats.imu_rate_hz = (
+                    inst
+                    if self.stats.imu_rate_hz == 0
+                    else (1 - a) * self.stats.imu_rate_hz + a * inst
+                )
+        self.stats.last_sample_t = now
+        self.stats.imu_samples += 1
+        with self._cv:
+            self._samples.append(s)
+            self._new_samples.append(s)
+            self._cv.notify_all()
+        for cb in list(self._sample_listeners):
+            cb(s)
+
+    # ---- commands ---------------------------------------------------------------------
+    def send(self, data: bytes, echo: str | None = None, timeout: float = 1.0) -> list[str] | None:
+        """Write one command; if ``echo`` is given wait for that token line.
+
+        Returns the non-IMU lines received while waiting (including the echo), or None on
+        timeout. A timeout is counted and logged, never raised: an unexpected firmware is
+        reported by ``probe`` rather than crashing the demo mid-motion."""
+        with self._write_lock:
+            gap = self.min_gap - (time.monotonic() - self._last_write)
+            if gap > 0:
+                time.sleep(gap)
+            with self._cv:
+                seq0 = self._line_seq
+            now = time.monotonic()
+            self._raw("tx", now, data)
+            self.transport.write(data)
+            self.stats.commands += 1
+            self._last_write = time.monotonic()
+            if echo is None:
+                return []
+            deadline = now + timeout
+            with self._cv:
+                while True:
+                    got = (
+                        list(self.recent_lines)[-(self._line_seq - seq0) :]
+                        if self._line_seq > seq0
+                        else []
+                    )
+                    texts = [t for _, t in got]
+                    if any(P.is_echo(t, echo) for t in texts):
+                        self._last_write = time.monotonic()
+                        return texts
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0 or not self.connected:
+                        self.stats.echo_timeouts += 1
+                        log.warning("no echo %r for %r within %.1fs", echo, data[:24], timeout)
+                        return None
+                    self._cv.wait(remaining)
+
+    def skill(self, name: str, wait: bool = True, timeout: float = 4.0) -> bool:
+        return (
+            self.send(P.encode_skill(name), echo="k" if wait else None, timeout=timeout) is not None
+        )
+
+    def stand(self, balance: bool = False) -> None:
+        """Stand up, then switch the balance reflex off (default) so the legs stay still while
+        someone turns the dog by hand. 'gb' keeps the IMU updating; 'gu' would stop it."""
+        self.skill(P.SKILL_STAND, timeout=5.0)
+        # must come AFTER the skill: any token following a rest re-enables balance
+        # (src/reaction.h:370-376)
+        cmd = P.GYRO_BALANCE_ON if balance else P.GYRO_BALANCE_OFF
+        self.send((cmd + "\n").encode(), echo="g", timeout=1.0)
+
+    def rest(self) -> None:
+        self.send(P.encode_ascii(P.T_REST), echo="d", timeout=4.0)
+
+    def stream_imu(self, on: bool = True) -> None:
+        """'gP' prints an IMU line every time the IMU updates, but print6Axis() is rate-limited
+        to one line per 200 ms, so expect ~5 Hz. 'gp' prints once and stops the stream."""
+        cmd = P.GYRO_PRINT_CONTINUOUS if on else P.GYRO_PRINT_ONCE
+        self.send((cmd + "\n").encode(), echo="g", timeout=1.0)
+        self.streaming = on
+
+    def read_yaw(self, timeout: float = 1.5) -> ImuSample | None:
+        """Return the next IMU sample. Uses 'gp' (OpenCatEsp32) and, if that yields nothing,
+        the legacy 'v' token of older firmware."""
+        with self._cv:
+            n0 = self.stats.imu_samples
+        if not self.streaming:
+            token = P.T_LEGACY_PRINT_GYRO if self.legacy_imu else P.GYRO_PRINT_ONCE
+            self.send((token + "\n").encode(), echo=token[0], timeout=min(timeout, 1.0))
+        s = self._wait_sample(n0, timeout)
+        if s is None and not self.streaming and not self.legacy_imu:
+            self.send(b"v\n", echo="v", timeout=0.5)
+            s = self._wait_sample(n0, 0.5)
+            if s is not None:
+                self.legacy_imu = True
+        return s
+
+    def _wait_sample(self, n0: int, timeout: float) -> ImuSample | None:
+        deadline = time.monotonic() + timeout
+        with self._cv:
+            while self.stats.imu_samples <= n0:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return None
+                self._cv.wait(remaining)
+            return self._samples[-1]
+
+    def drain_samples(self) -> list[ImuSample]:
+        with self._cv:
+            out = list(self._new_samples)
+            self._new_samples.clear()
+        return out
+
+    @property
+    def latest_sample(self) -> ImuSample | None:
+        with self._cv:
+            return self._samples[-1] if self._samples else None
+
+    def add_sample_listener(self, cb: Callable[[ImuSample], None]) -> None:
+        self._sample_listeners.append(cb)
+
+    # ---- joints -----------------------------------------------------------------------
+    def clamp(self, index: int, deg: float) -> int:
+        return round(P.clamp_joint(index, deg, self.limits))
+
+    def set_joint(self, index: int, deg: float) -> int:
+        """Request a joint angle; returns the clamped value that will be sent. Non-blocking:
+        the streamer thread sends only the latest request, at most joint_rate_hz per second."""
+        a = self.clamp(index, deg)
+        with self._joint_cv:
+            self._joint_targets[index] = a
+            self._joint_cv.notify()
+        return a
+
+    def _joint_loop(self) -> None:
+        period = 1.0 / max(1.0, self.joint_rate_hz)
+        while self._running:
+            with self._joint_cv:
+                self._joint_cv.wait(period)
+                todo = {
+                    i: a for i, a in self._joint_targets.items() if self._joint_sent.get(i) != a
+                }
+            if not todo or not self.connected:
+                continue
+            t0 = time.monotonic()
+            for i, a in todo.items():
+                cmd = P.encode_joint(i, a, self.joint_token)
+                self.send(cmd, echo=self.joint_token, timeout=0.25)
+                self._joint_sent[i] = a
+            spare = period - (time.monotonic() - t0)
+            if spare > 0:
+                time.sleep(spare)
+
+    def forget_joint_targets(self) -> None:
+        with self._joint_cv:
+            self._joint_targets.clear()
+            self._joint_sent.clear()
+
+    # ---- shutdown -----------------------------------------------------------------------
+    def close(self) -> None:
+        """Stop streaming and leave the robot resting, whatever state it was in."""
+        try:
+            self.forget_joint_targets()
+            if self.connected and self.transport.is_open:
+                try:
+                    if self.streaming:
+                        self.stream_imu(False)
+                finally:
+                    self.rest()
+        except Exception as e:  # noqa: BLE001 - cleanup must not mask the original error
+            log.error("error while resting the robot: %s", e)
+        finally:
+            self._running = False
+            self.connected = False
+            for t in (self._streamer, self._reader):
+                if t is not None and t is not threading.current_thread():
+                    t.join(timeout=1.0)
+            try:
+                self.transport.close()
+            except Exception:  # noqa: BLE001, S110 - best-effort close
+                pass
+
+    def __enter__(self) -> Self:
+        self.connect()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()

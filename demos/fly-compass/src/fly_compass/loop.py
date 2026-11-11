@@ -1,0 +1,464 @@
+"""The compass control loop, independent of where samples come from and of wall time.
+
+Signal path, per tick:
+
+    IMU fused yaw (deg, ~5 Hz)  --unwrap-->  truth (relative to the zero heading)
+        --> finite difference of consecutive samples + slow drift correction
+        --> angular velocity omega (every tick)
+        --> cue: the same yaw, as a landmark, on ticks that bring a fresh sample, unless the
+            demo is "blindfolded" (then None on every tick)
+        --> step connectome ring, rewired ring, gyro integrator with the same (omega, dt, cue)
+        --> needle: head pan = target - heading of the driving model (clamped, smoothed,
+            rate-limited);  hold: in-place turn skills with hysteresis
+
+Angular velocity is DERIVED FROM THE IMU's fused yaw: the OpenCatEsp32 firmware prints yaw,
+pitch, roll and acceleration but no raw gyro rate (src/imu.h:599-611). omega is the rate
+between the last two samples (piecewise constant, so the models get a smooth input) plus a
+small term (yaw - integral of omega) / tau_correct that pulls the integral of omega back onto
+the measured yaw (extrapolated to the current tick), so the input itself never drifts. Every
+model sees a turn about one sample (~0.2 s) late.
+
+The cue stands in for a visual landmark. "Truth" for scoring is that same fused yaw, so with
+the cue on the error mostly measures lag; the informative numbers are the blindfolded ones:
+does the bump stay put when the dog is still, and does anything follow a turn in the dark.
+"""
+
+from __future__ import annotations
+
+import inspect
+import math
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+from .models import MODEL_KEYS, bump_of, confidence_of, n_neurons_of
+
+MODES = ("needle", "hold", "observe")
+
+
+def wrap_deg(a: float) -> float:
+    a = math.fmod(a + 180.0, 360.0)
+    if a <= 0:
+        a += 360.0
+    return a - 180.0
+
+
+@dataclass
+class LoopConfig:
+    rate_hz: float = 20.0
+    tau_correct_s: float = 0.5  # pulls the integral of omega back onto the measured yaw
+    omega_clip_dps: float = 720.0
+    stale_after_s: float = 1.0
+    # needle
+    pan_limit_deg: float = 80.0
+    pan_sign: int = +1  # +1: positive pan looks left (CCW). UNVERIFIED on hardware.
+    pan_rate_dps: float = 120.0
+    pan_smooth_tau_s: float = 0.12
+    pan_deadband_deg: float = 1.0
+    # hold
+    hold_enter_deg: float = 20.0
+    hold_exit_deg: float = 6.0
+    hold_max_turn_s: float = 6.0
+    hold_cooldown_s: float = 1.5
+    hold_max_failures: int = 3
+
+
+@dataclass
+class Actions:
+    pan_deg: int | None = None  # head pan command to send (already clamped)
+    skill: str | None = None  # skill to start, e.g. "vtL", "vtR", "up"
+    notes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ErrStats:
+    """|error| and confidence accumulated over scored IMU samples."""
+
+    abs_err_sum: float = 0.0
+    n: int = 0
+    conf_sum: float = 0.0
+    n_conf: int = 0
+    last_err: float | None = None
+    duration_s: float = 0.0
+
+    def add(self, err: float, conf: float | None) -> None:
+        self.abs_err_sum += abs(err)
+        self.n += 1
+        self.last_err = err
+        if conf is not None:
+            self.conf_sum += conf
+            self.n_conf += 1
+
+    @property
+    def mae(self) -> float | None:
+        return self.abs_err_sum / self.n if self.n else None
+
+    @property
+    def mean_conf(self) -> float | None:
+        return self.conf_sum / self.n_conf if self.n_conf else None
+
+    def summary(self) -> dict[str, Any]:
+        r = lambda x: None if x is None else round(x, 2)
+        return {
+            "mae_deg": r(self.mae),
+            "final_err_deg": r(self.last_err),
+            "mean_conf": r(self.mean_conf),
+            "samples": self.n,
+        }
+
+
+@dataclass
+class ModelState:
+    heading_deg: float = 0.0
+    err_deg: float = 0.0
+    ms_ema: float = 0.0
+    cue: ErrStats = field(default_factory=ErrStats)  # scored while the cue is on
+    blind: ErrStats = field(default_factory=ErrStats)  # scored while blindfolded
+    phases: dict[str, ErrStats] = field(default_factory=dict)  # by phase label
+    accepts_cue: bool = True
+
+    @property
+    def n(self) -> int:
+        return self.cue.n + self.blind.n
+
+    @property
+    def mae(self) -> float | None:
+        n = self.n
+        return (self.cue.abs_err_sum + self.blind.abs_err_sum) / n if n else None
+
+
+def accepts_cue(model: Any) -> bool:
+    """True if ``model.step`` takes ``cue_rad`` (older model builds do not)."""
+    try:
+        params = inspect.signature(model.step).parameters
+    except (TypeError, ValueError):
+        return False
+    return "cue_rad" in params or any(p.kind is p.VAR_KEYWORD for p in params.values())
+
+
+class CompassLoop:
+    def __init__(
+        self,
+        models: dict[str, Any],
+        config: LoopConfig | None = None,
+        mode: str = "observe",
+        allow_hold: bool = False,
+        driver: str = "connectome",
+    ):
+        missing = [k for k in MODEL_KEYS if k not in models]
+        if missing:
+            raise ValueError(f"missing models: {missing}")
+        self.models = models
+        self.cfg = config or LoopConfig()
+        self.allow_hold = allow_hold
+        self.mode = "observe"
+        self.set_mode(mode)
+        self.driver = driver if driver in models else "connectome"
+        self.state = {k: ModelState(accepts_cue=accepts_cue(models[k])) for k in MODEL_KEYS}
+        # landmark cue / blindfold
+        self.blindfolded = False
+        self.blind_since: float | None = None
+        self.blind_truth0 = 0.0
+        self.phase_override: str | None = None  # set by a scripted scenario
+        self.cue_this_tick = False
+        self.n_cues = 0
+        # yaw bookkeeping
+        self._last_raw: float | None = None
+        self.yaw_unwrapped = 0.0
+        self.zero_offset = 0.0
+        self.zeroed = False
+        self.fed = 0.0
+        self.omega_dps = 0.0
+        self.interval_ema = 0.2
+        self.rate_est = 0.0
+        self.last_sample_t: float | None = None
+        self.n_samples = 0
+        self.last_tick: float | None = None
+        self.t_start: float | None = None
+        # needle
+        self.pan_filtered = 0.0
+        self.pan_cmd = 0.0
+        self.pan_sent: int | None = None
+        self.pan_desired = 0.0
+        self.pan_saturated = False
+        # hold
+        self.hold_state = "idle"
+        self.hold_dir = 0
+        self.hold_since = 0.0
+        self.hold_failures = 0
+        self.events: list[str] = []
+
+    # ---- control surface ----------------------------------------------------------------
+    def set_mode(self, mode: str) -> str | None:
+        """Returns an error message, or None when the mode was applied."""
+        if mode not in MODES:
+            return f"unknown mode {mode!r}"
+        if mode == "hold" and not self.allow_hold:
+            return "hold mode moves the legs: restart with --i-have-space to allow it"
+        self.mode = mode
+        return None
+
+    def set_driver(self, key: str) -> str | None:
+        if key not in self.models:
+            return f"unknown model {key!r}"
+        self.driver = key
+        return None
+
+    def rezero(self) -> None:
+        """Capture the current IMU heading as the target and restart every model at 0."""
+        self.zero_offset = self.yaw_unwrapped
+        self.fed = 0.0
+        self.omega_dps = 0.0
+        self.rate_est = 0.0
+        for m in self.models.values():
+            m.reset(heading_rad=0.0)
+        self.reset_scores()
+        self.blind_truth0 = 0.0  # truth_rel is 0 right after re-zeroing
+        self.zeroed = True
+        self.events.append("re-zeroed")
+
+    def reset_scores(self) -> None:
+        for s in self.state.values():
+            s.cue = ErrStats()
+            s.blind = ErrStats()
+            s.phases = {}
+
+    def set_blindfold(self, on: bool, now: float | None = None) -> None:
+        """Blindfolded: no cue on any tick; the models run on recurrence and velocity alone."""
+        on = bool(on)
+        if on == self.blindfolded:
+            return
+        self.blindfolded = on
+        self.blind_since = (self.last_tick if now is None else now) if on else None
+        self.blind_truth0 = self.truth_rel
+        self.events.append("blindfold on" if on else "blindfold off: cue restored")
+
+    @property
+    def phase(self) -> str:
+        if self.phase_override:
+            return self.phase_override
+        return "blindfolded" if self.blindfolded else "cue on"
+
+    @property
+    def truth_rel(self) -> float:
+        return self.yaw_unwrapped - self.zero_offset
+
+    # ---- main update ----------------------------------------------------------------
+    def ingest(self, samples) -> None:
+        for s in samples:
+            y = float(s.yaw_deg)
+            step = 0.0 if self._last_raw is None else wrap_deg(y - self._last_raw)
+            if self._last_raw is None:
+                self.yaw_unwrapped = y
+            else:
+                self.yaw_unwrapped += step
+            self._last_raw = y
+            if self.last_sample_t is not None:
+                dt = s.t - self.last_sample_t
+                if 1e-3 < dt < 2.0:
+                    self.interval_ema = 0.8 * self.interval_ema + 0.2 * dt
+                    self.rate_est = step / dt
+                else:
+                    self.rate_est = 0.0
+            self.last_sample_t = s.t
+            self.n_samples += 1
+        if samples and not self.zeroed:
+            self.rezero()
+
+    def update(self, now: float, samples=()) -> Actions:
+        self.ingest(samples)
+        if self.t_start is None:
+            self.t_start = now
+        dt = 0.0 if self.last_tick is None else min(max(now - self.last_tick, 0.0), 0.25)
+        self.last_tick = now
+        acts = Actions()
+        if not self.zeroed or dt <= 0:
+            return acts
+
+        # angular velocity derived from the IMU yaw (see module docstring)
+        target = self.truth_rel
+        if self.last_sample_t is not None and now - self.last_sample_t > self.cfg.stale_after_s:
+            self.rate_est = 0.0  # link stalled: do not keep integrating an old rate
+        # compare against the yaw extrapolated to `now` (samples are sample-and-hold), so the
+        # correction only removes genuine mismatch, not the 0-200 ms staircase
+        ahead = 0.0
+        if self.last_sample_t is not None:
+            ahead = min(max(now - self.last_sample_t, 0.0), 1.5 * self.interval_ema)
+        omega = self.rate_est + (target + self.rate_est * ahead - self.fed) / self.cfg.tau_correct_s
+        clip = self.cfg.omega_clip_dps
+        omega = max(-clip, min(clip, omega))
+        self.fed += omega * dt
+        self.omega_dps = omega
+        w = math.radians(omega)
+
+        truth = wrap_deg(target)
+        # Landmark cue: the measured yaw in the models' heading frame (re-zeroed to 0), only on
+        # ticks with a fresh sample, never while blindfolded.
+        cue_rad = math.radians(truth) if samples and not self.blindfolded else None
+        self.cue_this_tick = cue_rad is not None
+        self.n_cues += int(self.cue_this_tick)
+        phase = self.phase
+        for key in MODEL_KEYS:
+            m = self.models[key]
+            st = self.state[key]
+            t0 = time.perf_counter()
+            h = m.step(w, dt, cue_rad=cue_rad) if st.accepts_cue else m.step(w, dt)
+            ms = (time.perf_counter() - t0) * 1000.0
+            st.ms_ema = ms if st.ms_ema == 0 else 0.9 * st.ms_ema + 0.1 * ms
+            st.heading_deg = wrap_deg(math.degrees(float(h)))
+            # Score only on ticks that brought a fresh IMU sample: between samples "truth" is a
+            # 200 ms staircase and comparing a smooth model against it adds a sawtooth error.
+            ph = st.phases.setdefault(phase, ErrStats())
+            ph.duration_s += dt
+            if samples:
+                st.err_deg = wrap_deg(st.heading_deg - truth)
+                conf = confidence_of(m)
+                (st.blind if self.blindfolded else st.cue).add(st.err_deg, conf)
+                ph.add(st.err_deg, conf)
+
+        h_drive = self.state[self.driver].heading_deg
+        if self.mode == "needle":
+            acts.pan_deg = self._needle(h_drive, dt)
+        elif self.mode == "hold":
+            acts.skill = self._hold(h_drive, now)
+            acts.pan_deg = self._pan_towards(0.0, dt)
+        else:
+            if self.hold_state == "turning":
+                acts.skill = "up"
+                self.hold_state = "idle"
+        return acts
+
+    # ---- needle ---------------------------------------------------------------------
+    def _needle(self, heading_deg: float, dt: float) -> int | None:
+        c = self.cfg
+        desired = c.pan_sign * wrap_deg(0.0 - heading_deg)  # target heading is 0 after re-zero
+        self.pan_desired = desired
+        lim = c.pan_limit_deg
+        if abs(desired) > lim:
+            self.pan_saturated = True
+            # Target roughly behind the dog: the sign of `desired` flips at +-180 deg, so keep
+            # the side we are already on instead of swinging the arm across the front.
+            side = math.copysign(1.0, desired)
+            if abs(desired) > 150 and abs(self.pan_cmd) > lim / 2:
+                side = math.copysign(1.0, self.pan_cmd)
+            desired = side * lim
+        else:
+            self.pan_saturated = False
+        return self._pan_towards(desired, dt)
+
+    def _pan_towards(self, desired: float, dt: float) -> int | None:
+        c = self.cfg
+        lim = c.pan_limit_deg
+        desired = max(-lim, min(lim, desired))
+        a = 1.0 - math.exp(-dt / c.pan_smooth_tau_s) if c.pan_smooth_tau_s > 0 else 1.0
+        self.pan_filtered += a * (desired - self.pan_filtered)
+        step = c.pan_rate_dps * dt
+        self.pan_cmd += max(-step, min(step, self.pan_filtered - self.pan_cmd))
+        self.pan_cmd = max(-lim, min(lim, self.pan_cmd))
+        out = round(self.pan_cmd)
+        if self.pan_sent is None or abs(out - self.pan_sent) >= c.pan_deadband_deg:
+            self.pan_sent = out
+            return out
+        return None
+
+    # ---- hold -----------------------------------------------------------------------
+    def _hold(self, heading_deg: float, now: float) -> str | None:
+        c = self.cfg
+        err = wrap_deg(0.0 - heading_deg)  # + => must turn left (CCW)
+        if self.hold_state == "disabled":
+            return None
+        if self.hold_state == "turning":
+            elapsed = now - self.hold_since
+            crossed = self.hold_dir * err < 0
+            if abs(err) < c.hold_exit_deg or crossed:
+                self.hold_state = "cooldown"
+                self.hold_since = now
+                self.hold_failures = 0
+                return "up"
+            if elapsed > c.hold_max_turn_s:
+                self.hold_failures += 1
+                self.hold_state = "cooldown"
+                self.hold_since = now
+                self.events.append(f"turn timed out after {c.hold_max_turn_s:.0f}s")
+                if self.hold_failures >= c.hold_max_failures:
+                    self.hold_state = "disabled"
+                    self.events.append("hold disabled after repeated timeouts")
+                return "up"
+            return None
+        if self.hold_state == "cooldown" and now - self.hold_since < c.hold_cooldown_s:
+            return None
+        self.hold_state = "idle"
+        if abs(err) > c.hold_enter_deg:
+            self.hold_state = "turning"
+            self.hold_dir = 1 if err > 0 else -1
+            self.hold_since = now
+            return "vtL" if err > 0 else "vtR"
+        return None
+
+    # ---- reporting ----------------------------------------------------------------
+    def frame(self, now: float) -> dict[str, Any]:
+        truth = wrap_deg(self.truth_rel)
+        models = {}
+        for key in MODEL_KEYS:
+            m = self.models[key]
+            st = self.state[key]
+            bump, angles = bump_of(m) if key != "gyro" else ([], [])
+            conf = confidence_of(m)
+            models[key] = {
+                "heading": round(st.heading_deg, 2),
+                "err": round(st.err_deg, 2),
+                "mae": None if st.mae is None else round(st.mae, 2),
+                "mae_cue": None if st.cue.mae is None else round(st.cue.mae, 2),
+                "mae_blind": None if st.blind.mae is None else round(st.blind.mae, 2),
+                "conf_blind": None if st.blind.mean_conf is None else round(st.blind.mean_conf, 3),
+                "accepts_cue": st.accepts_cue,
+                "confidence": None if conf is None else round(conf, 3),
+                "ms": round(st.ms_ema, 3),
+                "n_neurons": n_neurons_of(m) if key != "gyro" else None,
+                "bump": bump,
+                "bump_angles": angles,
+            }
+        age = None if self.last_sample_t is None else round(now - self.last_sample_t, 3)
+        return {
+            "t": round(now - (self.t_start or now), 3),
+            "mode": self.mode,
+            "driver": self.driver,
+            "truth": round(truth, 2),
+            "omega": round(self.omega_dps, 2),
+            "target": 0.0,
+            "pan_sign": self.cfg.pan_sign,
+            "zeroed": self.zeroed,
+            "samples": self.n_samples,
+            "sample_age": age,
+            "stale": age is None or age > self.cfg.stale_after_s,
+            "imu_interval": round(self.interval_ema, 3),
+            "needle": {
+                "desired": round(self.pan_desired, 1),
+                "cmd": round(self.pan_cmd, 1),
+                "saturated": self.pan_saturated,
+                "limit": self.cfg.pan_limit_deg,
+            },
+            "hold": {"state": self.hold_state, "allowed": self.allow_hold},
+            "cue": self.cue_this_tick,
+            "phase": self.phase,
+            "blindfold": {
+                "on": self.blindfolded,
+                "elapsed": None if self.blind_since is None else round(now - self.blind_since, 1),
+                "turned": round(self.truth_rel - self.blind_truth0, 1)
+                if self.blindfolded
+                else None,
+            },
+            "models": models,
+        }
+
+    def phase_summary(self) -> dict[str, dict[str, dict[str, Any]]]:
+        """{phase: {model: {mae_deg, final_err_deg, mean_conf, samples}}} in phase order."""
+        out: dict[str, dict[str, dict[str, Any]]] = {}
+        for key in MODEL_KEYS:
+            for ph, stats in self.state[key].phases.items():
+                if not stats.n:
+                    continue  # a phase that ended before any IMU sample was scored
+                d = stats.summary()
+                d["duration_s"] = round(stats.duration_s, 1)
+                out.setdefault(ph, {})[key] = d
+        return out

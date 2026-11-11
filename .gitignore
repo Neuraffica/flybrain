@@ -22,3 +22,6 @@ data/
 .DS_Store
 .idea/
 .vscode/
+
+# Session logs from demos
+runs/

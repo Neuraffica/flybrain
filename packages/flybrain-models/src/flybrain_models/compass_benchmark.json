@@ -1,0 +1,989 @@
+{
+ "about": "flybrain_models.compass_benchmark output; regenerate with `uv run python -m flybrain_models.compass_benchmark`",
+ "date": "2026-11-11",
+ "machine": "Darwin arm64 python 3.13.12",
+ "key_numbers": {
+  "dead_reckoning_mae_deg": {
+   "connectome": 85.251,
+   "rewired": 86.029,
+   "random": 81.426,
+   "no_recurrence": 81.843,
+   "complementary_filter": 3.947,
+   "static_null": 81.843
+  },
+  "cue_tracking_mae_deg": {
+   "connectome": 14.317,
+   "rewired": 9.68,
+   "random": 10.42,
+   "no_recurrence": 6.033,
+   "complementary_filter": 0.0,
+   "static_null": 81.843
+  },
+  "cue_tracking_noisy_mae_deg": {
+   "connectome": 14.005,
+   "rewired": 10.035,
+   "random": 10.9,
+   "no_recurrence": 7.493,
+   "complementary_filter": 1.701,
+   "static_null": 81.843
+  },
+  "cue_tracking_lag_ms": {
+   "connectome": 143.333,
+   "rewired": 114.0,
+   "random": 106.667,
+   "no_recurrence": 120.0,
+   "complementary_filter": 0.0,
+   "static_null": 333.333
+  },
+  "memory_held_frac_5s": {
+   "connectome": 0.583,
+   "rewired": 0.042,
+   "random": 0.0,
+   "no_recurrence": 0.0,
+   "complementary_filter": 1.0,
+   "static_null": 0.0
+  },
+  "memory_held_frac_30s": {
+   "connectome": 0.583,
+   "rewired": 0.042,
+   "random": 0.0,
+   "no_recurrence": 0.0,
+   "complementary_filter": 1.0,
+   "static_null": 0.0
+  },
+  "memory_held_frac_60s": {
+   "connectome": 0.583,
+   "rewired": 0.05,
+   "random": 0.0,
+   "no_recurrence": 0.0,
+   "complementary_filter": 1.0,
+   "static_null": 0.0
+  },
+  "memory_err_deg_5s": {
+   "connectome": 42.829,
+   "rewired": 88.58,
+   "random": 90.0,
+   "no_recurrence": 90.0,
+   "complementary_filter": 0.427,
+   "static_null": 90.0
+  },
+  "memory_err_deg_30s": {
+   "connectome": 42.812,
+   "rewired": 88.908,
+   "random": 90.0,
+   "no_recurrence": 90.0,
+   "complementary_filter": 0.427,
+   "static_null": 90.0
+  },
+  "memory_err_deg_60s": {
+   "connectome": 42.812,
+   "rewired": 89.12,
+   "random": 90.0,
+   "no_recurrence": 90.0,
+   "complementary_filter": 0.427,
+   "static_null": 90.0
+  },
+  "memory_bump_frac_60s": {
+   "connectome": 1.0,
+   "rewired": 0.267,
+   "random": 0.0,
+   "no_recurrence": 0.0,
+   "complementary_filter": 1.0,
+   "static_null": 1.0
+  },
+  "dark_rotation_err_deg": {
+   "connectome": 81.746,
+   "rewired": 90.618,
+   "random": 90.0,
+   "no_recurrence": 90.0,
+   "complementary_filter": 0.427,
+   "static_null": 90.0
+  },
+  "dark_rotation_held_frac": {
+   "connectome": 0.208,
+   "rewired": 0.133,
+   "random": 0.0,
+   "no_recurrence": 0.0,
+   "complementary_filter": 1.0,
+   "static_null": 0.0
+  }
+ },
+ "key_numbers_doc": {
+  "models": "connectome = shipped RingAttractor; rewired / random = mean over 5 / 3 control seeds with the connectome's scalars; no_recurrence = ablation (W = 0); complementary_filter = GyroIntegrator; static_null = never moves",
+  "dead_reckoning_mae_deg": "test A: mean abs heading error, gyro only (deg)",
+  "cue_tracking_mae_deg": "test B: mean abs error with an exact 5 Hz cue (deg)",
+  "cue_tracking_noisy_mae_deg": "test B with 5 deg sd noise on the cue (deg)",
+  "cue_tracking_lag_ms": "test B: delay that best aligns decoded and true heading",
+  "memory_held_frac_{5s,30s,60s}": "test C: fraction of 24 headings where a bump (confidence > 0.3) is within 30 deg of the last cue after that long in darkness at rest",
+  "memory_err_deg_{5s,30s,60s}": "test C: mean abs error vs the last cue; trials without a bump count as 90 deg (chance)",
+  "memory_bump_frac_60s": "test C: fraction of trials with any bump after 60 s",
+  "dark_rotation_err_deg": "test D: error after turning 90 deg/s for 4 s in darkness",
+  "dark_rotation_held_frac": "test D: fraction within 30 deg with a bump"
+ },
+ "protocols": {
+  "cue": "landmark = true heading, sampled at 5 Hz; RingAttractor holds each sample for 0.25 s (CUE_HOLD_S), so the stream acts as a continuous cue",
+  "memory": "reset 90 deg away from the target, cue 3 s at 5 Hz, then no cue",
+  "trajectories": [
+   {
+    "name": "slow_ccw",
+    "duration_s": 15.0,
+    "max_abs_deg_s": 30.0
+   },
+   {
+    "name": "slow_ccw+noise",
+    "duration_s": 15.0,
+    "max_abs_deg_s": 30.0
+   },
+   {
+    "name": "slow_cw",
+    "duration_s": 15.0,
+    "max_abs_deg_s": 30.0
+   },
+   {
+    "name": "slow_cw+noise",
+    "duration_s": 15.0,
+    "max_abs_deg_s": 30.0
+   },
+   {
+    "name": "fast_ccw",
+    "duration_s": 9.0,
+    "max_abs_deg_s": 180.0
+   },
+   {
+    "name": "fast_ccw+noise",
+    "duration_s": 9.0,
+    "max_abs_deg_s": 180.0
+   },
+   {
+    "name": "fast_cw",
+    "duration_s": 9.0,
+    "max_abs_deg_s": 180.0
+   },
+   {
+    "name": "fast_cw+noise",
+    "duration_s": 9.0,
+    "max_abs_deg_s": 180.0
+   },
+   {
+    "name": "stop_and_go",
+    "duration_s": 22.5,
+    "max_abs_deg_s": 200.0
+   },
+   {
+    "name": "stop_and_go+noise",
+    "duration_s": 22.5,
+    "max_abs_deg_s": 200.0
+   },
+   {
+    "name": "mixed",
+    "duration_s": 40.14,
+    "max_abs_deg_s": 194.5
+   },
+   {
+    "name": "mixed+noise",
+    "duration_s": 40.14,
+    "max_abs_deg_s": 194.5
+   }
+  ]
+ },
+ "params_connectome": {
+  "w_scale": 100.0,
+  "cue_gain": 5.136934249380096,
+  "cue_kappa": 4.917524729507142,
+  "compartments": {
+   "PEN_a": {
+    "EB": 0.0
+   },
+   "PEN_b": {
+    "EB": 0.0
+   }
+  },
+  "gain": {
+   "EPG": 2.832507641496825,
+   "PEN_a": 0.37095210900597436,
+   "PEN_b": 1.604705703142027,
+   "PEG": 0.9721803658742477,
+   "Delta7": 185.78047707730818
+  },
+  "bias": {
+   "EPG": -1.9301277318481302,
+   "PEN_a": 3.8304434536782126,
+   "PEN_b": 0.5372586371350325,
+   "PEG": 3.472271752780518,
+   "Delta7": -0.322617985840549
+  },
+  "ring_direction": 1.0,
+  "cue_fitted": true,
+  "tau": 0.041932549835805154,
+  "vel_gain": 1.814119186924402,
+  "vel_amp": 6.460585890732179,
+  "dt_max": 0.010483137458951288
+ },
+ "results": [
+  {
+   "model": "connectome",
+   "description": "FlyWire connectome, shipped scalars",
+   "n_instances": 1,
+   "n_neurons": 151,
+   "fitted_scalars": 15,
+   "connectome_weights": 2321,
+   "dead_reckoning": {
+    "mae_deg": 85.251,
+    "mae_clean_deg": 85.248,
+    "mae_noisy_deg": 85.254,
+    "coherent_frac": 0.999,
+    "drift_deg_per_min": 30.602,
+    "drift_noisy_deg_per_min": 30.909,
+    "us_per_step": 36.042,
+    "speed_ratio_90": 0.019,
+    "speed_ratio_180": 0.01
+   },
+   "cue_tracking": {
+    "mae_deg": 14.317,
+    "lag_ms": 143.333,
+    "coherent_frac": 1.0
+   },
+   "cue_tracking_noisy": {
+    "mae_deg": 14.005,
+    "lag_ms": 133.333,
+    "coherent_frac": 1.0
+   },
+   "memory": {
+    "cue_end": {
+     "held_frac": 0.875,
+     "bump_frac": 1.0,
+     "err_deg": 12.159,
+     "err_deg_raw": 12.159,
+     "confidence": 0.827
+    },
+    "5s": {
+     "held_frac": 0.583,
+     "bump_frac": 1.0,
+     "err_deg": 42.829,
+     "err_deg_raw": 42.829,
+     "confidence": 0.907
+    },
+    "30s": {
+     "held_frac": 0.583,
+     "bump_frac": 1.0,
+     "err_deg": 42.812,
+     "err_deg_raw": 42.812,
+     "confidence": 0.907
+    },
+    "60s": {
+     "held_frac": 0.583,
+     "bump_frac": 1.0,
+     "err_deg": 42.812,
+     "err_deg_raw": 42.812,
+     "confidence": 0.907
+    }
+   },
+   "dark_rotation": {
+    "cue_end": {
+     "held_frac": 0.875,
+     "bump_frac": 1.0,
+     "err_deg": 12.159,
+     "err_deg_raw": 12.159,
+     "confidence": 0.827
+    },
+    "4s": {
+     "held_frac": 0.208,
+     "bump_frac": 1.0,
+     "err_deg": 81.746,
+     "err_deg_raw": 81.746,
+     "confidence": 0.909
+    }
+   }
+  },
+  {
+   "model": "rewired",
+   "description": "degree-preserving rewire within type blocks, x5 seeds, connectome scalars",
+   "n_instances": 5,
+   "n_neurons": 151,
+   "fitted_scalars": 15,
+   "connectome_weights": 2321,
+   "dead_reckoning": {
+    "mae_deg": 86.029,
+    "mae_deg_sd": 4.159,
+    "mae_clean_deg": 85.913,
+    "mae_clean_deg_sd": 4.096,
+    "mae_noisy_deg": 86.145,
+    "mae_noisy_deg_sd": 4.713,
+    "coherent_frac": 0.59,
+    "coherent_frac_sd": 0.236,
+    "drift_deg_per_min": 114.55,
+    "drift_deg_per_min_sd": 109.022,
+    "drift_noisy_deg_per_min": 185.316,
+    "drift_noisy_deg_per_min_sd": 221.118,
+    "us_per_step": 26.244,
+    "us_per_step_sd": 8.094,
+    "speed_ratio_90": 0.03,
+    "speed_ratio_90_sd": 0.047,
+    "speed_ratio_180": 0.014,
+    "speed_ratio_180_sd": 0.021
+   },
+   "cue_tracking": {
+    "mae_deg": 9.68,
+    "mae_deg_sd": 1.008,
+    "lag_ms": 114.0,
+    "lag_ms_sd": 18.768,
+    "coherent_frac": 1.0,
+    "coherent_frac_sd": 0.0
+   },
+   "cue_tracking_noisy": {
+    "mae_deg": 10.035,
+    "mae_deg_sd": 0.923,
+    "lag_ms": 116.0,
+    "lag_ms_sd": 18.469,
+    "coherent_frac": 1.0,
+    "coherent_frac_sd": 0.0
+   },
+   "memory": {
+    "cue_end": {
+     "held_frac": 0.983,
+     "held_frac_sd": 0.037,
+     "bump_frac": 1.0,
+     "bump_frac_sd": 0.0,
+     "err_deg": 7.017,
+     "err_deg_sd": 2.176,
+     "err_deg_raw": 7.017,
+     "err_deg_raw_sd": 2.176,
+     "confidence": 0.715,
+     "confidence_sd": 0.018
+    },
+    "5s": {
+     "held_frac": 0.042,
+     "held_frac_sd": 0.072,
+     "bump_frac": 0.242,
+     "bump_frac_sd": 0.433,
+     "err_deg": 88.58,
+     "err_deg_sd": 3.145,
+     "err_deg_raw": 89.222,
+     "err_deg_raw_sd": 2.804,
+     "confidence": 0.307,
+     "confidence_sd": 0.127
+    },
+    "30s": {
+     "held_frac": 0.042,
+     "held_frac_sd": 0.072,
+     "bump_frac": 0.242,
+     "bump_frac_sd": 0.433,
+     "err_deg": 88.908,
+     "err_deg_sd": 2.477,
+     "err_deg_raw": 89.704,
+     "err_deg_raw_sd": 2.558,
+     "confidence": 0.308,
+     "confidence_sd": 0.125
+    },
+    "60s": {
+     "held_frac": 0.05,
+     "held_frac_sd": 0.075,
+     "bump_frac": 0.267,
+     "bump_frac_sd": 0.435,
+     "err_deg": 89.12,
+     "err_deg_sd": 1.982,
+     "err_deg_raw": 89.579,
+     "err_deg_raw_sd": 2.424,
+     "confidence": 0.308,
+     "confidence_sd": 0.126
+    }
+   },
+   "dark_rotation": {
+    "cue_end": {
+     "held_frac": 0.983,
+     "held_frac_sd": 0.037,
+     "bump_frac": 1.0,
+     "bump_frac_sd": 0.0,
+     "err_deg": 7.017,
+     "err_deg_sd": 2.176,
+     "err_deg_raw": 7.017,
+     "err_deg_raw_sd": 2.176,
+     "confidence": 0.715,
+     "confidence_sd": 0.018
+    },
+    "4s": {
+     "held_frac": 0.133,
+     "held_frac_sd": 0.068,
+     "bump_frac": 0.742,
+     "bump_frac_sd": 0.402,
+     "err_deg": 90.618,
+     "err_deg_sd": 4.251,
+     "err_deg_raw": 88.209,
+     "err_deg_raw_sd": 2.98,
+     "confidence": 0.369,
+     "confidence_sd": 0.117
+    }
+   }
+  },
+  {
+   "model": "random",
+   "description": "random graph, same size/density/sign ratio, x3 seeds, connectome scalars",
+   "n_instances": 3,
+   "n_neurons": 151,
+   "fitted_scalars": 15,
+   "connectome_weights": 2429,
+   "dead_reckoning": {
+    "mae_deg": 81.426,
+    "mae_deg_sd": 0.825,
+    "mae_clean_deg": 81.662,
+    "mae_clean_deg_sd": 0.419,
+    "mae_noisy_deg": 81.19,
+    "mae_noisy_deg_sd": 1.232,
+    "coherent_frac": 0.004,
+    "coherent_frac_sd": 0.003,
+    "drift_deg_per_min": 1.626,
+    "drift_deg_per_min_sd": 2.817,
+    "drift_noisy_deg_per_min": 8.732,
+    "drift_noisy_deg_per_min_sd": 15.124,
+    "us_per_step": 22.001,
+    "us_per_step_sd": 0.772,
+    "speed_ratio_90": 0.005,
+    "speed_ratio_90_sd": 0.009,
+    "speed_ratio_180": -0.002,
+    "speed_ratio_180_sd": 0.004
+   },
+   "cue_tracking": {
+    "mae_deg": 10.42,
+    "mae_deg_sd": 0.756,
+    "lag_ms": 106.667,
+    "lag_ms_sd": 6.667,
+    "coherent_frac": 0.977,
+    "coherent_frac_sd": 0.036
+   },
+   "cue_tracking_noisy": {
+    "mae_deg": 10.9,
+    "mae_deg_sd": 0.457,
+    "lag_ms": 106.667,
+    "lag_ms_sd": 6.667,
+    "coherent_frac": 0.98,
+    "coherent_frac_sd": 0.033
+   },
+   "memory": {
+    "cue_end": {
+     "held_frac": 0.972,
+     "held_frac_sd": 0.048,
+     "bump_frac": 0.972,
+     "bump_frac_sd": 0.048,
+     "err_deg": 9.007,
+     "err_deg_sd": 4.693,
+     "err_deg_raw": 7.041,
+     "err_deg_raw_sd": 1.287,
+     "confidence": 0.901,
+     "confidence_sd": 0.059
+    },
+    "5s": {
+     "held_frac": 0.0,
+     "held_frac_sd": 0.0,
+     "bump_frac": 0.0,
+     "bump_frac_sd": 0.0,
+     "err_deg": 90.0,
+     "err_deg_sd": 0.0,
+     "err_deg_raw": 11.877,
+     "err_deg_raw_sd": 5.298,
+     "confidence": 0.0,
+     "confidence_sd": 0.0
+    },
+    "30s": {
+     "held_frac": 0.0,
+     "held_frac_sd": 0.0,
+     "bump_frac": 0.0,
+     "bump_frac_sd": 0.0,
+     "err_deg": 90.0,
+     "err_deg_sd": 0.0,
+     "err_deg_raw": 11.877,
+     "err_deg_raw_sd": 5.298,
+     "confidence": 0.0,
+     "confidence_sd": 0.0
+    },
+    "60s": {
+     "held_frac": 0.0,
+     "held_frac_sd": 0.0,
+     "bump_frac": 0.0,
+     "bump_frac_sd": 0.0,
+     "err_deg": 90.0,
+     "err_deg_sd": 0.0,
+     "err_deg_raw": 11.877,
+     "err_deg_raw_sd": 5.298,
+     "confidence": 0.0,
+     "confidence_sd": 0.0
+    }
+   },
+   "dark_rotation": {
+    "cue_end": {
+     "held_frac": 0.972,
+     "held_frac_sd": 0.048,
+     "bump_frac": 0.972,
+     "bump_frac_sd": 0.048,
+     "err_deg": 9.007,
+     "err_deg_sd": 4.693,
+     "err_deg_raw": 7.041,
+     "err_deg_raw_sd": 1.287,
+     "confidence": 0.901,
+     "confidence_sd": 0.059
+    },
+    "4s": {
+     "held_frac": 0.0,
+     "held_frac_sd": 0.0,
+     "bump_frac": 0.0,
+     "bump_frac_sd": 0.0,
+     "err_deg": 90.0,
+     "err_deg_sd": 0.0,
+     "err_deg_raw": 11.302,
+     "err_deg_raw_sd": 1.951,
+     "confidence": 0.0,
+     "confidence_sd": 0.0
+    }
+   }
+  },
+  {
+   "model": "no_recurrence",
+   "description": "ablation: same neurons, leak, biases and cue input, all recurrent weights set to zero",
+   "n_instances": 1,
+   "n_neurons": 151,
+   "fitted_scalars": 15,
+   "connectome_weights": 0,
+   "dead_reckoning": {
+    "mae_deg": 81.843,
+    "mae_clean_deg": 81.843,
+    "mae_noisy_deg": 81.843,
+    "coherent_frac": 0.003,
+    "drift_deg_per_min": 0.0,
+    "drift_noisy_deg_per_min": 0.0,
+    "us_per_step": 22.944,
+    "speed_ratio_90": 0.0,
+    "speed_ratio_180": 0.0
+   },
+   "cue_tracking": {
+    "mae_deg": 6.033,
+    "lag_ms": 120.0,
+    "coherent_frac": 1.0
+   },
+   "cue_tracking_noisy": {
+    "mae_deg": 7.493,
+    "lag_ms": 113.333,
+    "coherent_frac": 1.0
+   },
+   "memory": {
+    "cue_end": {
+     "held_frac": 1.0,
+     "bump_frac": 1.0,
+     "err_deg": 0.214,
+     "err_deg_raw": 0.214,
+     "confidence": 0.95
+    },
+    "5s": {
+     "held_frac": 0.0,
+     "bump_frac": 0.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 0.214,
+     "confidence": 0.0
+    },
+    "30s": {
+     "held_frac": 0.0,
+     "bump_frac": 0.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 0.214,
+     "confidence": 0.0
+    },
+    "60s": {
+     "held_frac": 0.0,
+     "bump_frac": 0.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 0.214,
+     "confidence": 0.0
+    }
+   },
+   "dark_rotation": {
+    "cue_end": {
+     "held_frac": 1.0,
+     "bump_frac": 1.0,
+     "err_deg": 0.214,
+     "err_deg_raw": 0.214,
+     "confidence": 0.95
+    },
+    "4s": {
+     "held_frac": 0.0,
+     "bump_frac": 0.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 0.214,
+     "confidence": 0.0
+    }
+   }
+  },
+  {
+   "model": "connectome_dead_reckoning_fit",
+   "description": "FlyWire connectome, earlier velocity-only fit (plain summed weights, no cue fit)",
+   "n_instances": 1,
+   "n_neurons": 151,
+   "fitted_scalars": 13,
+   "connectome_weights": 2665,
+   "dead_reckoning": {
+    "mae_deg": 98.219,
+    "mae_clean_deg": 99.151,
+    "mae_noisy_deg": 97.288,
+    "coherent_frac": 0.157,
+    "drift_deg_per_min": 70.215,
+    "drift_noisy_deg_per_min": 82.861,
+    "us_per_step": 15.963,
+    "speed_ratio_90": 0.0,
+    "speed_ratio_180": 0.0
+   },
+   "cue_tracking": {
+    "mae_deg": 93.045,
+    "lag_ms": 216.667,
+    "coherent_frac": 0.399
+   },
+   "cue_tracking_noisy": {
+    "mae_deg": 92.993,
+    "lag_ms": 200.0,
+    "coherent_frac": 0.401
+   },
+   "memory": {
+    "cue_end": {
+     "held_frac": 0.292,
+     "bump_frac": 0.875,
+     "err_deg": 58.225,
+     "err_deg_raw": 65.56,
+     "confidence": 0.54
+    },
+    "5s": {
+     "held_frac": 0.167,
+     "bump_frac": 1.0,
+     "err_deg": 89.999,
+     "err_deg_raw": 89.999,
+     "confidence": 0.647
+    },
+    "30s": {
+     "held_frac": 0.167,
+     "bump_frac": 1.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 90.0,
+     "confidence": 0.647
+    },
+    "60s": {
+     "held_frac": 0.167,
+     "bump_frac": 1.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 90.0,
+     "confidence": 0.647
+    }
+   },
+   "dark_rotation": {
+    "cue_end": {
+     "held_frac": 0.292,
+     "bump_frac": 0.875,
+     "err_deg": 58.225,
+     "err_deg_raw": 65.56,
+     "confidence": 0.54
+    },
+    "4s": {
+     "held_frac": 0.0,
+     "bump_frac": 0.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 81.771,
+     "confidence": 0.0
+    }
+   }
+  },
+  {
+   "model": "random_seed0_refit",
+   "description": "random control (seed 0) with scalars re-fitted on it (memory_loss (cue + darkness))",
+   "n_instances": 1,
+   "n_neurons": 151,
+   "fitted_scalars": 15,
+   "connectome_weights": 2429,
+   "dead_reckoning": {
+    "mae_deg": 77.572,
+    "mae_clean_deg": 77.572,
+    "mae_noisy_deg": 77.572,
+    "coherent_frac": 0.441,
+    "drift_deg_per_min": 148.049,
+    "drift_noisy_deg_per_min": 148.049,
+    "us_per_step": 17.328,
+    "speed_ratio_90": -0.0,
+    "speed_ratio_180": -0.0
+   },
+   "cue_tracking": {
+    "mae_deg": 19.13,
+    "lag_ms": 260.0,
+    "coherent_frac": 0.887
+   },
+   "cue_tracking_noisy": {
+    "mae_deg": 19.486,
+    "lag_ms": 256.667,
+    "coherent_frac": 0.889
+   },
+   "memory": {
+    "cue_end": {
+     "held_frac": 1.0,
+     "bump_frac": 1.0,
+     "err_deg": 8.837,
+     "err_deg_raw": 8.837,
+     "confidence": 0.658
+    },
+    "5s": {
+     "held_frac": 0.167,
+     "bump_frac": 1.0,
+     "err_deg": 85.603,
+     "err_deg_raw": 85.603,
+     "confidence": 0.354
+    },
+    "30s": {
+     "held_frac": 0.167,
+     "bump_frac": 0.5,
+     "err_deg": 70.211,
+     "err_deg_raw": 93.961,
+     "confidence": 0.274
+    },
+    "60s": {
+     "held_frac": 0.167,
+     "bump_frac": 0.5,
+     "err_deg": 70.211,
+     "err_deg_raw": 93.961,
+     "confidence": 0.274
+    }
+   },
+   "dark_rotation": {
+    "cue_end": {
+     "held_frac": 1.0,
+     "bump_frac": 1.0,
+     "err_deg": 8.837,
+     "err_deg_raw": 8.837,
+     "confidence": 0.658
+    },
+    "4s": {
+     "held_frac": 0.167,
+     "bump_frac": 0.792,
+     "err_deg": 72.838,
+     "err_deg_raw": 84.44,
+     "confidence": 0.391
+    }
+   }
+  },
+  {
+   "model": "rewired_seed0_refit",
+   "description": "rewired control (seed 0) with scalars re-fitted on it (memory_loss (cue + darkness))",
+   "n_instances": 1,
+   "n_neurons": 151,
+   "fitted_scalars": 15,
+   "connectome_weights": 2321,
+   "dead_reckoning": {
+    "mae_deg": 81.844,
+    "mae_clean_deg": 81.844,
+    "mae_noisy_deg": 81.844,
+    "coherent_frac": 0.0,
+    "drift_deg_per_min": 0.0,
+    "drift_noisy_deg_per_min": 0.0,
+    "us_per_step": 61.195,
+    "speed_ratio_90": 0.0,
+    "speed_ratio_180": 0.0
+   },
+   "cue_tracking": {
+    "mae_deg": 4.923,
+    "lag_ms": 83.333,
+    "coherent_frac": 0.0
+   },
+   "cue_tracking_noisy": {
+    "mae_deg": 6.862,
+    "lag_ms": 90.0,
+    "coherent_frac": 0.0
+   },
+   "memory": {
+    "cue_end": {
+     "held_frac": 0.0,
+     "bump_frac": 0.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 0.001,
+     "confidence": 0.0
+    },
+    "5s": {
+     "held_frac": 0.0,
+     "bump_frac": 0.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 0.001,
+     "confidence": 0.0
+    },
+    "30s": {
+     "held_frac": 0.0,
+     "bump_frac": 0.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 0.001,
+     "confidence": 0.0
+    },
+    "60s": {
+     "held_frac": 0.0,
+     "bump_frac": 0.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 0.001,
+     "confidence": 0.0
+    }
+   },
+   "dark_rotation": {
+    "cue_end": {
+     "held_frac": 0.0,
+     "bump_frac": 0.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 0.001,
+     "confidence": 0.0
+    },
+    "4s": {
+     "held_frac": 0.0,
+     "bump_frac": 0.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 0.001,
+     "confidence": 0.0
+    }
+   }
+  },
+  {
+   "model": "complementary_filter",
+   "description": "engineering baseline: integrate gyro, pull 30% toward each cue sample",
+   "n_instances": 1,
+   "n_neurons": 0,
+   "fitted_scalars": 0,
+   "connectome_weights": 0,
+   "dead_reckoning": {
+    "mae_deg": 3.947,
+    "mae_clean_deg": 0.0,
+    "mae_noisy_deg": 7.894,
+    "coherent_frac": 1.0,
+    "drift_deg_per_min": 0.0,
+    "drift_noisy_deg_per_min": 11.215,
+    "us_per_step": 1.18,
+    "speed_ratio_90": 1.0,
+    "speed_ratio_180": 1.0
+   },
+   "cue_tracking": {
+    "mae_deg": 0.0,
+    "lag_ms": 0.0,
+    "coherent_frac": 1.0
+   },
+   "cue_tracking_noisy": {
+    "mae_deg": 1.701,
+    "lag_ms": 3.333,
+    "coherent_frac": 1.0
+   },
+   "memory": {
+    "cue_end": {
+     "held_frac": 1.0,
+     "bump_frac": 1.0,
+     "err_deg": 0.427,
+     "err_deg_raw": 0.427,
+     "confidence": 1.0
+    },
+    "5s": {
+     "held_frac": 1.0,
+     "bump_frac": 1.0,
+     "err_deg": 0.427,
+     "err_deg_raw": 0.427,
+     "confidence": 1.0
+    },
+    "30s": {
+     "held_frac": 1.0,
+     "bump_frac": 1.0,
+     "err_deg": 0.427,
+     "err_deg_raw": 0.427,
+     "confidence": 1.0
+    },
+    "60s": {
+     "held_frac": 1.0,
+     "bump_frac": 1.0,
+     "err_deg": 0.427,
+     "err_deg_raw": 0.427,
+     "confidence": 1.0
+    }
+   },
+   "dark_rotation": {
+    "cue_end": {
+     "held_frac": 1.0,
+     "bump_frac": 1.0,
+     "err_deg": 0.427,
+     "err_deg_raw": 0.427,
+     "confidence": 1.0
+    },
+    "4s": {
+     "held_frac": 1.0,
+     "bump_frac": 1.0,
+     "err_deg": 0.427,
+     "err_deg_raw": 0.427,
+     "confidence": 1.0
+    }
+   }
+  },
+  {
+   "model": "static_null",
+   "description": "null: ignores gyro and cue, keeps the start heading",
+   "n_instances": 1,
+   "n_neurons": 0,
+   "fitted_scalars": 0,
+   "connectome_weights": 0,
+   "dead_reckoning": {
+    "mae_deg": 81.843,
+    "mae_clean_deg": 81.843,
+    "mae_noisy_deg": 81.843,
+    "coherent_frac": 1.0,
+    "drift_deg_per_min": 0.0,
+    "drift_noisy_deg_per_min": 0.0,
+    "us_per_step": 0.204,
+    "speed_ratio_90": 0.0,
+    "speed_ratio_180": 0.0
+   },
+   "cue_tracking": {
+    "mae_deg": 81.843,
+    "lag_ms": 333.333,
+    "coherent_frac": 1.0
+   },
+   "cue_tracking_noisy": {
+    "mae_deg": 81.843,
+    "lag_ms": 333.333,
+    "coherent_frac": 1.0
+   },
+   "memory": {
+    "cue_end": {
+     "held_frac": 0.0,
+     "bump_frac": 1.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 90.0,
+     "confidence": 1.0
+    },
+    "5s": {
+     "held_frac": 0.0,
+     "bump_frac": 1.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 90.0,
+     "confidence": 1.0
+    },
+    "30s": {
+     "held_frac": 0.0,
+     "bump_frac": 1.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 90.0,
+     "confidence": 1.0
+    },
+    "60s": {
+     "held_frac": 0.0,
+     "bump_frac": 1.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 90.0,
+     "confidence": 1.0
+    }
+   },
+   "dark_rotation": {
+    "cue_end": {
+     "held_frac": 0.0,
+     "bump_frac": 1.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 90.0,
+     "confidence": 1.0
+    },
+    "4s": {
+     "held_frac": 0.0,
+     "bump_frac": 1.0,
+     "err_deg": 90.0,
+     "err_deg_raw": 90.0,
+     "confidence": 1.0
+    }
+   }
+  }
+ ]
+}
