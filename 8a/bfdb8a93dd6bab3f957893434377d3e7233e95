@@ -1,0 +1,28 @@
+demos/fly-compass/src/fly_compass/app.py
+  s_8da33b2ad5b96f::t_c9bac07dc3162a 46,153-161
+demos/fly-compass/src/fly_compass/cli.py
+  s_8da33b2ad5b96f::t_c9bac07dc3162a 132-139,304
+packages/flybrain-edge/src/flybrain_edge/bittle/robot.py
+  s_8da33b2ad5b96f::t_c9bac07dc3162a 89-90,224-228,338-365
+  s_8da33b2ad5b96f::t_c25a4276a8b7f8 17,366
+packages/flybrain-edge/NOTES.md
+  s_8da33b2ad5b96f::t_4320e65eb8cd54 131-137
+demos/fly-compass/guide.html
+  s_8da33b2ad5b96f::t_50c1a72dbcb1c8 103,233
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8abfdb8a93dd6bab3f957893434377d3e7233e95",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
