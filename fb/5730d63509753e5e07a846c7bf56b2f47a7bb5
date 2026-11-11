@@ -1,0 +1,26 @@
+demos/fly-compass/src/fly_compass/loop.py
+  s_8da33b2ad5b96f::t_9288a7779878e9 46-48,170-171
+  s_8da33b2ad5b96f::t_c5ec8f4b5145ed 261-269,271-275
+packages/flybrain-edge/tests/test_bittle_protocol.py
+  s_8da33b2ad5b96f::t_191f50ca2788e3 130-141
+packages/flybrain-edge/src/flybrain_edge/bittle/protocol.py
+  s_8da33b2ad5b96f::t_191f50ca2788e3 155-157
+packages/flybrain-edge/NOTES.md
+  s_8da33b2ad5b96f::t_6822e785fec034 117-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb5730d63509753e5e07a846c7bf56b2f47a7bb5",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
