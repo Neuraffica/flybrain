@@ -1,0 +1,44 @@
+packages/flybrain-edge/src/flybrain_edge/export/equivalence.py
+  s_8da33b2ad5b96f::t_43275830e74e2e 27,30,45,105,110
+firmware/bittle/fly_escape/src/flyEscape.h
+  s_8da33b2ad5b96f::t_4069e44209b20b 18,20-23
+firmware/bittle/fly_escape/README.md
+  s_8da33b2ad5b96f::t_56e8a5ae9c0cfb 3-11,16-17,29,31,34-103,107-115,122,133-137,188-189,200-202,206-210,212,222-225,227,229,231-237,239-249,251-258,261,267-272,276-277,280-281,284-289,293-298,300,302,305-313
+docs/hardware.md
+  s_8da33b2ad5b96f::t_74b37af03a4ed8 86-92
+packages/flybrain-edge/src/flybrain_edge/export/escape_c_compact.py
+  s_8da33b2ad5b96f::t_ffa01db9b8106e 1-49,51-72,75-78,87,89-110,112-148,152-373,377-378,381-395
+  s_8da33b2ad5b96f::t_3e52ecba8cbfe2 73-74,79-86,88,111
+  s_8da33b2ad5b96f::t_3a44a1468910d5 50
+  s_8da33b2ad5b96f::t_51bbea603bd491 149-151,374-376,379-380
+firmware/bittle/fly_escape/src/fly_escape_all.h
+  s_8da33b2ad5b96f::t_4069e44209b20b 1,7-8,24,50,52-53,59-64,75,77,80-81,83,103-105,108-113,116,120,131-132,139-140,143-239,242-330,333-348,351-353,356-358,423,426-427,430-433,435-441,466,476,479-484,486,490,500-501
+firmware/bittle/fly_escape/apply_to_opencat.py
+  s_8da33b2ad5b96f::t_d8a2ad57581262 1-103,107-115
+  s_8da33b2ad5b96f::t_d8ca2b70967281 104-106
+packages/flybrain-edge/tests/test_export_escape.py
+  s_8da33b2ad5b96f::t_51bbea603bd491 23-36,38-40,44-46
+packages/flybrain-edge/src/flybrain_edge/export/escape_c.py
+  s_8da33b2ad5b96f::t_51bbea603bd491 420-425
+  s_8da33b2ad5b96f::t_9cb8852e94777e 393-395,397-400,403-408,411-419,426-427,434
+firmware/bittle/README.md
+  s_8da33b2ad5b96f::t_b705e85de63af0 8-11
+packages/flybrain-edge/src/flybrain_edge/export/cli.py
+  s_8da33b2ad5b96f::t_2a797de0e515b4 26-31,35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "032058926f8b75464c05e3db72dff7a10e4f5f48",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
