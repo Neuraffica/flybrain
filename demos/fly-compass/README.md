@@ -207,8 +207,12 @@ so the default pan sign (+1) is right on this firmware. The turning gait keeps r
 head commands stream. A second sweep at +-35 degrees was
 watched from above and the arm held its direction while the body turned.
 
-Not yet checked on the robot: the safe pan range with the arm beyond about 45 degrees, hold
-mode, sweep on a hard floor or at larger angles, and Bluetooth.
+Hold mode also ran on the robot: turned by hand to +55 and -36 degrees it stepped back and
+settled about 12 degrees from the target (it steers on the connectome heading, which carries
+an offset of about 10 degrees). Right turns are much slower than left turns.
+
+Not yet checked on the robot: the safe pan range with the arm beyond about 45 degrees and
+Bluetooth.
 
 ## Tests
 

@@ -172,3 +172,8 @@ Read-only probe only; the robot has not been moved by this code yet.
     connectome's small error at the end of that leg is a coincidence: its bump did not move.
   - Standing still again for 25 s: connectome confidence 0.93, error about -12 deg; rewired
     0.24, about 115 deg.
+- Hold mode on the robot (70 s, driver connectome): turned by hand to about +55 deg, the robot
+  stepped right in three bursts (one hit the 6 s per-turn limit) and settled at +12 deg; turned
+  by hand to -36 deg, it stepped left and settled at +13 deg. It stops about 12 deg from the
+  true target because it steers on the connectome heading, which carries an offset of about
+  10 deg, and the exit threshold is 6 deg. Left turns overshoot; right turns are slow.
