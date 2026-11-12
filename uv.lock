@@ -1,0 +1,43 @@
+version = 1
+revision = 3
+requires-python = ">=3.11"
+
+[manifest]
+members = [
+    "flybrain",
+    "flybrain-data",
+    "flybrain-edge",
+    "flybrain-models",
+]
+
+[[package]]
+name = "flybrain"
+version = "0.0.1"
+source = { virtual = "." }
+dependencies = [
+    { name = "flybrain-data" },
+    { name = "flybrain-edge" },
+    { name = "flybrain-models" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "flybrain-data", editable = "packages/flybrain-data" },
+    { name = "flybrain-edge", editable = "packages/flybrain-edge" },
+    { name = "flybrain-models", editable = "packages/flybrain-models" },
+]
+
+[[package]]
+name = "flybrain-data"
+version = "0.0.1"
+source = { editable = "packages/flybrain-data" }
+
+[[package]]
+name = "flybrain-edge"
+version = "0.0.1"
+source = { editable = "packages/flybrain-edge" }
+
+[[package]]
+name = "flybrain-models"
+version = "0.0.1"
+source = { editable = "packages/flybrain-models" }
