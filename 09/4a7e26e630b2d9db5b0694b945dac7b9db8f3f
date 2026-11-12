@@ -1,0 +1,23 @@
+demos/fly-escape/guide.html
+  s_8da33b2ad5b96f::t_f1c14e64d30391 108,227,249-252,254
+packages/flybrain-edge/NOTES.md
+  s_8da33b2ad5b96f::t_f1c14e64d30391 318-333
+docs/demo-plan.md
+  s_8da33b2ad5b96f::t_f8cdbad0319a10 77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "094a7e26e630b2d9db5b0694b945dac7b9db8f3f",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
