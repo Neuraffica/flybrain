@@ -232,9 +232,8 @@ terminal.
     turn hit the 6 s limit.
   - Ctrl-C through `ble-run`, sent mid-turn during a sweep ("turning left" at +37 deg): the app
     printed "stopping (Ctrl-C)", exited with code 0 after 1.5 s and left no process behind.
-    That the robot stopped stepping and lay down was not measured by the host: the joint
-    read-back afterwards shows the rest posture, but the firmware forces rest on every BLE
-    connection, so that reading proves nothing.
+    The owner saw the robot stop stepping and lie down. (The joint read-back afterwards cannot
+    show this: the firmware forces rest on every BLE connection.)
 - The firmware's yaw is an unbounded running total (it drifts up by roughly 0.6 deg/s even at
   rest). After about 4 h powered it passed 10000 and overflowed its print field, gluing onto the
   acceleration value before it: `ICM:  -0.3   0.6   9.910565.4   -1.4    3.5`. Every IMU line

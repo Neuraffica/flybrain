@@ -241,8 +241,9 @@ IMU readings per second, no gaps) and one sweep cycle at +-25 degrees ran on the
 Needle, hold and the blindfold experiment also ran over Bluetooth, the last two with the USB
 cable unplugged.
 
-Not yet checked on the robot: the safe pan range with the arm beyond about 45 degrees, and
-stopping with Ctrl-C through `ble-run`.
+Ctrl-C through `ble-run`, sent mid-turn, stopped the gait and rested the robot.
+
+Not yet checked on the robot: the safe pan range with the arm beyond about 45 degrees.
 
 ## Tests
 
