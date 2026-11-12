@@ -1,0 +1,24 @@
+packages/flybrain-edge/src/flybrain_edge/bittle/protocol.py
+  s_8da33b2ad5b96f::t_61641423fc4f7e 165-175,196
+  s_8da33b2ad5b96f::t_7f9cfb4119b385 163-164
+packages/flybrain-edge/tests/test_bittle_protocol.py
+  s_8da33b2ad5b96f::t_61641423fc4f7e 150-164
+packages/flybrain-edge/NOTES.md
+  s_8da33b2ad5b96f::t_ecca852f275807 233-242
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "072a94a96f58e323747657c534bf4cae829bed58",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
