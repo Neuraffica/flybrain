@@ -160,6 +160,19 @@ def clamp_joint(
 _ACC = r"\s*([-+]?\d+\.\d{1,2})(?!\d)"
 _ANG = r"\s*([-+]?\d+\.\d)(?!\d)"
 IMU_RE = re.compile(r"(ICM|MCU):" + _ACC * 3 + _ANG * 3)
+
+
+# The firmware's yaw is an unbounded running total. Once it reaches 10000 it overflows its
+# %7.1f field and glues onto the third acceleration value: "... 9.910565.4 ..." (seen on a
+# real robot after about 4 h powered). The first two acceleration fields are still separated,
+# so their number of decimals says where the third one ends.
+def _imu_glued_re(n: int) -> re.Pattern[str]:
+    acc_sep = rf"\s*([-+]?\d+\.\d{{{n}}})(?!\d)"
+    acc_glued = rf"\s*([-+]?\d+\.\d{{{n}}})"
+    return re.compile(r"(ICM|MCU):" + acc_sep * 2 + acc_glued + _ANG * 3)
+
+
+IMU_GLUED_RES = (_imu_glued_re(1), _imu_glued_re(2))
 IMU_RE_NOACC = re.compile(r"(ICM|MCU)(?!:)" + _ANG * 3)  # build without PRINT_ACCELERATION
 # Legacy/other builds: "ypr\t<yaw>\t<pitch>\t<roll>" (src/imu.h:395-399, OUTPUT_READABLE_YAWPITCHROLL)
 LEGACY_YPR_RE = re.compile(
@@ -180,7 +193,7 @@ def parse_imu(text: str) -> tuple[list[ImuReading], str]:
     """Extract every IMU reading in ``text``; return (readings, text with them removed)."""
     readings: list[ImuReading] = []
     rest = text
-    for rx in (IMU_RE, IMU_RE_NOACC):
+    for rx in (IMU_RE, *IMU_GLUED_RES, IMU_RE_NOACC):
         out = []
         last = 0
         for m in rx.finditer(rest):

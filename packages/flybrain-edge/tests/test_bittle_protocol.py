@@ -147,3 +147,18 @@ def test_split_version_glued_to_echo_live_ble():
 
     assert P.split_glued("B10_250330?") == ["B10_250330", "?"]
     assert P.parse_identify(["Bittle X+Arm", "B10_250330?"]) == ("Bittle X+Arm", "B10_250330")
+
+
+def test_parse_imu_yaw_over_10000_glued_to_acceleration():
+    """Captured live: the unbounded yaw overflowed its field and glued onto accel z."""
+    from flybrain_edge.bittle import protocol as P
+
+    readings, rest = P.parse_imu("ICM:  -0.3   0.6   9.910565.4   -1.4    3.5\t")
+    assert len(readings) == 1
+    r = readings[0]
+    assert r.accel == (-0.3, 0.6, 9.9)
+    assert (r.yaw_deg, r.pitch_deg, r.roll_deg) == (10565.4, -1.4, 3.5)
+    assert rest.strip() == ""
+    # two-decimal firmware form, also glued
+    readings, _ = P.parse_imu("ICM: -0.34  0.61  9.9110565.4   -1.4    3.5")
+    assert readings[0].accel == (-0.34, 0.61, 9.91) and readings[0].yaw_deg == 10565.4
