@@ -81,8 +81,12 @@ Three tiers, all supported by the starter kit:
 
 Recommendations:
 
-- **Do not run models on the BiBoard itself.** It is a classic ESP32 without vector
-  instructions and it is busy driving servos. Treat it as a motor controller.
+- **Do not run large models on the BiBoard.** It is a classic ESP32 without vector
+  instructions and it is busy driving servos. Small sensor reflexes are the exception: the
+  exported fly-escape circuit (351 neurons, 2,212 synapses) needs about 16 KB of flash, 4 KB
+  of RAM and an estimated 0.5 to 2 ms per 35 ms step, and can run as an OpenCat firmware
+  module (see `firmware/bittle/fly_escape/`; not yet compiled for the board or run on a
+  robot). Anything bigger, or anything that needs images, goes on the XIAO or a laptop.
 - **Default to tier B in the first hour, then move to tier A.** The same Python model that
   drives the dog over USB gets exported to C and flashed on the XIAO.
 - **The XIAO Sense is the eye.** The Petoi camera module cannot give raw frames, so any

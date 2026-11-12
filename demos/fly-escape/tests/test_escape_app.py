@@ -175,7 +175,8 @@ def test_cli_fails_clearly_without_models(monkeypatch, capsys):
 
 
 def test_cli_escape_needs_space(capsys):
-    assert cli.main(["--mock", "--mode", "escape"]) == 2
+    # a real robot needs --i-have-space for escape mode (the simulator does not)
+    assert cli.main(["--port", "/dev/null", "--mode", "escape"]) == 2
     assert "--i-have-space" in capsys.readouterr().err
 
 

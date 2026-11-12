@@ -162,14 +162,16 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line);
 </div>
 
 <h2>Try it without the robot</h2>
-<p class="sub">A simulated dog and sensor. Do this first.</p>
+<p class="sub">A simulated dog, sensor and hand, drawn from above. Do this first; it takes one command.</p>
 <pre><code>uv sync
-uv run fly-escape --mock --i-have-space</code></pre>
-<p>Open <a href="http://127.0.0.1:8766/">http://127.0.0.1:8766</a>. Wait 2 seconds for the calibration, then drag the orange hand towards the dog in the top view, or press one of the approach buttons: slow, fast, from the left, from the right, hover, retreat. Press <code>H</code> while no hand is near: any escape during that time counts as a false alarm.</p>
+uv run fly-escape --mock --open</code></pre>
+<p>The browser opens on the simulator with the dog standing. Wait 2 seconds while the simulated sensor is calibrated. Then press an <b>Approach now</b> button: a hand comes in slowly or fast, from the left, the right or head-on. The two sensor beams on the dog's head light up as each side sees the hand; when the model driving the dog decides to escape, the dog flashes, walks back and stands again. You can also drag the hand yourself.</p>
+<p>Some hands are not threats: one that hovers in front, one that lunges and stops short, one that drifts in very slowly, one that moves away. A good escape circuit should leave these alone. Turn on <b>Random</b> and the simulator keeps sending a mix of both, from a seed you can see and change, and scores every model against what each approach really was: threats caught, false escapes, reaction time, whether it got the side right. Pick another model under <b>Driving the dog</b> to watch how the dog behaves with it.</p>
 <div class="two">
-  <div class="card"><h3>Unattended</h3><pre><code>uv run fly-escape --mock --i-have-space --mock-script cycle</code></pre><p>Runs every scripted approach in turn, one every 8 seconds.</p></div>
+  <div class="card"><h3>Same run, no browser</h3><pre><code>uv run fly-escape --mock --mock-random 7 --no-dashboard --duration 120</code></pre><p>Two minutes of random approaches from seed 7, then the scoreboard in the terminal. The same seed gives the same approaches.</p></div>
   <div class="card"><h3>A real recording</h3><pre><code>uv run fly-escape --replay packages/flybrain-models/tests/fixtures/ir_hand_approaches_usb.json</code></pre><p>Hand approaches recorded from the real sensor, played back through all five models with no robot.</p></div>
 </div>
+<p class="note">One thing to know when reading the scores: while the dog walks back, the sensor is not read (on the real robot a read would stop the walk), and the simulator does the same. So once the driving model has escaped, the other models see nothing more of that approach. To compare the models on equal terms, run with <code>--mode observe</code>: the dog stays still and every model sees every approach to the end.</p>
 
 <h2>Wiring the sensor</h2>
 <p class="sub">The Petoi double infrared proximity sensor plugs into one of the four Grove sockets on the robot's main board.</p>

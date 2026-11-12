@@ -110,6 +110,7 @@ class EscapeApp:
         self._frames = 0
         self._last_frame_t: float | None = None
         self._logged_escapes = 0
+        self.sim = None  # Simulator in mock mode (fly_escape.sim)
 
     # ---- events / commands ---------------------------------------------------------
     def _event(self, text: str) -> None:
@@ -171,6 +172,8 @@ class EscapeApp:
         if action == "reset_scores":
             lp.reset_scores()
             return {"ok": True}
+        if isinstance(action, str) and action.startswith("sim_"):
+            return self._sim_command(action, cmd)
         if action in ("mock_hand", "mock_script"):
             if self.mock is None:
                 return {"ok": False, "error": "only available with --mock"}
@@ -188,6 +191,43 @@ class EscapeApp:
                 return {"ok": False, "error": "distance and side must be finite"}
             self.mock.hand.set(min(max(d, 0.0), 200.0), side)
             return {"ok": True}
+        return {"ok": False, "error": f"unknown action {action!r}"}
+
+    def _sim_command(self, action: str, cmd: dict[str, Any]) -> dict[str, Any]:
+        sim = self.sim
+        if sim is None:
+            return {"ok": False, "error": "only available with --mock"}
+        try:
+            if action == "sim_launch":
+                a = sim.launch(str(cmd.get("kind")), int(cmd.get("side", 0)))
+                return {"ok": True, "label": a.label()}
+            if action == "sim_random":
+                on = cmd.get("on")
+                seed = cmd.get("seed")
+                sim.set_random(
+                    not sim.random_on if on is None else bool(on),
+                    None if seed in (None, "") else int(seed),
+                )
+                return {"ok": True, "on": sim.random_on, "seed": sim.random.seed}
+            if action == "sim_speed":
+                v = float(cmd.get("value", 1.0))
+                if not math.isfinite(v):
+                    raise ValueError("speed must be finite")
+                sim.speed = min(4.0, max(0.25, v))
+                return {"ok": True, "speed": sim.speed}
+            if action == "sim_pause":
+                on = cmd.get("on")
+                sim.set_paused(not sim.paused if on is None else bool(on))
+                return {"ok": True, "paused": sim.paused}
+            if action == "sim_stop":
+                sim.stop()
+                return {"ok": True}
+            if action == "sim_reset":
+                sim.reset()
+                self.loop.reset_scores()
+                return {"ok": True}
+        except (TypeError, ValueError) as e:
+            return {"ok": False, "error": str(e)}
         return {"ok": False, "error": f"unknown action {action!r}"}
 
     # ---- robot ---------------------------------------------------------------------
@@ -274,6 +314,8 @@ class EscapeApp:
                 for tr in lp.ingest(t, a, b):
                     if self.session is not None:
                         self.session.trigger(tr.t, tr.model, tr.side, lp.hands_off)
+                    if self.sim is not None:
+                        self.sim.on_trigger(tr.model, tr.t, tr.side)
             if lp.cal.done and not was_done:
                 self._event(lp.cal.message)
                 if lp.cal.ok and self.requested_mode == "escape":
@@ -288,8 +330,11 @@ class EscapeApp:
             lp.messages.clear()
 
             tr = lp.take_driver_trigger()
-            if tr is not None and self.mode == "escape":
-                self.escape.trigger(now, tr.side)
+            started = tr is not None and self.mode == "escape" and self.escape.trigger(now, tr.side)
+            if started and self.sim is not None:
+                self.sim.on_escape(tr.t)
+            if self.sim is not None and lp.cal.done:
+                self.sim.update(self.sim.clock(), robot_idle=not self.escape.busy)
             if self.escape.update(now) == "observe":
                 self.mode = "observe"
             for ev in self.escape.events:
@@ -340,12 +385,15 @@ class EscapeApp:
         if self.mock is not None:
             d, side = self.mock.hand.state(self.mock.clock())
             frame["hand"] = {"distance": round(d, 1), "side": round(side, 2)}
+        if self.sim is not None:
+            frame["sim"] = self.sim.frame(self.sim.clock())
         self.last_frame = frame
         self.hub.publish(frame)
 
     def summary(self) -> dict[str, Any]:
         lat = self.loop.latency_stats()
         return {
+            "ground_truth": None if self.sim is None else self.sim.gt.stats(),
             "samples": self.loop.n_samples,
             "calibration": self.loop.cal.status(),
             "escapes": len(self.escape.history),

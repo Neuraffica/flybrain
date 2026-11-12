@@ -113,10 +113,24 @@ class ProximityHand:
 
     def run_script(self, fn, now: float) -> None:
         self.script, self.script_t0, self.backed_cm = fn, now, 0.0
+        self.paused_at = None
+
+    paused_at: float | None = None
+
+    def pause(self, now: float) -> None:
+        """Freeze a running script where it is."""
+        if self.paused_at is None:
+            self.paused_at = now
+
+    def resume(self, now: float) -> None:
+        if self.paused_at is not None:
+            self.script_t0 += now - self.paused_at
+            self.paused_at = None
 
     def state(self, now: float) -> tuple[float, float]:
         if self.script is not None:
-            d, side = self.script(now - self.script_t0)
+            t = (self.paused_at if self.paused_at is not None else now) - self.script_t0
+            d, side = self.script(t)
             self.distance_cm, self.side = float(d), float(side)
         if self.distance_cm > 40.0:
             self.backed_cm = 0.0  # hand withdrawn: the next approach is to the dog's new spot
@@ -183,6 +197,11 @@ class MockBittle:
         self.hand = ProximityHand(self.rng)
         self.ir_pins = {36: "L", 39: "R"}  # which pin is the robot's left is not established
         self.gaits_stopped_by_read = 0
+        # kinematics for a visual simulator: forward displacement since start (cm, negative =
+        # moved back) and the phase of the current gait cycle (0..1)
+        self.dog_x_cm = 0.0
+        self.gait_phase = 0.0
+        self.gait_cycle_s = 0.5
         self.merged_writes: list[bytes] = []  # every merged buffer, for tests
         self._last_rx = -1e9
         self._chunks: list[bytes] = []
@@ -372,6 +391,9 @@ class MockBittle:
             # escape gaits move the dog away from a hand in front of it
             if self.period > 1 and self.skill in ("bkF", "bkL", "bkR") and self.powered:
                 self.hand.backed_cm += self.hand.back_speed_cm_s * dt
+                self.dog_x_cm -= self.hand.back_speed_cm_s * dt
+            if self.period > 1 and self.powered:
+                self.gait_phase = (self.gait_phase + dt / self.gait_cycle_s) % 1.0
             # world yaw
             if self.trajectory is not None:
                 self.world_yaw = self.trajectory(t)
@@ -420,6 +442,19 @@ class MockBittle:
                 self._emit(self.rng.choice(CHATTER))
             self._flush_ble()  # an IMU line with nothing printed right after it
             _ = t
+
+    @property
+    def pose(self) -> str:
+        """stand | back | turn | walk | rest, from the skill state (what the legs are doing)."""
+        if not self.powered or self.skill == "rest":
+            return "rest"
+        if self.period > 1:
+            if self.skill in ("bkF", "bkL", "bkR"):
+                return "back"
+            if self.skill in ("vtL", "vtR"):
+                return "turn"
+            return "walk"
+        return "stand"
 
     def analog_read(self, pin: int, now: float | None = None) -> int:
         now = self.clock() if now is None else now

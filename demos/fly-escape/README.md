@@ -15,9 +15,10 @@ dashboard) moves the robot.
 
 ```bash
 uv sync
-uv run fly-escape --mock                                  # simulated dog and sensor, observe
-uv run fly-escape --mock --i-have-space                   # simulated, escapes on
-uv run fly-escape --mock --i-have-space --mock-script cycle   # the simulated hand moves by itself
+uv run fly-escape --mock --open                           # the visual simulator, escapes on
+uv run fly-escape --mock --mock-random 7 --no-dashboard --duration 120   # scoreboard in the terminal
+uv run fly-escape --mock --mock-random 7 --mode observe --no-dashboard --duration 120
+uv run fly-escape --mock --mock-script cycle              # older fixed hand scripts
 uv run fly-escape --replay packages/flybrain-models/tests/fixtures/ir_hand_approaches_usb.json
 uv run fly-escape --port /dev/cu.usbmodem1101             # real dog, observe
 uv run fly-escape --port /dev/cu.usbmodem1101 --i-have-space   # real dog, escapes on
@@ -31,10 +32,49 @@ Useful flags: `--driver connectome|rewired|random|prox|looming`, `--pins 36,39` 
 `--max-per-minute 6`, `--imu` (also poll the IMU; off by default to keep the sensor rate up),
 `--analog-rate 40`, `--duration S`, `--no-dashboard`, `--no-log`, `--benchmark FILE.json`.
 
+## The simulator (`--mock`)
+
+`uv run fly-escape --mock --open` opens the dashboard on a drawn top view of the Bittle X+Arm
+(yellow-and-black body, four legs, head with the arm and claw, the bone-shaped sensor) with the
+sensor's two beams, the graded band between 12 and 20 cm shaded, and a hand. Everything drawn is
+the mock robot's own state: the hand is the `ProximityHand` the simulated sensor reads, the pose
+comes from the skill the mock is running (stand, walking back, rest), the displacement from its
+kinematics (15 cm/s while walking back). A small side view shows the step back against floor
+marks. Frames are interpolated in the browser (about 60 fps on a 20 Hz stream). A beam lights as
+its channel responds; when the driver model triggers, the dog and the giant-fibre gauges flash.
+With `--mock` escape mode needs no `--i-have-space` (no real legs move).
+
+Controls:
+
+* **Approach now** (threats): slow or fast, from the left, head-on or from the right.
+* **Not threats**: hover (stays in the graded band), stop short (lunges, stops at the band's
+  edge), slow drift (creeps in over 5-7 s), retreat (starts outside the range, moves off).
+* **Random**: keeps launching approaches, half threats and half not, random side and timing
+  (3-6 s apart, after the dog has stood again), from a seeded generator; the seed is shown and
+  can be changed. `--mock-random [SEED]` starts it from the command line.
+* **Approach speed** slider (0.25x to 3x), **Pause**, **Hand away**, **Reset** (scores, hand,
+  dog back on its start mark), and dragging the hand.
+* **Driving the dog**: which model's escapes move the dog; the others run on the same input.
+
+Ground-truth scoreboard (the simulator knows what each approach was; `fly_escape/groundtruth.py`):
+threats caught, false escapes on non-threats, mean reaction time from the hand entering the
+sensor's range, correct side over approaches from the left or right, the hand's distance at the
+trigger, and triggers with no approach running. `--no-dashboard` prints it at the end.
+
+**Read the escape-mode scores with care.** As on the robot, the sensor is not read while the dog
+walks back, so after the driver escapes the other models see nothing more of that approach (and
+the hand is further away when reading resumes). Models that would have fired later than the
+driver are counted as misses. For a like-for-like comparison of all five models use
+`--mode observe`, where the dog never moves. Approach definitions and distances are in
+`fly_escape/approaches.py`; whether a lunge that stops at the band's edge "should" trigger is a
+judgement (it is scored as a non-threat).
+
 ## Modes
 
-* **observe** (default unless `--i-have-space`): models, scores and dashboard; nothing moves.
-* **escape** (default with `--i-have-space`): the driver's trigger starts an escape.
+* **observe** (default on a real robot unless `--i-have-space`): models, scores and dashboard;
+  nothing moves.
+* **escape** (default with `--i-have-space`, and always the default with `--mock`): the driver's
+  trigger starts an escape.
 
 Escape mode is refused, with the reason on the dashboard and in the terminal, until the start-up
 calibration has passed.
@@ -92,8 +132,8 @@ Server-Sent Events at 20 Hz. It shows the two proximity channels over the last 1
 model's trigger moments in lanes below, a top view of the dog with the sensed side lit, the
 connectome's LPLC2/LC4 strips and the giant-fibre drive against threshold, the scoreboard (radio
 buttons pick the driver), the event list, mode buttons, Hands off, Recalibrate, and the offline
-benchmark (`flybrain_models/escape_benchmark.json`) when it exists. With `--mock`: a draggable
-hand and buttons for scripted approaches (slow, fast, left, right, hover, retreat, cycle).
+benchmark (`flybrain_models/escape_benchmark.json`) when it exists. With `--mock` the simulator
+(above) comes first.
 
 API: `GET /api/state`, `GET /api/stream`, `GET /api/benchmark`, `POST /api/command` with
 `{"action": "mode" | "driver" | "hands_off" | "recalibrate" | "reset_scores" | "mock_hand" |

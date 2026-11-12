@@ -1,6 +1,5 @@
 """Test-only stand-ins with the flybrain_models.escape interface (not shipped)."""
 
-import sys
 import types
 from dataclasses import dataclass
 
@@ -91,7 +90,7 @@ class LoomingRateThreshold(FakeEscape):
 
 
 def install():
-    """Register this module as flybrain_models.escape (for the CLI tests)."""
+    """Build a stand-in flybrain_models.escape module (for the CLI tests)."""
     mod = types.ModuleType("flybrain_models.escape")
     for name in (
         "EscapeCircuit",
@@ -101,7 +100,8 @@ def install():
         "raw_to_proximity",
     ):
         setattr(mod, name, globals()[name])
-    sys.modules["flybrain_models.escape"] = mod
+    # Do NOT write sys.modules here: callers register the module with
+    # monkeypatch.setitem, which can only restore the real one if it sees it first.
     return mod
 
 

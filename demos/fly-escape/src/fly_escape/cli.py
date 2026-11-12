@@ -1,7 +1,7 @@
 """fly-escape: a fly looming-escape circuit makes a Bittle back away from an approaching hand.
 
-uv run fly-escape --mock                              # simulated dog and sensor, observe
-uv run fly-escape --mock --i-have-space               # simulated, escapes enabled
+uv run fly-escape --mock --open                       # the visual simulator, escapes on
+uv run fly-escape --mock --mock-random 7 --no-dashboard --duration 120   # scores, no browser
 uv run fly-escape --port /dev/cu.usbmodem1101         # real dog over USB, observe
 uv run fly-escape --port ... --i-have-space           # real dog, escapes enabled
 uv run flybrain-bittle ble-run -- uv run fly-escape --ble   # Bluetooth on macOS
@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import random
 import signal
 import sys
 import time
@@ -27,10 +28,12 @@ from flybrain_edge.bittle.robot import BittleError
 
 from .app import DEFAULT_PINS, MODES, EscapeApp
 from .escape import ACTIONS, MAX_PER_MINUTE, MIN_INTERVAL_S, EscapeConfig
+from .groundtruth import format_table
 from .loop import EscapeLoop
 from .models import MODEL_KEYS, ModelMissing, load_models
 from .scripts import SCRIPTS
 from .session import ReplaySource, SessionLog, load_samples
+from .sim import Simulator
 
 BENCHMARK_CANDIDATES = [("flybrain_models", "escape_benchmark.json")]
 
@@ -146,6 +149,19 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="move the simulated hand by itself (cycle: every script in turn)",
     )
+    ap.add_argument(
+        "--mock-random",
+        nargs="?",
+        type=int,
+        const=-1,
+        default=None,
+        metavar="SEED",
+        help="simulator: keep launching random approaches (threats and non-threats) from this "
+        "seed; without a value a seed is picked and printed",
+    )
+    ap.add_argument(
+        "--sim-speed", type=float, default=1.0, help="simulator: approach speed factor (0.25-4)"
+    )
     ap.add_argument("--boot-timeout", type=float, default=12.0)
     ap.add_argument("-v", "--verbose", action="store_true")
     return ap
@@ -175,8 +191,10 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.INFO if a.verbose else logging.WARNING,
         format="%(levelname)s %(name)s: %(message)s",
     )
-    mode = a.mode or ("escape" if a.i_have_space else "observe")
-    if mode == "escape" and not a.i_have_space:
+    # The simulator moves no real legs: escape needs no --i-have-space with --mock.
+    allow_moves = a.i_have_space or a.mock
+    mode = a.mode or ("escape" if allow_moves and not a.replay else "observe")
+    if mode == "escape" and not allow_moves:
         print(
             "escape mode makes the robot walk backwards. Clear a metre behind it and add "
             "--i-have-space.",
@@ -186,9 +204,14 @@ def main(argv: list[str] | None = None) -> int:
     if a.replay and mode == "escape":
         print("fly-escape: a replay cannot move a robot; use --mode observe", file=sys.stderr)
         return 2
-    if a.mock_script and not a.mock:
-        print("fly-escape: --mock-script needs --mock", file=sys.stderr)
+    if (a.mock_script or a.mock_random is not None) and not a.mock:
+        print("fly-escape: --mock-script and --mock-random need --mock", file=sys.stderr)
         return 2
+    if a.mock_script and a.mock_random is not None:
+        print("fly-escape: choose --mock-script or --mock-random, not both", file=sys.stderr)
+        return 2
+    if a.mock_random == -1:
+        a.mock_random = random.randrange(1, 10_000)
     try:
         pins = tuple(int(x) for x in a.pins.replace(" ", "").split(","))
         if len(pins) != 2:
@@ -289,11 +312,13 @@ def main(argv: list[str] | None = None) -> int:
         pins=pins,
         escape_cfg=cfg,
         mode=mode,
-        allow_moves=a.i_have_space,
+        allow_moves=allow_moves,
         source_label=label,
         exit_after_replay=a.no_dashboard or fast,
         rate_hz=a.rate,
     )
+    if mock is not None:
+        app.sim = Simulator(mock, seed=a.mock_random, speed=a.sim_speed)
     app.imu = a.imu
     app.analog_rate_hz = a.analog_rate
     app.on_event = lambda ev: print(f"fly-escape: {ev}", flush=True)
@@ -325,6 +350,8 @@ def main(argv: list[str] | None = None) -> int:
         + (f" | logging to {session.dir}" if session else ""),
         flush=True,
     )
+    if a.mock_random is not None:
+        print(f"fly-escape: random approaches, seed {a.mock_random}", flush=True)
     if mock is not None and a.mock_script:
         mock.hand.run_script(SCRIPTS[a.mock_script], mock.clock() + 3.0)  # after calibration
 
@@ -344,6 +371,9 @@ def main(argv: list[str] | None = None) -> int:
         if server is not None:
             server.stop()
     print_summary(summary, loop.driver)
+    gt = summary.get("ground_truth")
+    if gt and gt["trials"]:
+        print(format_table(gt, loop.driver))
     if session:
         print(f"session log: {session.dir}")
     signal.signal(signal.SIGINT, prev[0])

@@ -202,12 +202,14 @@ version = "0.0.1"
 source = { editable = "packages/flybrain-edge" }
 dependencies = [
     { name = "bleak" },
+    { name = "flybrain-models" },
     { name = "pyserial" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "bleak", specifier = ">=3.1.0" },
+    { name = "flybrain-models", editable = "packages/flybrain-models" },
     { name = "pyserial", specifier = ">=3.5" },
 ]
 

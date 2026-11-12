@@ -156,11 +156,20 @@ class EscapeLoop:
             ms = (time.perf_counter() - t0) * 1000.0
             sc = self.scores[key]
             sc.ms_ema = ms if sc.ms_ema == 0 else 0.9 * sc.ms_ema + 0.1 * ms
+            gl = float(getattr(out, "gf_left", 0.0))
+            gr = float(getattr(out, "gf_right", 0.0))
+            thr = float(getattr(out, "threshold", 1.0)) or 1.0
+            # Each side has its own threshold in the circuit models (gf_thresholds); drive is
+            # already normalised so it fires at 1. Show each side as a fraction of its threshold.
+            ths = getattr(m, "gf_thresholds", None)
+            tl, tr_ = (float(ths[0]), float(ths[1])) if ths is not None else (thr, thr)
             sc.last = {
-                "gf_left": float(getattr(out, "gf_left", 0.0)),
-                "gf_right": float(getattr(out, "gf_right", 0.0)),
+                "gf_left": gl,
+                "gf_right": gr,
+                "gf_left_n": gl / tl if tl else 0.0,
+                "gf_right_n": gr / tr_ if tr_ else 0.0,
                 "drive": float(getattr(out, "drive", 0.0)),
-                "threshold": float(getattr(out, "threshold", 0.0)),
+                "threshold": thr,
             }
             if getattr(out, "trigger", False):
                 tr = Trigger(t, key, int(getattr(out, "side", 0)))

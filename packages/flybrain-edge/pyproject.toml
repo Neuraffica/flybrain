@@ -5,6 +5,7 @@ description = "flybrain starter kit: edge"
 requires-python = ">=3.11"
 dependencies = [
     "bleak>=3.1.0",
+    "flybrain-models",
     "pyserial>=3.5",
 ]
 
@@ -17,3 +18,7 @@ packages = ["src/flybrain_edge"]
 
 [project.scripts]
 flybrain-bittle = "flybrain_edge.bittle.probe:main"
+flybrain-export = "flybrain_edge.export.cli:main"
+
+[tool.uv.sources]
+flybrain-models = { workspace = true }
