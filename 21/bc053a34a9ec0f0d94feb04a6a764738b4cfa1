@@ -1,0 +1,44 @@
+demos/fly-compass/src/fly_compass/static/index.html
+  s_8da33b2ad5b96f::t_a9ef3501b5bd4f 529-532,541,544-549
+packages/flybrain-edge/README.md
+  s_8da33b2ad5b96f::t_af806c0baa7a72 81-97
+demos/fly-compass/tests/test_compass_sweep.py
+  s_8da33b2ad5b96f::t_52b455ef49b22c 13-15,284-286,308-311,315-343
+  s_8da33b2ad5b96f::t_a4777c7de6d38d 35-37,50-52,68-70,241-283,287-307,312-314
+demos/fly-compass/src/fly_compass/app.py
+  s_8da33b2ad5b96f::t_68034bf4a42e51 139-140,299-303
+packages/flybrain-edge/tests/test_bittle_link_timing.py
+  s_8da33b2ad5b96f::t_a431e33208fec4 1-109
+demos/fly-compass/guide.html
+  s_8da33b2ad5b96f::t_af806c0baa7a72 282
+packages/flybrain-edge/src/flybrain_edge/bittle/robot.py
+  s_8da33b2ad5b96f::t_82d16c454c76c5 19,37-56,85,95-107,154-155,310-317,326,343,356-395,558,570-571
+demos/fly-compass/README.md
+  s_8da33b2ad5b96f::t_af806c0baa7a72 203-210
+packages/flybrain-edge/src/flybrain_edge/bittle/mock.py
+  s_8da33b2ad5b96f::t_dbf4d2c862efd5 96,122-131,151,233-240,306-311,416,421-424,426-427,494-499
+  s_8da33b2ad5b96f::t_52b455ef49b22c 425
+demos/fly-compass/src/fly_compass/loop.py
+  s_8da33b2ad5b96f::t_fefeab00e9c362 52-59,61-66,110,197-204,426-427,434,437-440,443,449,452-496,559-565,567-568,727
+  s_8da33b2ad5b96f::t_c2eb2bdf32aa51 344-347,444-448,450-451
+  s_8da33b2ad5b96f::t_99105bd107755b 60
+packages/flybrain-edge/NOTES.md
+  s_8da33b2ad5b96f::t_af806c0baa7a72 205-236
+  s_8da33b2ad5b96f::t_f418b128dcf45e 274-280
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "21bc053a34a9ec0f0d94feb04a6a764738b4cfa1",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
