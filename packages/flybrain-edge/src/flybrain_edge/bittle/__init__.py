@@ -14,7 +14,7 @@ See NOTES.md in the package root for the protocol facts and their firmware sourc
 
 from . import protocol
 from .mock import MockBittle
-from .robot import Bittle, BittleError, ImuSample
+from .robot import AnalogSample, Bittle, BittleError, ImuSample
 from .transport import (
     BleTransport,
     MockTransport,
@@ -40,6 +40,7 @@ def open_transport(
 
 
 __all__ = [
+    "AnalogSample",
     "Bittle",
     "BittleError",
     "BleTransport",

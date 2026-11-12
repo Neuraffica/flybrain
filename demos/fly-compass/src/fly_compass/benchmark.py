@@ -21,13 +21,16 @@ PACKAGE_CANDIDATES: list[tuple[str, str]] = [
 ]
 
 
-def find_benchmark(explicit: str | Path | None = None) -> dict[str, Any] | None:
+def find_benchmark(
+    explicit: str | Path | None = None,
+    candidates: list[tuple[str, str]] | None = None,
+) -> dict[str, Any] | None:
     if explicit:
         p = Path(explicit)
         if p.exists():
             return _load(p.read_text(), str(p))
         return {"error": f"benchmark file not found: {p}"}
-    for pkg, rel in PACKAGE_CANDIDATES:
+    for pkg, rel in PACKAGE_CANDIDATES if candidates is None else candidates:
         try:
             res = resources.files(pkg).joinpath(rel)
             if res.is_file():

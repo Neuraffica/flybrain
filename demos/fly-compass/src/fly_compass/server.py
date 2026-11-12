@@ -58,8 +58,11 @@ def make_handler(
     hub: FrameHub,
     on_command: Callable[[dict[str, Any]], dict[str, Any]],
     benchmark: Callable[[], dict[str, Any] | None],
+    page: bytes | None = None,
 ):
-    page = _page()
+    """``page``: the HTML to serve at / (default: this package's dashboard). Other demos
+    (fly-escape) reuse this server with their own page."""
+    page = _page() if page is None else page
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "fly-compass"
@@ -145,10 +148,18 @@ def make_handler(
 
 class DashboardServer:
     def __init__(
-        self, hub: FrameHub, on_command, benchmark, host: str = "127.0.0.1", port: int = 8765
+        self,
+        hub: FrameHub,
+        on_command,
+        benchmark,
+        host: str = "127.0.0.1",
+        port: int = 8765,
+        page: bytes | None = None,
     ):
         self.hub = hub
-        self.httpd = ThreadingHTTPServer((host, port), make_handler(hub, on_command, benchmark))
+        self.httpd = ThreadingHTTPServer(
+            (host, port), make_handler(hub, on_command, benchmark, page)
+        )
         self.httpd.daemon_threads = True
         self.thread = threading.Thread(
             target=self.httpd.serve_forever, name="dashboard", daemon=True

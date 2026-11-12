@@ -26,6 +26,32 @@ class PackSpec:
     min_synapses: int
     description: str
     ring_type: str | None = None
+    neuropil_groups: tuple[str, ...] = NEUROPIL_GROUPS
+    side_note: str = (
+        "soma side from the annotation table; for these types it is the protocerebral-bridge side"
+    )
+
+
+# Looming-escape pack: selection rules (checked and recorded at build time, see escape_stats).
+ESCAPE_INPUTS = ("LC4", "LPLC2")
+ESCAPE_GF = "DNp01"
+# Other looming-responsive descending neurons named in the brief; each receives >= 500
+# LC4+LPLC2 synapses in FlyWire (checked at build time). Outputs only: the model reads the GF.
+ESCAPE_DNS = ("DNp02", "DNp04", "DNp06", "DNp11")
+# Interneurons between the inputs and the GF: every cell type receiving >= 200 synapses from
+# LC4+LPLC2 and making >= 50 synapses onto the GF (both summed over all neurons of the type).
+ESCAPE_INTERNEURON_RULE = {"min_from_inputs": 200, "min_to_gf": 50}
+ESCAPE_INTERNEURONS = (
+    "PVLP122b",
+    "LHAD1g1",
+    "PVLP010",
+    "PVLP151",
+    "PVLP024",
+    "PVLP017",
+    "AMMC-A1",
+    "AVLP396",
+    "CB3513b",
+)
 
 
 SPECS: dict[str, PackSpec] = {
@@ -39,6 +65,22 @@ SPECS: dict[str, PackSpec] = {
             "neurons, ellipsoid body -> protocerebral bridge), PEN_a/PEN1 and PEN_b/PEN2 "
             "(angular-velocity shifters, bridge -> ellipsoid body), PEG (bridge -> gall) "
             "and Delta7 (glutamatergic bridge interneurons, ring-wide inhibition)."
+        ),
+    ),
+    "escape": PackSpec(
+        name="escape",
+        cell_types=(*ESCAPE_INPUTS, ESCAPE_GF, *ESCAPE_DNS, *ESCAPE_INTERNEURONS),
+        min_synapses=5,
+        neuropil_groups=("PVLP", "PLP", "AVLP", "other"),
+        side_note="soma side from the annotation table (LC4/LPLC2: the optic lobe and "
+        "visual hemifield they sit in; DNp01: GF of that side, which gets only ipsilateral "
+        "LC4/LPLC2 input in FlyWire)",
+        description=(
+            "Looming-escape pathway: LC4 (looming angular velocity) and LPLC2 (looming "
+            "angular size) visual projection neurons of both optic lobes, the giant fiber "
+            "descending neuron DNp01 of each side, other looming-responsive descending "
+            "neurons DNp02/04/06/11 (outputs only), and the interneuron types connecting "
+            "LC4/LPLC2 to the GF (rule: >= 200 synapses from LC4+LPLC2 and >= 50 onto the GF)."
         ),
     ),
 }
@@ -131,7 +173,7 @@ def build_pack(
 
     # Per-neuropil split of the kept pairs, in groups: the CX neuropils, then everything else.
     keep = counts > 0
-    groups = [_neuropil_counts(by_np, g, counts.shape) for g in NEUROPIL_GROUPS[:-1]]
+    groups = [_neuropil_counts(by_np, g, counts.shape) for g in spec.neuropil_groups[:-1]]
     groups.append(raw - sum(groups))
     by_group = np.stack([g * keep for g in groups]).astype(np.int32)
     assert (by_group.sum(0) == counts).all()
@@ -166,8 +208,7 @@ def build_pack(
         "synapses_before_threshold": int(raw.sum()),
         "synapses_after_threshold": int(counts.sum()),
         "synapses_by_neuropil": np_syn,
-        "side": "soma side from the annotation table; for these types it is the "
-        "protocerebral-bridge side",
+        "side": spec.side_note,
         "ring_angle": ring_meta,
         "built": _dt.date.today().isoformat(),
         "sources": {
@@ -178,9 +219,14 @@ def build_pack(
         "license": "CC BY 4.0",
         "attribution": CITATION,
     }
-    io = input_fraction(data_dir, ids, cell_type)
-    if io is not None:
-        meta["input_fraction_by_neuropil"] = io
+    if spec.name == "central_complex":
+        io = input_fraction(data_dir, ids, cell_type)
+        if io is not None:
+            meta["input_fraction_by_neuropil"] = io
+    if spec.name == "escape":
+        meta["escape"] = escape_stats(
+            con_path, ann, counts, raw[np.ix_(order, order)], ids, cell_type, side
+        )
     pack = CircuitPack(
         name=name,
         counts=counts,
@@ -192,14 +238,66 @@ def build_pack(
         ring_angle=ring_angle,
         metadata=meta,
         by_neuropil=by_group,
-        neuropils=NEUROPIL_GROUPS,
+        neuropils=spec.neuropil_groups,
     )
     path = pack.save(out or pack_path(name))
     if verbose:
         print(pack.summary())
-        print(f"ring angles: {ring_meta.get('method')}")
+        if ring_meta:
+            print(f"ring angles: {ring_meta.get('method')}")
+        if "escape" in meta:
+            print("GF input after threshold:", meta["escape"]["gf_input_after_threshold"])
         print(f"saved {path} ({path.stat().st_size / 1024:.1f} KB)")
     return pack
+
+
+def escape_stats(con_path, ann, counts, raw, ids, cell_type, side) -> dict:
+    """Selection evidence (whole-brain counts) and GF input per side for the escape pack."""
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    from pyarrow import feather
+
+    tmap = dict(zip(ann.root_id, ann.cell_type, strict=False))
+    src = ann[ann.cell_type.isin(ESCAPE_INPUTS)].root_id.to_numpy()
+    gf = ann[ann.cell_type == ESCAPE_GF].root_id.to_numpy()
+    t = feather.read_table(
+        con_path, columns=["pre_pt_root_id", "post_pt_root_id", "syn_count"], memory_map=True
+    )
+    frm = t.filter(pc.is_in(t["pre_pt_root_id"], value_set=pa.array(src))).to_pandas()
+    to = t.filter(pc.is_in(t["post_pt_root_id"], value_set=pa.array(gf))).to_pandas()
+    frm_by = frm.groupby(frm.post_pt_root_id.map(tmap)).syn_count.sum()
+    to_by = to.groupby(to.pre_pt_root_id.map(tmap)).syn_count.sum()
+    sel = {
+        ct: {"from_LC4_LPLC2": int(frm_by.get(ct, 0)), "to_GF": int(to_by.get(ct, 0))}
+        for ct in (*ESCAPE_DNS, *ESCAPE_INTERNEURONS)
+    }
+
+    def gf_in(m):
+        out = {}
+        for sd in ("left", "right"):
+            g = np.flatnonzero((cell_type == ESCAPE_GF) & (side == sd))
+            for st in ESCAPE_INPUTS:
+                for ss in ("left", "right"):
+                    pre = np.flatnonzero((cell_type == st) & (side == ss))
+                    v = int(m[np.ix_(g, pre)].sum())
+                    if v:
+                        out[f"{st}_{ss}->GF_{sd}"] = v
+        return out
+
+    return {
+        "inputs": list(ESCAPE_INPUTS),
+        "giant_fiber": ESCAPE_GF,
+        "descending_neurons": list(ESCAPE_DNS),
+        "interneurons": list(ESCAPE_INTERNEURONS),
+        "interneuron_rule": ESCAPE_INTERNEURON_RULE,
+        "selection_counts_whole_brain": sel,
+        "gf_input_before_threshold": gf_in(raw),
+        "gf_input_after_threshold": gf_in(counts),
+        "note": "DNp01 right is predicted glutamatergic (top_nt) and so signed -1 by the "
+        "convention; the GF is known to be cholinergic. Only its outputs inside the pack are "
+        "affected; the model reads GF activity, not GF output. GF electrical synapses are "
+        "not in the connectome.",
+    }
 
 
 def input_fraction(data_dir: Path, ids: np.ndarray, cell_type: np.ndarray) -> dict | None:

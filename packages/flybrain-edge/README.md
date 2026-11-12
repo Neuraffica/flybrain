@@ -34,6 +34,21 @@ bot.close()  # stops printing and always sends 'd' (rest)
 | `robot` | `Bittle`: reader thread (tolerates unsolicited prints), one-command-at-a-time writer that waits for each echo, non-blocking joint streamer, `close()` that always rests |
 | `probe` | `flybrain-bittle probe`: read-only queries with raw bytes and timings |
 
+## Analog pins (proximity sensor)
+
+```python
+bot.read_analog([36, 39])  # {36: 3381, 39: 3453}: one binary 'R' command, echo-checked
+bot.poll_analog([36, 39], 40)  # background reads, up to 40/s (about 28/s over USB in practice)
+bot.drain_analog()  # [AnalogSample(t, {36: ..., 39: ...}), ...]
+bot.pause_analog(True)  # returns after any read in flight; resume with False
+```
+
+An `R` read stops a gait that is running (see NOTES.md, "Analog reads"): pause the reads while
+the robot walks. IMU polling is separate (`poll_imu`) and shares the line; leave it off when the
+sensor rate matters. `MockBittle` simulates the double infrared sensor on pins 36/39 with a hand
+(`mock.hand.set(distance_cm, side)` or `mock.hand.run_script(fn, start)`), the narrow graded
+band and noise seen on the robot, and stops its gait on a read like the firmware.
+
 ## Check your robot first
 
 ```bash
@@ -42,9 +57,12 @@ uv run flybrain-bittle probe            # USB, first likely port
 uv run flybrain-bittle probe --port /dev/cu.usbmodem1101 --rotate-test
 uv run flybrain-bittle probe --ble      # macOS: see "Bluetooth" below
 uv run flybrain-bittle probe --mock     # what a good run looks like
+uv run flybrain-bittle probe --analog 36,39 --seconds 5               # also read the IR sensor
+uv run flybrain-bittle probe --analog 36,39 --seconds 5 --side-test   # which pin is the left
 ```
 
-`probe` sends only `?`, `g?`, `gp`, `v`, `j`, `gP` and `gp`; nothing moves. It prints every byte
+`probe` sends only `?`, `g?`, `gp`, `v`, `j`, `gP` and `gp` (plus `R` analog reads with
+`--analog`, printed with a per-second minimum and maximum); nothing moves. It prints every byte
 with a timestamp, then a summary: model, version, which commands were acknowledged, IMU stream
 rate, and with `--rotate-test` the sign of yaw when you turn the dog to its left. If the
 verdict says CHECK, paste the whole output into an issue.

@@ -54,6 +54,10 @@ class Probe:
         self.version: str | None = None
         self.echoes: dict[str, bool] = {}
         self.joints: dict[int, int] | None = None
+        self.analog_reads: list[tuple[float, list[int]]] = []
+        self.analog_errors = 0
+        self.analog_pins: list[int] = []
+        self.analog_side_test = False
 
     def p(self, msg: str) -> None:
         print(msg, file=self.out, flush=True)
@@ -65,7 +69,9 @@ class Probe:
         self.p(f"{self.stamp()}  TX  {data!r}")
         self.t.write(data)
 
-    def rx_for(self, seconds: float, label: str = "", stop_on_echo: str | None = None) -> list[str]:
+    def rx_for(
+        self, seconds: float, label: str = "", stop_on_echo: str | None = None, show: bool = True
+    ) -> list[str]:
         end = time.monotonic() + seconds
         lines: list[str] = []
         while time.monotonic() < end:
@@ -73,7 +79,8 @@ class Probe:
             if not chunk:
                 continue
             now = time.monotonic()
-            self.p(f"{self.stamp()}  RX  {chunk!r}")
+            if show:
+                self.p(f"{self.stamp()}  RX  {chunk!r}")
             got = self.split.feed(chunk)
             for r in self.split.take_pending_imu():
                 self._imu(label, now, r, "(unterminated)")
@@ -87,6 +94,8 @@ class Probe:
                     if not piece:
                         continue
                     lines.append(piece)
+                    if not show:
+                        continue
                     cam = P.parse_camera(piece)
                     if cam:
                         self.p(f"            -> camera target {cam}")
@@ -95,6 +104,8 @@ class Probe:
                     else:
                         self.unparsed.append(piece)
             if stop_on_echo and any(P.is_echo(x, stop_on_echo) for x in lines):
+                if not show:
+                    break  # compact mode: the echo ends the reply
                 # keep listening briefly for trailing prints
                 end = min(end, time.monotonic() + 0.15)
         return lines
@@ -108,7 +119,15 @@ class Probe:
             f"roll={r.roll_deg:+.1f} acc={r.accel} {note}"
         )
 
-    def run(self, stream_s: float = 3.0, boot_s: float = 10.0, rotate_test: bool = False) -> int:
+    def run(
+        self,
+        stream_s: float = 3.0,
+        boot_s: float = 10.0,
+        rotate_test: bool = False,
+        analog_pins: list[int] | None = None,
+        analog_s: float = 3.0,
+        side_test: bool = False,
+    ) -> int:
         self.p(f"== flybrain-bittle probe :: {self.t.description}")
         if self.t.name == "ble":
             self.p(
@@ -149,9 +168,52 @@ class Probe:
             self.rx_for(stream_s, label="stream")
             self.tx(b"gp\n")
             self.rx_for(0.6, label="stop", stop_on_echo="g")
+            if analog_pins:
+                self.analog_section(analog_pins, analog_s, side_test)
         finally:
             self.t.close()
         return self.summary(rotate_test)
+
+    def analog_section(self, pins: list[int], seconds: float, side_test: bool) -> None:
+        """Read-only: 'R' analog reads of ``pins`` for ``seconds``, one command at a time."""
+        cmd = P.encode_analog_read(pins)
+        self.p(f"== analog reads of pins {pins} for {seconds:.1f}s: TX {cmd!r} (read-only)")
+        if side_test:
+            self.p(
+                f"   COVER THE ROBOT'S LEFT SIDE OF THE SENSOR WITH YOUR HAND NOW "
+                f"(by default pin {pins[0]} is taken as left)"
+            )
+        t0 = time.monotonic()
+        sec = -1
+        per: dict[int, list[int]] = {p: [] for p in pins}
+        while time.monotonic() - t0 < seconds:
+            self.t.write(cmd)
+            lines = self.rx_for(0.6, label="analog", stop_on_echo="R", show=False)
+            vals = P.parse_analog_reply(lines, len(pins))
+            el = time.monotonic() - t0
+            if vals is None:
+                self.p(f"{self.stamp()}  analog: no complete reply, got {lines!r}")
+                self.analog_errors += 1
+                continue
+            self.analog_reads.append((el, vals))
+            self.p(
+                f"{self.stamp()}  "
+                + "  ".join(f"{p}={v:5d}" for p, v in zip(pins, vals, strict=True))
+            )
+            if int(el) != sec:
+                if sec >= 0:
+                    self._analog_second(sec, per)
+                sec, per = int(el), {p: [] for p in pins}
+            for p, v in zip(pins, vals, strict=True):
+                per[p].append(v)
+        if sec >= 0:
+            self._analog_second(sec, per)
+        self.analog_pins = pins
+        self.analog_side_test = side_test
+
+    def _analog_second(self, sec: int, per: dict[int, list[int]]) -> None:
+        parts = [f"{p}: min {min(v)} max {max(v)} (n={len(v)})" for p, v in per.items() if v]
+        self.p(f"   second {sec}: " + "; ".join(parts))
 
     def rx_for_quiet(self, max_s: float, quiet_s: float = 1.5) -> str:
         end = time.monotonic() + max_s
@@ -209,6 +271,33 @@ class Probe:
                     )
         else:
             self.p("stream rate: no continuous IMU lines seen")
+        if self.analog_pins:
+            n = len(self.analog_reads)
+            span = self.analog_reads[-1][0] - self.analog_reads[0][0] if n > 1 else 0.0
+            self.p(
+                f"analog reads: {n} complete, {self.analog_errors} incomplete"
+                + (f", {(n - 1) / span:.1f} reads/s" if span > 0 else "")
+            )
+            for i, pin in enumerate(self.analog_pins):
+                vals = [v[i] for _, v in self.analog_reads]
+                if vals:
+                    self.p(f"analog pin {pin}: min {min(vals)} max {max(vals)}")
+            if self.analog_side_test and n:
+                mins = [
+                    min(v[i] for _, v in self.analog_reads) for i in range(len(self.analog_pins))
+                ]
+                covered = self.analog_pins[mins.index(min(mins))]
+                if max(mins) - min(mins) < 500:
+                    self.p("side test: no clear difference between the pins; try again closer")
+                elif covered == self.analog_pins[0]:
+                    self.p(
+                        f"side test: pin {covered} is the robot's LEFT: default mapping is right"
+                    )
+                else:
+                    self.p(
+                        f"side test: pin {covered} is the robot's LEFT: use --swap-sides "
+                        "(or list the left pin first)"
+                    )
         if self.unparsed:
             self.p(f"unrecognised lines: {len(self.unparsed)} (shown above as RX)")
         ok = bool(self.model) and n >= 2 and all(self.echoes.values())
@@ -276,7 +365,23 @@ def main(argv: list[str] | None = None) -> int:
         help="connect over BLE (optional name substring)",
     )
     g.add_argument("--mock", action="store_true", help="probe the simulator")
-    pr.add_argument("--seconds", type=float, default=3.0, help="length of the gP stream test")
+    pr.add_argument(
+        "--seconds",
+        type=float,
+        default=3.0,
+        help="length of the gP stream test, and of the analog section",
+    )
+    pr.add_argument(
+        "--analog",
+        metavar="PINS",
+        help="also read these analog pins with 'R' (read-only), e.g. 36,39 for the infrared "
+        "proximity sensor on the Grove socket labelled 39/36",
+    )
+    pr.add_argument(
+        "--side-test",
+        action="store_true",
+        help="with --analog: asks you to cover the robot's LEFT side and reports which pin it is",
+    )
     pr.add_argument(
         "--rotate-test",
         action="store_true",
@@ -333,7 +438,20 @@ def main(argv: list[str] | None = None) -> int:
     t = _transport_from_args(a)
     if isinstance(t, SerialTransport) and a.no_reset:
         t.reset_on_open = False
-    return Probe(t).run(stream_s=a.seconds, rotate_test=a.rotate_test)
+    pins = None
+    if a.analog:
+        try:
+            pins = [int(x) for x in a.analog.replace(" ", "").split(",") if x]
+            P.encode_analog_read(pins)
+        except ValueError as e:
+            ap.error(f"--analog: {e}")
+    return Probe(t).run(
+        stream_s=a.seconds,
+        rotate_test=a.rotate_test,
+        analog_pins=pins,
+        analog_s=a.seconds,
+        side_test=a.side_test,
+    )
 
 
 if __name__ == "__main__":

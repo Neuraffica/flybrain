@@ -3,19 +3,20 @@ name = "flybrain"
 version = "0.0.1"
 description = "Starter kit for Fly Brain & Tiny Machines, a BioCompute hackathon by Neuraffica"
 requires-python = ">=3.11"
-dependencies = ["flybrain-data", "flybrain-models", "flybrain-edge", "fly-compass"]
+dependencies = ["flybrain-data", "flybrain-models", "flybrain-edge", "fly-compass", "fly-escape"]
 
 [tool.uv]
 package = false
 
 [tool.uv.workspace]
-members = ["packages/*", "demos/fly-compass"]
+members = ["packages/*", "demos/fly-compass", "demos/fly-escape"]
 
 [tool.uv.sources]
 flybrain-data = { workspace = true }
 flybrain-models = { workspace = true }
 flybrain-edge = { workspace = true }
 fly-compass = { workspace = true }
+fly-escape = { workspace = true }
 
 [tool.ruff]
 line-length = 100

@@ -1,7 +1,11 @@
 # flybrain-models
 
-Models built on `flybrain-data` circuit packs. So far: the **fly compass**, a head-direction
-ring attractor on the FlyWire central-complex connectome, plus an engineering baseline.
+Models built on `flybrain-data` circuit packs:
+
+- the **fly compass** (`compass.py`): a head-direction ring attractor on the FlyWire
+  central-complex connectome, plus an engineering baseline;
+- **fly escape** (`escape.py`, [below](#fly-escape)): the looming-escape pathway (LC4,
+  LPLC2 -> giant fiber) driven by a two-channel infrared range sensor, plus two baselines.
 
 ```python
 import math
@@ -116,3 +120,122 @@ The shipped file was assembled from those runs and renamed to `connectome`, `con
 velocity-only fit (`--config point`).
 
 Connectome data: FlyWire v783 (Dorkenwald et al. 2024; Schlegel et al. 2024), CC BY 4.0.
+
+# Fly escape
+
+The robot jumps back from an approaching hand. The signal path is the fly's looming-escape
+pathway, built from the FlyWire `escape` pack (LC4, LPLC2, the giant fiber DNp01 of each
+side, interneurons between them). **The robot has no camera here:** a two-channel infrared
+proximity sensor stands in for vision. The model does not see; it reads distance.
+
+```python
+from flybrain_models.escape import EscapeCircuit, ProximityThreshold, LoomingRateThreshold
+from flybrain_models.escape import raw_to_proximity
+
+fly = EscapeCircuit.from_pack("escape")  # or variant="rewired" / "random", seed=k
+out = fly.step(raw_to_proximity(raw_pin36), raw_to_proximity(raw_pin39), dt)  # dt varies
+out.trigger, out.side, out.gf_left, out.gf_right, out.drive, out.threshold
+fly.activity["GF"], fly.activity["LC4_L"], fly.activity["LPLC2_R"]
+```
+
+**Sensor mapping** (`raw_to_proximity`): linear, 0 at or above `baseline - 150` (3400 measured
+with nothing in range; 150 is about 3 noise sd), 1 at raw 0. **Inputs**: each side's proximity
+drives that side's LPLC2 neurons (looming *size* in the fly) and the positive rate of change
+of proximity drives that side's LC4 neurons (looming *speed*); every neuron of a population
+gets the same input, because the sensor has no spatial resolution. **Network**: rate units on
+the pack's signed synapse counts, `tau dr/dt = -r + tanh(max(0, W r + b + input))`,
+exponential-Euler sub-steps of at most 10 ms, so any `dt` works (35-90 ms on the robot).
+**Trigger**: each giant fiber has its own threshold; `drive = max(GF_L / th_L, GF_R / th_R)`
+crossing 1 (rising edge) triggers, then 1 s refractory. **Side**: from the left vs right
+LC4+LPLC2 activity. **Fitted**: 11 global scalars, never per-synapse weights: gains for
+LC4+LPLC2 (shared, so the LC4:LPLC2 balance at the GF comes from synapse counts), for
+excitatory and inhibitory interneurons and for the GF; 3 biases; tau; input gain; the two GF
+thresholds (`escape_fit.py`, CMA-ES, `escape_params.json`). The baselines fit one threshold each.
+
+Shipped values: gains LC4+LPLC2 0.708, excitatory interneurons 0.103, inhibitory 1.097, GF
+0.201; biases LC4+LPLC2 -1.036, interneurons -0.730, GF -1.231; tau 13.5 ms; input gain 2.98;
+**GF thresholds left 0.198, right 0.834**.
+
+## The robot finding: one side never triggered (fixed)
+
+On the robot, the first shipped fit triggered only when the pin 39 (right) channel dropped;
+approaches seen only by pin 36 (left) never triggered. It was not a mapping bug: pin 36 drives
+the left LC4/LPLC2, which drive the left GF, which was read out. Two causes together:
+
+1. **A property of the connectome**: the two giant fibers are unequally wired in FlyWire. After
+   the threshold, the left GF gets 634 synapses from LC4+LPLC2 (329 + 305) and the right GF
+   967 (428 + 539). Under the shared fitted scalars, left-only input drove the left GF to a
+   peak of 0.296 against a single threshold of 0.305, while right-only input reached 0.753.
+2. **A gap in the training data**: every simulated lateral approach reached both channels, so
+   a single threshold that only the right GF could cross on its own was never penalised.
+
+Fix: one threshold per GF, fitted on training data that now includes approaches seen by one
+channel only. With the refit the left threshold is 0.198 and the right 0.834; both one-sided
+cases now trigger (simulated and on the robot recording, below). The per-side thresholds
+compensate for the anatomical asymmetry; they do not remove it.
+
+## Results (`escape_benchmark.json`, `uv run python -m flybrain_models.escape_benchmark`)
+
+Simulated: 384 episodes (approaches at 0.15-1.5 m/s from the left, right, head-on and seen by
+one channel only; fast hands stopping short inside the sensor band; slow drift; hovering;
+moving away; empty), at 12 and 28 Hz with +-25% jitter, with normal and high noise. A threat is
+an approach >= 0.3 m/s to within 5 cm; latency is measured from the hand entering the sensor's
+range (12 cm). Real: the 25 s desk recording (5 approaches) and the 45 s robot run (9
+approaches), labelled by an offline rule: onset = first sample < 3100 after 0.5 s quiet;
+approach if < 500 within 0.5 s; pin 36 taken as left. rewired = 5 seeds, random = 3 seeds, both
+with the connectome's scalars; *refit* rows have their own fitted scalars.
+
+| model | hit | FA/min | latency ms | side | left-only hit | right-only hit | desk (of 5) | robot (of 9) |
+|---|---|---|---|---|---|---|---|---|
+| connectome | 1.00 | 1.87 | 78 | 0.90 | 1.00 | 1.00 | 5 | 8 |
+| rewired x5 | 0.71 | 1.48 | 90 | 0.77 | 0.00 | 0.56 | 5 | 6.2 |
+| random x3 | 0.00 | 0.00 | - | - | 0.00 | 0.00 | 0 | 0 |
+| no interneurons | 1.00 | 5.99 | 65 | 0.92 | 1.00 | 1.00 | 5 | 9 |
+| no interneurons, refit | 1.00 | 2.10 | 68 | 0.95 | 1.00 | 1.00 | 5 | 9 |
+| rewired seed 0, refit | 1.00 | 2.15 | 66 | 0.95 | 1.00 | 1.00 | 5 | 9 |
+| random seed 0, refit | 0.76 | 0.28 | 102 | 0.38 | 0.82 | 0.00 | 5 | 4 |
+| proximity threshold | 1.00 | 1.45 | 125 | 0.89 | 1.00 | 1.00 | 5 | 9 |
+| looming-rate threshold | 1.00 | 1.17 | 62 | 0.96 | 1.00 | 1.00 | 5 | 8 |
+
+False alarms per minute by kind (stop short / hover / slow drift): connectome 6.7 / 7.4 / 1.7;
+no interneurons, refit 9.0 / 1.7 / 8.0; rewired refit 9.0 / 2.0 / 8.0; proximity 0.0 / 2.3 / 8.0;
+looming rate 9.0 / 3.0 / 0.0. Hand distance at trigger, 0.8-1.6 m/s vs 0.3-0.5 m/s: connectome
+5.5 / 8.3 cm, looming rate 6.7 / 9.0 cm, proximity 3.6 / 5.4 cm. The connectome's one miss on
+the robot run is a re-approach 0.5 s after the previous event (the GF had not dropped below
+threshold); the looming-rate baseline misses the same one.
+
+What the benchmark can and cannot show. The pathway is nearly feed-forward, two populations
+converging on one neuron per side, and the inputs are spatially uniform, so which LC4 contacts
+which GF matters little once gains and thresholds are fitted. It can show three things: (1)
+side wiring: all of each GF's LC4/LPLC2 input is ipsilateral in FlyWire, about 54% after
+rewiring; (2) the LC4:LPLC2 balance at the GF set by synapse counts (0.90 in FlyWire; random
+0.34); (3) what the interneurons do with fixed scalars. It cannot test the fly's spatial
+looming computation, because the sensor has none.
+
+**Plain-English summary.** On this task the fly's wiring does not beat simple engineering. A
+threshold on how fast the IR reading is rising (the looming-rate baseline) catches every
+simulated approach with fewer false alarms (1.2 vs 1.9 per minute) and earlier (62 vs 78 ms),
+and on the real recordings it does as well (5 of 5 desk approaches, 8 of 9 on the robot, same
+as the connectome model). The connectome model works: it catches every simulated approach
+from either side, all 5 desk approaches and 8 of 9 on the robot, with no false alarms on
+either recording. What the wiring adds is visible only when its fitted settings are kept
+fixed: shuffle the connections and the model misses approaches on one side (left-only hit rate
+0) because each giant fiber no longer listens mostly to its own side; randomise them and it
+never triggers; remove the interneurons and false alarms from a hovering hand rise from 7 to 29
+per minute. Re-fit the settings for the shuffled or interneuron-free network and those gaps
+close (2.1-2.2 false alarms per minute, every approach caught). The robot also exposed a real
+asymmetry in the fly data: the right giant fiber gets about 1.5 times as many looming-neuron
+synapses as the left, so each side needs its own trigger threshold. The sensor measures
+distance, not vision; the model does not see.
+
+## Rebuild
+
+```bash
+uv run flybrain-data build-pack escape
+uv run python -m flybrain_models.escape_fit --baselines
+uv run python -m flybrain_models.escape_fit --iters 25 --popsize 12
+uv run python -m flybrain_models.escape_fit --ablate-interneurons --iters 25 --popsize 12
+uv run python -m flybrain_models.escape_fit --variant rewired --seed 0 --iters 25 --popsize 12
+uv run python -m flybrain_models.escape_fit --variant random --seed 0 --iters 25 --popsize 12
+uv run python -m flybrain_models.escape_benchmark
+```
