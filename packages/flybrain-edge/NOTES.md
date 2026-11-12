@@ -158,3 +158,8 @@ Read-only probe only; the robot has not been moved by this code yet.
   default `--pan-sign 1` is right on this firmware, together with `--yaw-sign -1`. The earlier
   report that "the arm did not move" during sweep was about the arm lift and claw, which the
   demo never moves; the pan servo works.
+- Second sweep run (2 cycles, +-35 deg, wooden floor, 32 s): no timeouts or re-issues; the owner
+  watched from above and confirmed the arm held its direction while the body turned (video).
+  By the IMU, left legs took about 2 s and right legs 7 to 8 s for the same 70 deg. Unexplained:
+  either the robot really turns left several times faster or the yaw reading is asymmetric.
+  Overshoot after `kup` was up to 7 deg.

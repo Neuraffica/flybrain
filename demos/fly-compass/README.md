@@ -204,8 +204,8 @@ clockwise as positive, hence `--yaw-sign -1` on a real robot).
 Sweep mode ran on the robot (2 cycles at +-25 degrees on carpet, 29 s, no timeouts or
 re-issues), and a separate test showed a positive pan command turns the head and arm to the robot's left,
 so the default pan sign (+1) is right on this firmware. The turning gait keeps running while
-head commands stream. How well the arm visibly holds its direction during a sweep has not
-been judged by eye.
+head commands stream. A second sweep at +-35 degrees was
+watched from above and the arm held its direction while the body turned.
 
 Not yet checked on the robot: the safe pan range with the arm beyond about 45 degrees, hold
 mode, sweep on a hard floor or at larger angles, and Bluetooth.
