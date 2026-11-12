@@ -216,3 +216,27 @@ measured**: about 8,800 multiply-adds, 1 `expf` and on average about 130 `tanhf`
 about 1,400 in the busiest steps), estimated at 0.5 ms on average and about 2 ms worst case at
 240 MHz, i.e. roughly 1.5-6% of one core at 28 Hz. See
 `packages/flybrain-edge/src/flybrain_edge/export/` for the derivation.
+
+## Checked against the real robot (2026-11-12): do not flash yet
+
+A full backup of the robot's flash was taken and verified; nothing was written. It showed two
+things that block flashing this build as described above.
+
+- **The chip is an ESP32-U4WDH (revision v3.1) with 4 MB of embedded flash.**
+- **The robot's partition table is the default 4 MB layout, not Minimal SPIFFS.** `app0` and
+  `app1` are 1,280 KB each (1,310,720 bytes), `spiffs` is 1,408 KB, `nvs` is 20 KB at 0x9000.
+  The build with this module is 1,320,173 bytes, about 9.5 KB too big for `app0`. The stock
+  build of the same revision (1,299,929 bytes) fits. So either the build must shrink by about
+  10 KB (for example by leaving out a stock module that is not used), or the partition table
+  must be rewritten too, which moves `app1` and `spiffs`. `nvs` sits at the same place in both
+  layouts; whether calibration survives a partition change has not been tested.
+- **The USB link on this Mac corrupts large writes to the board.** With macOS's built-in
+  driver for the board's CH343 USB chip (port name `cu.usbmodem...`), esptool fails to upload
+  its helper ("Failed to write to target RAM", checksum error or timeout) unless the RAM block
+  size is cut to 256 bytes. Reading works. Writing a firmware image over a link in that state
+  is not safe, because recovery would depend on the same link. Install WCH's CH343 driver
+  (the port then appears as `cu.wchusbserial...`) or flash from another computer.
+
+Backup command that worked here (esptool 5.6.0, RAM block patched to 0x100, 115200 baud, 381 s):
+`read-flash 0 0x400000 backup.bin`, then `verify-flash 0 backup.bin` reported a matching
+digest. Restore is `write-flash 0 backup.bin`, which needs a healthy link.

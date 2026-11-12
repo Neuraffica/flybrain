@@ -34,7 +34,7 @@ about 300 KB as int8 weights with int16 column indices. Measuring this is the fi
 
 | | |
 |---|---|
-| Main board | BiBoard V1, ESP32 (classic, dual-core LX6). Petoi pages disagree on the module: WROOM-32D with 16 MB flash or U4WDH with 4 MB **(verify)** |
+| Main board | BiBoard V1, ESP32-U4WDH (classic, dual-core LX6) with 4 MB embedded flash, read from a real unit. Petoi's specs page says WROOM-32D with 16 MB, which this unit is not |
 | Joints | 8 leg servos + 1 neck. The arm variant adds 2 servos (arm, claw) on the head |
 | IMU | MPU6050 or ICM42670, on board |
 | Battery | 7.4 V 1000 mAh, about 1 hour |
