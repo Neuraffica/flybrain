@@ -14,11 +14,13 @@
 #ifndef FLY_ESCAPE_MODULE_H
 #define FLY_ESCAPE_MODULE_H
 
-#include "fly_escape_all.h"
-
 #ifndef FLY_ESCAPE_MODEL
-#define FLY_ESCAPE_MODEL FE_MODEL_CONNECTOME  // or FE_MODEL_LOOMING (baseline)
+#define FLY_ESCAPE_MODEL 0  // 0 = FE_MODEL_CONNECTOME, 1 = FE_MODEL_LOOMING (baseline)
 #endif
+#if FLY_ESCAPE_MODEL == 1
+#define FE_WITH_LOOMING 1  // the baseline is compiled only when selected
+#endif
+#include "fly_escape_all.h"
 #define FLY_ESCAPE_STEP_MS 35            // model step; 25-90 ms is the validated range
 #define FLY_ESCAPE_MIN_INTERVAL_MS 3000  // between escapes
 #define FLY_ESCAPE_BACK_MS 1000          // duration of the backward walk

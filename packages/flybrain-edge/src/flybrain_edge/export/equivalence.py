@@ -24,10 +24,10 @@ def find_cc() -> str | None:
     return None
 
 
-def build_harness(workdir: Path, params_key: str = "connectome") -> Path:
+def build_harness(workdir: Path, params_key: str = "connectome", layout: str = "compact") -> Path:
     from .escape_c import export
 
-    export(workdir, params_key)
+    export(workdir, params_key, layout=layout)
     shutil.copy(HARNESS, workdir / "host_harness.c")
     exe = workdir / "harness"
     cc = find_cc()
@@ -42,6 +42,7 @@ def build_harness(workdir: Path, params_key: str = "connectome") -> Path:
             "-Wextra",
             "-Werror",
             "-pedantic",
+            "-DFE_WITH_LOOMING=1",
             "-o",
             str(exe),
             str(workdir / "host_harness.c"),
@@ -101,12 +102,12 @@ def run_c(exe: Path, model_id: int, eps) -> list[np.ndarray]:
     return out
 
 
-def compare(sim_every: int = 8) -> dict:
+def compare(sim_every: int = 8, layout: str = "compact") -> dict:
     from flybrain_models.escape import EscapeCircuit, LoomingRateThreshold
 
     eps = episodes(sim_every)
     with tempfile.TemporaryDirectory() as tmp:
-        exe = build_harness(Path(tmp))
+        exe = build_harness(Path(tmp), layout=layout)
         summary = {}
         for model_id, name, make in (
             (0, "connectome", EscapeCircuit.from_pack),
