@@ -23,6 +23,7 @@ from importlib import resources
 
 from fly_compass.benchmark import find_benchmark
 from fly_compass.server import DashboardServer, FrameHub
+from flybrain_demo_api import status
 from flybrain_edge.bittle import Bittle, MockBittle, MockTransport, TransportError, open_transport
 from flybrain_edge.bittle.robot import BittleError
 
@@ -137,6 +138,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--no-dashboard", action="store_true")
     ap.add_argument("--open", action="store_true", help="open the dashboard in a browser")
+    ap.add_argument(
+        "--no-open", action="store_true", help="never open a browser (the default; for Flydeck)"
+    )
     ap.add_argument("--no-log", action="store_true")
     ap.add_argument("--runs-dir", default="runs")
     ap.add_argument("--duration", type=float, default=None, help="stop after N seconds")
@@ -185,6 +189,13 @@ def print_summary(summary: dict, driver: str) -> None:
         )
 
 
+def _fail(code: int, message: str) -> int:
+    """Print why the demo cannot run, tell Flydeck (when it started us), return the exit code."""
+    print(message, file=sys.stderr)
+    status.failed(message.removeprefix("fly-escape: "))
+    return code
+
+
 def main(argv: list[str] | None = None) -> int:
     a = build_parser().parse_args(argv)
     logging.basicConfig(
@@ -195,21 +206,17 @@ def main(argv: list[str] | None = None) -> int:
     allow_moves = a.i_have_space or a.mock
     mode = a.mode or ("escape" if allow_moves and not a.replay else "observe")
     if mode == "escape" and not allow_moves:
-        print(
+        return _fail(
+            2,
             "escape mode makes the robot walk backwards. Clear a metre behind it and add "
             "--i-have-space.",
-            file=sys.stderr,
         )
-        return 2
     if a.replay and mode == "escape":
-        print("fly-escape: a replay cannot move a robot; use --mode observe", file=sys.stderr)
-        return 2
+        return _fail(2, "fly-escape: a replay cannot move a robot; use --mode observe")
     if (a.mock_script or a.mock_random is not None) and not a.mock:
-        print("fly-escape: --mock-script and --mock-random need --mock", file=sys.stderr)
-        return 2
+        return _fail(2, "fly-escape: --mock-script and --mock-random need --mock")
     if a.mock_script and a.mock_random is not None:
-        print("fly-escape: choose --mock-script or --mock-random, not both", file=sys.stderr)
-        return 2
+        return _fail(2, "fly-escape: choose --mock-script or --mock-random, not both")
     if a.mock_random == -1:
         a.mock_random = random.randrange(1, 10_000)
     try:
@@ -217,16 +224,14 @@ def main(argv: list[str] | None = None) -> int:
         if len(pins) != 2:
             raise ValueError("give exactly two pins")
     except ValueError as e:
-        print(f"fly-escape: --pins: {e}", file=sys.stderr)
-        return 2
+        return _fail(2, f"fly-escape: --pins: {e}")
     if a.yaw_sign is None:
         a.yaw_sign = 1 if (a.mock or a.replay) else -1
 
     try:
         models, raw_to_proximity = load_models(seed=a.seed)
     except ModelMissing as e:
-        print(f"fly-escape: {e}", file=sys.stderr)
-        return 3
+        return _fail(3, f"fly-escape: {e}")
     loop = EscapeLoop(models, raw_to_proximity, driver=a.driver, swap_sides=a.swap_sides)
     cfg = EscapeConfig(
         action=a.escape_action,
@@ -251,8 +256,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             rows = load_samples(a.replay)
         except (FileNotFoundError, ValueError) as e:
-            print(f"fly-escape: {e}", file=sys.stderr)
-            return 2
+            return _fail(2, f"fly-escape: {e}")
         replay = ReplaySource(rows)
         label = f"replay {a.replay} ({len(rows)} samples, {replay.duration:.1f}s)"
     else:
@@ -263,6 +267,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             transport = open_transport(port=a.port, ble=a.ble)
             label = transport.name
+            status.state("connecting", label)
             print("fly-escape: real robot.\n" + SAFETY)
             if mode == "escape":
                 print("  ESCAPE MODE: the legs will move. Keep cables clear.")
@@ -275,7 +280,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             bittle.connect(boot_timeout=0.5 if a.mock else a.boot_timeout)
         except (TransportError, BittleError) as e:
-            print(f"fly-escape: cannot connect: {e}", file=sys.stderr)
+            _fail(4, f"fly-escape: cannot connect: {e}")
             try:
                 transport.close()
             except Exception:  # noqa: BLE001, S110 - best-effort close after a failed connect
@@ -321,7 +326,17 @@ def main(argv: list[str] | None = None) -> int:
         app.sim = Simulator(mock, seed=a.mock_random, speed=a.sim_speed)
     app.imu = a.imu
     app.analog_rate_hz = a.analog_rate
-    app.on_event = lambda ev: print(f"fly-escape: {ev}", flush=True)
+
+    def _on_event(ev: str) -> None:
+        print(f"fly-escape: {ev}", flush=True)
+        if ev.startswith("calibrating"):
+            status.state("calibrating", "keep hands away from the sensor")
+        elif ev.startswith(("calibration FAILED", "ESCAPE MODE REFUSED", "THE ROBOT WILL NOT")):
+            status.state("attention", ev)
+        elif ev.startswith("calibrat"):
+            status.state("running", ev)
+
+    app.on_event = _on_event
     server = None
     if not a.no_dashboard and not fast:
         page = resources.files("fly_escape").joinpath("static/index.html").read_bytes()
@@ -335,14 +350,12 @@ def main(argv: list[str] | None = None) -> int:
                 page=page,
             ).start()
         except OSError as e:
-            print(
-                f"fly-escape: dashboard port {a.http_port} unavailable ({e}); use --http-port",
-                file=sys.stderr,
-            )
             app.shutdown()
-            return 5
+            return _fail(
+                5, f"fly-escape: dashboard port {a.http_port} unavailable ({e}); use --http-port"
+            )
         print(f"fly-escape: dashboard at {server.url}", flush=True)
-        if a.open:
+        if a.open and not a.no_open:
             webbrowser.open(server.url)
     print(
         f"fly-escape: {label} | mode {mode} (after calibration) | driver {loop.driver} | "
@@ -357,6 +370,7 @@ def main(argv: list[str] | None = None) -> int:
 
     code = 0
     try:
+        status.ready(server.url if server is not None else None)
         app.start_robot()
         summary = app.run(duration=a.duration)
     except KeyboardInterrupt:
@@ -365,6 +379,7 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as e:  # noqa: BLE001 - any error must still rest the robot
         summary = app.summary()
         print(f"fly-escape: error: {e!r}; resting the robot", file=sys.stderr)
+        status.failed(f"error: {e}")
         code = 1
     finally:
         app.shutdown()

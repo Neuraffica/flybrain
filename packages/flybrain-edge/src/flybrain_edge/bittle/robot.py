@@ -425,6 +425,16 @@ class Bittle:
             self._analog.clear()
         return out
 
+    def read_voltage(self, timeout: float = 1.5) -> float | None:
+        """Battery voltage in volts, or None when the firmware does not say (the 'P' reply is
+        UNVERIFIED on hardware; a "Low power: 2.18V" warning seen earlier also counts)."""
+        lines = self.send(P.encode_ascii(P.T_POWER), echo=P.T_POWER, timeout=timeout, quiet=True)
+        v = P.parse_voltage(lines or [])
+        if v is None:
+            with self._cv:
+                v = P.parse_voltage([t for _, t in list(self.recent_lines)[-20:]])
+        return v
+
     def read_joints(self, timeout: float = 1.5) -> dict[int, int] | None:
         """All joint angles via 'j' ({index: degrees}), USB or BLE framing."""
         lines = self.send(P.encode_ascii(P.T_JOINTS), echo=P.T_JOINTS, timeout=timeout)

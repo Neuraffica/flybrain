@@ -19,8 +19,11 @@ members = [
     "fly-escape",
     "flybrain",
     "flybrain-data",
+    "flybrain-demo-api",
     "flybrain-edge",
     "flybrain-models",
+    "flydeck",
+    "hello-robot",
 ]
 
 [[package]]
@@ -112,6 +115,7 @@ name = "fly-compass"
 version = "0.0.1"
 source = { editable = "demos/fly-compass" }
 dependencies = [
+    { name = "flybrain-demo-api" },
     { name = "flybrain-edge" },
     { name = "flybrain-models" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -120,6 +124,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "flybrain-demo-api", editable = "packages/flybrain-demo-api" },
     { name = "flybrain-edge", editable = "packages/flybrain-edge" },
     { name = "flybrain-models", editable = "packages/flybrain-models" },
     { name = "numpy" },
@@ -131,6 +136,7 @@ version = "0.0.1"
 source = { editable = "demos/fly-escape" }
 dependencies = [
     { name = "fly-compass" },
+    { name = "flybrain-demo-api" },
     { name = "flybrain-edge" },
     { name = "flybrain-models" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -140,6 +146,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "fly-compass", editable = "demos/fly-compass" },
+    { name = "flybrain-demo-api", editable = "packages/flybrain-demo-api" },
     { name = "flybrain-edge", editable = "packages/flybrain-edge" },
     { name = "flybrain-models", editable = "packages/flybrain-models" },
     { name = "numpy" },
@@ -153,8 +160,11 @@ dependencies = [
     { name = "fly-compass" },
     { name = "fly-escape" },
     { name = "flybrain-data" },
+    { name = "flybrain-demo-api" },
     { name = "flybrain-edge" },
     { name = "flybrain-models" },
+    { name = "flydeck" },
+    { name = "hello-robot" },
 ]
 
 [package.dev-dependencies]
@@ -168,8 +178,11 @@ requires-dist = [
     { name = "fly-compass", editable = "demos/fly-compass" },
     { name = "fly-escape", editable = "demos/fly-escape" },
     { name = "flybrain-data", editable = "packages/flybrain-data" },
+    { name = "flybrain-demo-api", editable = "packages/flybrain-demo-api" },
     { name = "flybrain-edge", editable = "packages/flybrain-edge" },
     { name = "flybrain-models", editable = "packages/flybrain-models" },
+    { name = "flydeck", editable = "apps/flydeck" },
+    { name = "hello-robot", editable = "demos/hello-robot" },
 ]
 
 [package.metadata.requires-dev]
@@ -195,6 +208,11 @@ requires-dist = [
     { name = "pandas", specifier = ">=3.1.1" },
     { name = "pyarrow", specifier = ">=26.0.1" },
 ]
+
+[[package]]
+name = "flybrain-demo-api"
+version = "0.1.0"
+source = { editable = "packages/flybrain-demo-api" }
 
 [[package]]
 name = "flybrain-edge"
@@ -227,6 +245,39 @@ dependencies = [
 requires-dist = [
     { name = "flybrain-data", editable = "packages/flybrain-data" },
     { name = "numpy", specifier = ">=2.4.6" },
+]
+
+[[package]]
+name = "flydeck"
+version = "0.1.0"
+source = { editable = "apps/flydeck" }
+dependencies = [
+    { name = "flybrain-demo-api" },
+    { name = "flybrain-edge" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "flybrain-demo-api", editable = "packages/flybrain-demo-api" },
+    { name = "flybrain-edge", editable = "packages/flybrain-edge" },
+    { name = "numpy" },
+]
+
+[[package]]
+name = "hello-robot"
+version = "0.0.1"
+source = { editable = "demos/hello-robot" }
+dependencies = [
+    { name = "flybrain-demo-api" },
+    { name = "flybrain-edge" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "flybrain-demo-api", editable = "packages/flybrain-demo-api" },
+    { name = "flybrain-edge", editable = "packages/flybrain-edge" },
 ]
 
 [[package]]

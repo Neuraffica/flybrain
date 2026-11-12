@@ -24,6 +24,7 @@ import sys
 import time
 import webbrowser
 
+from flybrain_demo_api import status
 from flybrain_edge.bittle import Bittle, MockBittle, MockTransport, TransportError, open_transport
 from flybrain_edge.bittle import protocol as P
 from flybrain_edge.bittle.robot import BittleError
@@ -121,6 +122,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--host", default="127.0.0.1", help="dashboard bind address (keep it local)")
     ap.add_argument("--no-dashboard", action="store_true")
     ap.add_argument("--open", action="store_true", help="open the dashboard in a browser")
+    ap.add_argument(
+        "--no-open", action="store_true", help="never open a browser (the default; for Flydeck)"
+    )
     ap.add_argument("--no-log", action="store_true", help="do not write runs/<stamp>/")
     ap.add_argument("--runs-dir", default="runs")
     ap.add_argument("--duration", type=float, default=None, help="stop after N seconds")
@@ -236,6 +240,13 @@ def print_phase_table(phases: dict, out=None) -> None:
         print(f"  {ph:<{w}}" + "".join(cells), file=out)
 
 
+def _fail(code: int, message: str) -> int:
+    """Print why the demo cannot run, tell Flydeck (when it started us), return the exit code."""
+    print(message, file=sys.stderr)
+    status.failed(message.removeprefix("fly-compass: "))
+    return code
+
+
 def main(argv: list[str] | None = None) -> int:
     a = build_parser().parse_args(argv)
     if a.yaw_sign is None:
@@ -245,39 +256,30 @@ def main(argv: list[str] | None = None) -> int:
         format="%(levelname)s %(name)s: %(message)s",
     )
     if a.mode in LEG_MODES and not a.i_have_space:
-        print(
+        return _fail(
+            2,
             f"{a.mode} mode makes the robot walk in place. Clear a 50 cm circle and add "
             "--i-have-space.",
-            file=sys.stderr,
         )
-        return 2
     if not 5 <= a.sweep_angle <= 90 or a.sweep_pause < 0 or a.sweep_timeout <= 0:
-        print(
-            "--sweep-angle must be 5..90, --sweep-pause >= 0, --sweep-timeout > 0", file=sys.stderr
-        )
-        return 2
+        return _fail(2, "--sweep-angle must be 5..90, --sweep-pause >= 0, --sweep-timeout > 0")
     if a.sweep_cycles is not None and a.sweep_cycles < 1:
-        print("--sweep-cycles must be at least 1", file=sys.stderr)
-        return 2
+        return _fail(2, "--sweep-cycles must be at least 1")
     if a.mode == "sweep" and a.mock_script != "none":
-        print(
+        return _fail(
+            2,
             "fly-compass: --mode sweep turns the dog with its gaits; it cannot be combined "
             "with --mock-script, which moves the simulated dog itself",
-            file=sys.stderr,
         )
-        return 2
     if a.mock_script != "none" and not a.mock:
-        print("fly-compass: --mock-script needs --mock", file=sys.stderr)
-        return 2
+        return _fail(2, "fly-compass: --mock-script needs --mock")
     if a.rate <= 0 or a.rate > 100:
-        print("--rate must be in (0, 100]", file=sys.stderr)
-        return 2
+        return _fail(2, "--rate must be in (0, 100]")
 
     try:
         models = load_models(seed=a.seed)
     except ModelMissing as e:
-        print(f"fly-compass: {e}", file=sys.stderr)
-        return 3
+        return _fail(3, f"fly-compass: {e}")
 
     cfg = LoopConfig(
         rate_hz=a.rate,
@@ -309,8 +311,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             samples = load_samples(a.replay)
         except FileNotFoundError as e:
-            print(f"fly-compass: {e}", file=sys.stderr)
-            return 2
+            return _fail(2, f"fly-compass: {e}")
         replay = ReplaySource(samples)
         label = f"replay {a.replay} ({len(samples)} samples, {replay.duration:.1f}s)"
         loop.set_mode("observe")
@@ -330,6 +331,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             transport = open_transport(port=a.port, ble=a.ble)
             label = transport.name
+            status.state("connecting", label)
             print("fly-compass: real robot.\n" + SAFETY.format(lim=a.pan_limit))
             if a.mode in LEG_MODES:
                 print(f"  {a.mode.upper()} MODE: the legs will step. Keep hands and cables clear.")
@@ -348,7 +350,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             bittle.connect(boot_timeout=0.5 if a.mock else a.boot_timeout)
         except (TransportError, BittleError) as e:
-            print(f"fly-compass: cannot connect: {e}", file=sys.stderr)
+            _fail(4, f"fly-compass: cannot connect: {e}")
             try:
                 transport.close()
             except Exception:  # noqa: BLE001, S110 - best-effort close after a failed connect
@@ -408,14 +410,12 @@ def main(argv: list[str] | None = None) -> int:
                 port=a.http_port,
             ).start()
         except OSError as e:
-            print(
-                f"fly-compass: dashboard port {a.http_port} unavailable ({e}); use --http-port",
-                file=sys.stderr,
-            )
             app.shutdown()
-            return 5
+            return _fail(
+                5, f"fly-compass: dashboard port {a.http_port} unavailable ({e}); use --http-port"
+            )
         print(f"fly-compass: dashboard at {server.url}", flush=True)
-        if a.open:
+        if a.open and not a.no_open:
             webbrowser.open(server.url)
     print(
         f"fly-compass: {label} | mode {loop.mode} | driver {loop.driver} | {a.rate:g} Hz"
@@ -427,7 +427,11 @@ def main(argv: list[str] | None = None) -> int:
 
     code = 0
     try:
+        status.ready(server.url if server is not None else None)
+        if app.drift_cal_s > 0 and bittle is not None:
+            status.state("calibrating", f"hold the robot still for {app.drift_cal_s:.0f} s")
         app.start_robot()
+        status.state("running", f"mode {loop.mode}")
         summary = app.run(duration=a.duration)
     except KeyboardInterrupt:
         summary = app.summary()
@@ -435,6 +439,7 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as e:  # noqa: BLE001 - any error must still rest the robot
         summary = app.summary()
         print(f"fly-compass: error: {e!r}; resting the robot", file=sys.stderr)
+        status.failed(f"error: {e}")
         code = 1
     finally:
         app.shutdown()

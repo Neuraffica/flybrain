@@ -12,6 +12,18 @@ The rules:
 
 > Status: planning docs plus one working demo, [Fly compass](demos/fly-compass/README.md) ([guide](demos/fly-compass/guide.html)), which has been tested on a simulated robot only. Firmware, simulation and tutorials are outlined but not implemented yet.
 
+## Start here on a Mac
+
+**Flydeck** is a small Mac app: pick a robot, pick a fly-brain demo, press Start. In Terminal, inside this folder:
+
+```bash
+uv sync
+uv run flydeck install-app      # creates ~/Applications/Flydeck.app for this folder
+open ~/Applications/Flydeck.app
+```
+
+A browser tab opens with the Flydeck page. Switch the robot on, press **Scan**, click **Allow** when macOS asks whether Flydeck may use Bluetooth, press **Use** next to your robot, then pick a demo and press **Start**. Tick **Try in simulator** to run any demo with no robot. The [Flydeck guide](apps/flydeck/guide.html) covers first run and troubleshooting; to add your own demo, see [docs/adding-a-demo.md](docs/adding-a-demo.md) (`uv run flydeck new-demo my-idea`).
+
 ## Start here
 
 | Read | For |
@@ -35,7 +47,9 @@ The rules:
 | `firmware/bittle` | Notes and patches for Petoi OpenCat firmware on the Bittle X |
 | `sim/` | Bittle simulation environment with the same command interface as the real robot |
 | `models/` | Pretrained model zoo (weights are released as downloads, not committed) |
-| `demos/` | Reference demos |
+| `demos/` | Reference demos, and `hello-robot`, the template for new ones |
+| `apps/flydeck` | Flydeck, the Mac app that finds the robot and starts demos |
+| `packages/flybrain-demo-api` | The small API a demo uses to appear in Flydeck (no dependencies) |
 | `tutorials/` | Step-by-step notebooks and guides |
 | `tools/` | Scripts for organizers: dataset recording, device flashing |
 | `data/` | Local cache for downloaded connectome files (gitignored) |

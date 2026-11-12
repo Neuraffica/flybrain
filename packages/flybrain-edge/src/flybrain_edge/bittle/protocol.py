@@ -25,6 +25,7 @@ T_INDEXED_SIMULTANEOUS_ASC = "i"  # i idx ang idx ang ... '\n'
 T_INDEXED_SIMULTANEOUS_BIN = "I"  # I <int8 idx> <int8 ang> ... '~'
 T_EXTENSION = "X"  # module switch, e.g. XC~ camera on, Xc~ off
 T_READ = "R"  # R a <pin> a <pin> ... ~ : per pin "=" then the reading, then echo 'R'
+T_POWER = "P"  # prints "Voltage: 8.10 V" (UNVERIFIED on hardware; the simulator copies it)
 TYPE_ANALOG = "a"  # (src/OpenCat.h:364-367, src/reaction.h:1064-1131)
 T_LEGACY_PRINT_GYRO = "v"  # AVR OpenCat / old ESP32 firmware only; "Undefined token!" now
 
@@ -308,6 +309,15 @@ def split_glued(line: str) -> list[str]:
     if m.group("echo"):
         out.append("?")
     return out
+
+
+def parse_voltage(lines: list[str]) -> float | None:
+    """Battery voltage from a 'P' reply ("Voltage: 8.10 V") or a "Low power: 2.18V" warning."""
+    for line in reversed(lines):
+        m = re.search(r"(?:Voltage|Low power)\s*:\s*([0-9]+(?:\.[0-9]+)?)", line)
+        if m:
+            return float(m.group(1))
+    return None
 
 
 def parse_identify(lines: list[str]) -> tuple[str | None, str | None]:
