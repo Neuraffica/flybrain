@@ -1,0 +1,71 @@
+packages/flybrain-edge/src/flybrain_edge/bittle/robot.py
+  s_8da33b2ad5b96f::t_1988ec25b336da 126-128,212-222
+  s_8da33b2ad5b96f::t_5b9a0eade7b59b 223-238,308-311
+  s_8da33b2ad5b96f::t_46848df1f7fad0 312
+packages/flybrain-edge/tests/test_bittle_ble_capture.py
+  s_8da33b2ad5b96f::t_2f1a0cf233f70a 1-83,85-134,141-157,159-160
+  s_8da33b2ad5b96f::t_993380e5e394c5 84,135-140,158
+packages/flybrain-edge/tests/test_bittle_protocol.py
+  s_8da33b2ad5b96f::t_bc1ba01c64ec90 142-149
+packages/flybrain-edge/src/flybrain_edge/bittle/probe.py
+  s_8da33b2ad5b96f::t_f9bd10eb4a09f6 56,84-90,93-94,96,113,139-141,178,183-184
+  s_8da33b2ad5b96f::t_581959dd2a6b0a 114-117,179-182,244-245,295-297,311-316
+  s_8da33b2ad5b96f::t_57950bf597321b 214
+  s_8da33b2ad5b96f::t_9616e185943f49 18-20,24,292-294,298-305,309-310,317-332
+packages/flybrain-edge/src/flybrain_edge/bittle/macos.py
+  s_8da33b2ad5b96f::t_581959dd2a6b0a 187-189,208-210,213-216,225-229
+  s_8da33b2ad5b96f::t_d304b5ccbec209 1-186,190-207,211-212,217-224,233-251
+  s_8da33b2ad5b96f::t_e8a9eae981aeac 230-232
+packages/flybrain-edge/tests/test_bittle_transport.py
+  s_8da33b2ad5b96f::t_03ad331b05e468 35-38,49-63
+demos/fly-compass/guide.html
+  s_8da33b2ad5b96f::t_f64c1b58c61b31 103,250,279
+packages/flybrain-edge/tests/test_bittle_macos.py
+  s_8da33b2ad5b96f::t_da58af5ca5fa9c 47-57,59-61,77-79,88-103
+  s_8da33b2ad5b96f::t_8d26f8a7500301 58,76
+  s_8da33b2ad5b96f::t_5c826132c84fbd 1-46,62-75,80-87,104-148
+packages/flybrain-edge/tests/test_bittle_robot.py
+  s_8da33b2ad5b96f::t_03ad331b05e468 1-3,7,11-20,23,25,34-45,146-147
+packages/flybrain-edge/NOTES.md
+  s_8da33b2ad5b96f::t_7510495d24483d 97,99
+  s_8da33b2ad5b96f::t_ac0bfd3137b272 180-213
+  s_8da33b2ad5b96f::t_29bb42e9144da4 214-216
+  s_8da33b2ad5b96f::t_e52473bb6ef200 217-222
+demos/fly-compass/tests/test_compass_sweep.py
+  s_8da33b2ad5b96f::t_da58af5ca5fa9c 166-173
+demos/fly-compass/tests/test_compass_app.py
+  s_8da33b2ad5b96f::t_da58af5ca5fa9c 7,17-20,31-32,34-36,59-61,82-84,192-194
+packages/flybrain-edge/tests/fixtures/ble_probe_b10_250330.txt
+  s_8da33b2ad5b96f::t_2530a81be55ce3 1-329
+packages/flybrain-edge/README.md
+  s_8da33b2ad5b96f::t_d20b37a948a924 31-33,43,52-80,93-94,108-115
+  s_8da33b2ad5b96f::t_3b8bb4c93be84f 116
+packages/flybrain-edge/src/flybrain_edge/bittle/protocol.py
+  s_8da33b2ad5b96f::t_6e8b410faebf09 255-256
+  s_8da33b2ad5b96f::t_bc1ba01c64ec90 225-227,234-238
+  s_8da33b2ad5b96f::t_fb98a65641b920 52-54,216-224,228-233,239-254,257-305
+  s_8da33b2ad5b96f::t_bde737102a0ad7 306-307
+packages/flybrain-edge/src/flybrain_edge/bittle/mock.py
+  s_8da33b2ad5b96f::t_67c1d94767e30e 95,117-122,166-171,242-257,259-269,273-278,339,414-419,475-476,489-490
+packages/flybrain-edge/src/flybrain_edge/bittle/transport.py
+  s_8da33b2ad5b96f::t_467807ae2a2b4e 190-192,209,221-242,250-252,275-281,286-290,293,297,348-352,362-365,385-386
+demos/fly-compass/README.md
+  s_8da33b2ad5b96f::t_f64c1b58c61b31 67-68,124-142,215,234-239
+  s_8da33b2ad5b96f::t_b4ac73abdcd70b 240-242
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "71f14fde21d41acaa869ef08fe9298f0207d1c07",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
