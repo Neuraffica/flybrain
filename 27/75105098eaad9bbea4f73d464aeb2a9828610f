@@ -1,0 +1,21 @@
+docs/hardware.md
+  s_8da33b2ad5b96f::t_4212b5dc549f0d 37
+firmware/bittle/fly_escape/README.md
+  s_8da33b2ad5b96f::t_05b9b0d82d7c0a 219-242
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2775105098eaad9bbea4f73d464aeb2a9828610f",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
