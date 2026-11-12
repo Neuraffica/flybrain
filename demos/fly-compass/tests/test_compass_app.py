@@ -4,6 +4,7 @@ import threading
 import time
 import urllib.request
 
+import pytest
 from compass_fakes import fake_models
 from fly_compass import cli
 from fly_compass.app import CompassApp
@@ -13,8 +14,10 @@ from fly_compass.session import ReplaySource, SessionLog, load_samples
 from flybrain_edge.bittle import Bittle, MockBittle, MockTransport
 
 
-def _mock_app(tmp_path, mode="needle", traj=None, log=True):
-    mock = MockBittle(imu_noise_deg=0.1)
+def _mock_app(tmp_path, mode="needle", traj=None, log=True, link="usb"):
+    # link="ble": the simulator speaks like firmware B10_250330 over Bluetooth LE (one print
+    # per notification, no newlines, IMU line and echo glued together)
+    mock = MockBittle(imu_noise_deg=0.1, ble_notifications=link == "ble")
     if traj:
         mock.trajectory = traj
     bot = Bittle(MockTransport(mock))
@@ -25,9 +28,12 @@ def _mock_app(tmp_path, mode="needle", traj=None, log=True):
     return mock, bot, app
 
 
-def test_control_loop_tracks_scripted_rotation_on_mock(tmp_path):
+@pytest.mark.parametrize("link", ["usb", "ble"])
+def test_control_loop_tracks_scripted_rotation_on_mock(tmp_path, link):
     # dog turns 90 deg left over 1.5 s, then holds
-    mock, _bot, app = _mock_app(tmp_path, traj=lambda t: 37 + 60 * min(max(t - 1.0, 0), 1.5))
+    mock, _bot, app = _mock_app(
+        tmp_path, link=link, traj=lambda t: 37 + 60 * min(max(t - 1.0, 0), 1.5)
+    )
     try:
         app.start_robot()
         summary = app.run(duration=4.5)
@@ -50,8 +56,9 @@ def test_control_loop_tracks_scripted_rotation_on_mock(tmp_path):
     assert len(rows) >= 15
 
 
-def test_replay_reproduces_session(tmp_path):
-    _mock, _bot, app = _mock_app(tmp_path, mode="observe", traj=lambda t: 37 + 40 * t)
+@pytest.mark.parametrize("link", ["usb", "ble"])
+def test_replay_reproduces_session(tmp_path, link):
+    _mock, _bot, app = _mock_app(tmp_path, link=link, mode="observe", traj=lambda t: 37 + 40 * t)
     try:
         app.start_robot()
         app.run(duration=2.5)
@@ -72,8 +79,9 @@ def _get(url, timeout=3):
         return r.status, r.read()
 
 
-def test_server_serves_page_state_stream_and_commands(tmp_path):
-    mock, _bot, app = _mock_app(tmp_path, log=False)
+@pytest.mark.parametrize("link", ["usb", "ble"])
+def test_server_serves_page_state_stream_and_commands(tmp_path, link):
+    mock, _bot, app = _mock_app(tmp_path, log=False, link=link)
     srv = DashboardServer(
         app.hub, app.on_command, lambda: {"source": "x", "data": {"a": {"mae": 1}}}, port=0
     ).start()
@@ -181,8 +189,9 @@ def test_scenario_on_mock_logs_and_replays_blindfold(tmp_path, monkeypatch):
             assert abs(again[ph][k]["final_err_deg"] - live[ph][k]["final_err_deg"]) < 8
 
 
-def test_blindfold_command_and_flag(tmp_path):
-    _mock, _bot, app = _mock_app(tmp_path, mode="observe", log=False)
+@pytest.mark.parametrize("link", ["usb", "ble"])
+def test_blindfold_command_and_flag(tmp_path, link):
+    _mock, _bot, app = _mock_app(tmp_path, mode="observe", log=False, link=link)
     app.blindfold_after = 0.8
     try:
         app.start_robot()

@@ -1,14 +1,28 @@
+"""Robot-link tests, each run twice: over USB framing and over BLE notifications as firmware
+B10_250330 sends them (no newlines, one print per notification, glued IMU + echo)."""
+
 import io
 import time
 
+import pytest
 from flybrain_edge.bittle import Bittle, MockBittle, MockTransport
 from flybrain_edge.bittle.probe import Probe
 
+LINK = "usb"
+
+
+@pytest.fixture(params=["usb", "ble"], autouse=True)
+def link(request):
+    global LINK
+    LINK = request.param
+    yield request.param
+    LINK = "usb"
+
 
 def make(**kw):
-    mock = MockBittle(**kw)
+    mock = MockBittle(ble_notifications=LINK == "ble", **kw)
     bot = Bittle(MockTransport(mock))
-    bot.connect(boot_timeout=1.0, quiet_s=0.3)
+    bot.connect(boot_timeout=3.0, quiet_s=0.3)
     return mock, bot
 
 
@@ -17,7 +31,18 @@ def test_connect_identifies_firmware():
     try:
         assert bot.model == "Bittle X+Arm"
         assert bot.version == "B10_261024"
-        assert "Ready!" in bot.boot_text
+        assert ("Petoi" if LINK == "ble" else "Ready!") in bot.boot_text
+        assert bot.stats.echo_timeouts == 0
+    finally:
+        bot.close()
+
+
+def test_read_joints():
+    _mock, bot = make()
+    try:
+        joints = bot.read_joints()
+        assert joints is not None and len(joints) == 16
+        assert joints[1] == 60 and joints[8] == 75  # rest posture
     finally:
         bot.close()
 
@@ -118,7 +143,8 @@ def test_ble_framing_without_newlines():
 
 def test_probe_on_mock_passes():
     out = io.StringIO()
-    code = Probe(MockTransport(MockBittle()), out=out).run(stream_s=1.0, boot_s=1.0)
+    mock = MockBittle(ble_notifications=LINK == "ble")
+    code = Probe(MockTransport(mock), out=out).run(stream_s=1.0, boot_s=1.0)
     text = out.getvalue()
     assert code == 0, text
     assert "model:    Bittle X+Arm" in text

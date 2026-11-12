@@ -92,6 +92,7 @@ class MockBittle:
         hand_slew_deg_s: float = 240.0,
         imu: str = "ICM",
         ble_framing: bool = False,
+        ble_notifications: bool = False,
         chatter_per_s: float = 0.0,
         seed: int | None = 0,
         clock: Callable[[], float] = time.monotonic,
@@ -113,6 +114,12 @@ class MockBittle:
         self.hand_slew = hand_slew_deg_s
         self.imu_kind = imu
         self.ble_framing = ble_framing
+        # BLE as seen on firmware B10_250330 (tests/fixtures/ble_probe_b10_250330.txt): one
+        # notification per print, no newlines at all, an IMU line glued to the echo that follows
+        # it, the identify reply glued into "Bittle X+ArmB10_250330?". Read with read_chunks().
+        self.ble_notifications = ble_notifications
+        self._chunks: list[bytes] = []
+        self._ble_pending: str | None = None
         self.chatter_per_s = chatter_per_s
 
         self._lock = threading.RLock()
@@ -156,6 +163,12 @@ class MockBittle:
         with self._lock:
             self.powered = True
             self._t0 = self._last_t = self.clock()
+            if self.ble_notifications:
+                # no boot banner over BLE (the board is already running); the connect greeting
+                # (src/bleUart.h:160-178) as captured: "Petoi Bittle", then "p"
+                self._emit("Petoi Bittle")
+                self._emit("p")
+                return
             for line in BOOT_LINES:
                 self._emit(line)
 
@@ -226,9 +239,42 @@ class MockBittle:
             self._out.clear()
             return data
 
+    def read_chunks(self, timeout: float) -> list[bytes]:
+        """BLE-notification mode: the notifications sent since the last call."""
+        deadline = time.monotonic() + timeout
+        with self._out_cv:
+            while not self._chunks:
+                if not self._running:
+                    self.advance()
+                    if self._chunks:
+                        break
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return []
+                self._out_cv.wait(min(remaining, 0.01))
+            out, self._chunks = self._chunks, []
+            return out
+
     def _emit(self, text: str, newline: bool = True) -> None:
+        if self.ble_notifications:
+            if not newline:  # IMU text: may get the next print glued on
+                self._flush_ble()
+                self._ble_pending = text
+                return
+            chunk = (self._ble_pending or "") + text
+            self._ble_pending = None
+            if chunk:
+                self._chunks.append(chunk.encode("latin-1"))
+                self._out_cv.notify_all()
+            return
         self._out.extend((text + ("\r\n" if newline else "")).encode("latin-1"))
         self._out_cv.notify_all()
+
+    def _flush_ble(self) -> None:
+        if self._ble_pending:
+            self._chunks.append(self._ble_pending.encode("latin-1"))
+            self._ble_pending = None
+            self._out_cv.notify_all()
 
     # ---- simulation step -------------------------------------------------------------
     def advance(self, now: float | None = None) -> None:
@@ -290,6 +336,7 @@ class MockBittle:
                 self._print6axis(now)
             if self.chatter_per_s and self.rng.random() < self.chatter_per_s * dt:
                 self._emit(self.rng.choice(CHATTER))
+            self._flush_ble()  # an IMU line with nothing printed right after it
             _ = t
 
     def imu_yaw_raw(self) -> float:
@@ -364,8 +411,12 @@ class MockBittle:
         echo = token
         defer_echo = 0.0
         if token == "?":
-            self._emit(MODEL)
-            self._emit(VERSION)
+            if self.ble_notifications:
+                self._emit(MODEL + VERSION + "?")  # one notification, as captured
+                echo = ""
+            else:
+                self._emit(MODEL)
+                self._emit(VERSION)
         elif token == "g":
             if not text:
                 self.balance = not self.balance
@@ -421,7 +472,8 @@ class MockBittle:
         elif token == "j":
             self._emit("=")
             self._emit("\t".join(str(i) for i in range(16)) + "\t")
-            self._emit("\t".join(str(round(a)) for a in self.angles) + "\t")
+            sep = ",\t" if self.ble_notifications else "\t"  # B10_250330 over BLE: "0,\t60,\t"
+            self._emit(sep.join(str(round(a)) for a in self.angles) + sep)
         elif token == "X":
             if text.startswith("C"):
                 self.camera_on = True
@@ -434,6 +486,8 @@ class MockBittle:
         else:
             self._emit("Undefined token!")
             self._emit(text)
+        if not echo:
+            return
         if defer_echo:
             self._pending_echo.append((now + defer_echo, echo))
         else:

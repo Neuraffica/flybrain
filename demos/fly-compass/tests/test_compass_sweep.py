@@ -163,8 +163,14 @@ def test_cli_gates_sweep(capsys):
     assert "--i-have-space" in capsys.readouterr().err
 
 
-def test_live_mock_sweep_with_stall_and_shutdown(tmp_path):
-    mock = MockBittle(imu_noise_deg=0.1, turn_rate_deg_s=20.0, gait_stall_after_s=1.0)
+@pytest.mark.parametrize("link", ["usb", "ble"])
+def test_live_mock_sweep_with_stall_and_shutdown(tmp_path, link):
+    mock = MockBittle(
+        imu_noise_deg=0.1,
+        turn_rate_deg_s=20.0,
+        gait_stall_after_s=1.0,
+        ble_notifications=link == "ble",
+    )
     bot = Bittle(MockTransport(mock))
     bot.connect(boot_timeout=1.0, quiet_s=0.3)
     cfg = LoopConfig(rate_hz=20, sweep_angle_deg=12, sweep_pause_s=0.5, sweep_cycles=1)

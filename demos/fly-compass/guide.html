@@ -100,7 +100,7 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line);
     <div class="kicker">Fly Brain &amp; Tiny Machines · demo</div>
     <h1>Fly compass</h1>
     <p class="lede">151 neurons from a real fruit fly's brain, wired exactly as they are in the fly, remember which way a robot dog is facing. The dog's arm points there like a compass needle.</p>
-    <div class="status"><b>Partly checked on a real Bittle X+Arm.</b> Needle and sweep modes have run on it: it stands, turns its head and arm, and steps left and right by itself, with the arm seen holding its direction while the body turns. Hold mode also works, stopping about 12° from the target. Bluetooth is not yet tried.</div>
+    <div class="status"><b>Partly checked on a real Bittle X+Arm.</b> Needle and sweep modes have run on it: it stands, turns its head and arm, and steps left and right by itself, with the arm seen holding its direction while the body turns. Hold mode also works, stopping about 12° from the target. It also runs over Bluetooth with no cable, through the Mac helper described below.</div>
   </div>
   <svg viewBox="0 0 360 360" role="img" aria-label="A ring of 47 neurons with a bump of activity on one side">
     <circle cx="180" cy="180" r="128" fill="none" stroke="var(--line)" stroke-width="1"/>
@@ -247,7 +247,7 @@ uv run fly-compass --mock</code></pre>
 <p style="margin-top:24px"><b>To stop:</b> press <code>Ctrl-C</code> in the terminal. The dog lies down and its servos switch off. If the cable comes out mid-run nothing can be sent, and the dog stays in its last pose until you switch it off.</p>
 
 <div class="two" style="margin-top:28px">
-  <div class="card"><h3>Over Bluetooth</h3><pre><code>uv run fly-compass --ble</code></pre><p>Finds the first device named <code>Bittle…_BLE</code>. The firmware makes the dog lie down on every Bluetooth connection; the app stands it up again.</p></div>
+  <div class="card"><h3>Over Bluetooth</h3><pre><code>uv run flybrain-bittle ble-run -- uv run fly-compass --ble</code></pre><p>On a Mac, start Bluetooth commands through this small helper. Started straight from Terminal, macOS stops them the moment they reach for Bluetooth, with no message. The first time, macOS asks whether "Flybrain BLE" may use Bluetooth: allow it. Output still shows in the terminal and <code>Ctrl-C</code> still lays the dog down. The firmware also makes the dog lie down whenever a Bluetooth connection opens; the app stands it up again.</p></div>
   <div class="card"><h3>Replay a session</h3><pre><code>uv run fly-compass --replay runs/&lt;stamp&gt;</code></pre><p>Every run is logged under <code>runs/</code>. Replay feeds it back through the models with no robot attached.</p></div>
 </div>
 
@@ -276,7 +276,7 @@ uv run fly-compass --mock</code></pre>
   </ul></div>
   <div class="card"><h3>Unknown until tried</h3><ul>
     <li>How smooth the head looks at 15 commands a second.</li>
-    <li>Bluetooth from macOS to this board.</li>
+    <li>Needle, hold and the blindfold over Bluetooth. Observe and one sweep cycle ran that way.</li>
     <li>Why the dog turns right much more slowly than left. It made one hold turn hit its 6-second limit.</li>
     <li>Sweep on a hard floor, and at angles above 25°. On carpet it ran two cycles with no stalls.</li>
   </ul></div>

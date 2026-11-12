@@ -49,6 +49,9 @@ BLE_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
 BLE_RX_CHAR_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"  # host -> robot (write / write-nr)
 BLE_TX_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"  # robot -> host (notify)
 BLE_NAME_SUFFIX = "_BLE"  # advertised name = uniqueName + "_BLE", e.g. "BittleA3_BLE"
+# A real Bittle X+Arm (firmware B10_250330) advertised "BittleC2_SSP" over LE, i.e. the name of
+# its classic-Bluetooth SSP interface, so both suffixes are accepted.
+BLE_NAME_SUFFIXES = ("_BLE", "_SSP")
 BLE_NAME_PREFIX = "Bittle"  # genBleID(): "Bittle" + 2 random hex digits, user-renamable
 BLE_WRITE_CHUNK = 20  # ardSerial.py slices at 20 bytes (fits the default 23-byte ATT MTU)
 BLE_NOTIFY_CHUNK = 10  # firmware notifies in 10-byte pieces (src/io.h:24-28)
@@ -208,6 +211,98 @@ def preferred_reading(readings: list[ImuReading]) -> ImuReading | None:
             if r.source == src:
                 return r
     return None
+
+
+# '?' reply. USB: model and version on their own lines, then '?'. BLE on firmware B10_250330:
+# one notification "Bittle X+ArmB10_250330?" (no separators, echo glued on). Version is
+# BOARD + "_" + DATE (src/OpenCat.h:70-80, 666), e.g. B10_250330, B01_261024, B_261024.
+VERSION_RE = re.compile(r"B\d{0,2}_\d{6}")
+_GLUED_ID_RE = re.compile(
+    r"^(?P<model>.*?(?:Bittle|Nybble|DoF16|Chero).*?)\s*(?P<ver>B\d{0,2}_\d{6})(?P<echo>\?)?$"
+)
+
+
+_VERSION_ECHO_RE = re.compile(r"^([A-Z]\d{2}_\d{6})\?$")
+
+
+def split_glued(line: str) -> list[str]:
+    """Split prints that a BLE notification glued together into the lines USB would show.
+
+    Today this is the identify reply "Bittle X+ArmB10_250330?" -> ["Bittle X+Arm",
+    "B10_250330", "?"]. (IMU text glued to an echo, "ICM: ...\tg", is split by parse_imu.)
+    Lines that do not match are returned unchanged."""
+    # Seen live over BLE: the version arrives as its own 10-byte notification ("B10_250330"),
+    # which the framer joins to the next print, the "?" echo -> "B10_250330?".
+    v = _VERSION_ECHO_RE.match(line.strip())
+    if v:
+        return [v.group(1), "?"]
+    m = _GLUED_ID_RE.match(line.strip())
+    if not m or not m.group("model").strip():
+        return [line]
+    out = [m.group("model").strip(), m.group("ver")]
+    if m.group("echo"):
+        out.append("?")
+    return out
+
+
+def parse_identify(lines: list[str]) -> tuple[str | None, str | None]:
+    """(model, version) from the lines received after '?', in USB or BLE form."""
+    flat = [x for ln in lines for x in split_glued(ln)]
+    for i, ln in enumerate(flat):
+        if any(k in ln for k in ("Bittle", "Nybble", "DoF16", "Chero")) and not ln.startswith(
+            "Petoi "
+        ):
+            ver = flat[i + 1].strip() if i + 1 < len(flat) else ""
+            return ln.strip(), ver or None
+    return None, None
+
+
+def parse_joint_table(lines: list[str]) -> dict[int, int] | None:
+    """The 'j' reply: '=', a row of joint indices, a row of angles (tab separated; firmware
+    B10_250330 also puts a comma after each angle). Returns {index: angle} or None."""
+    rows = []
+    started = False
+    for ln in lines:
+        t = ln.strip()
+        if t == "=":
+            started, rows = True, []
+            continue
+        if not started or not t:
+            continue
+        nums = [x for x in re.split(r"[\s,]+", t) if x]
+        if nums and all(re.fullmatch(r"-?\d+", x) for x in nums):
+            rows.append([int(x) for x in nums])
+        if len(rows) == 2:
+            idx, ang = rows
+            if len(idx) == len(ang):
+                return dict(zip(idx, ang, strict=True))
+            return None
+    return None
+
+
+class NotificationFramer:
+    """Turn BLE notifications into a byte stream with line boundaries.
+
+    Firmware B10_250330 sends every print as its own notification and never sends a newline
+    (capture: tests/data/ble_probe_b10_250330.txt), so a notification boundary IS a line
+    boundary: append "\n" to each one. Newer source (src/io.h:11-48) appends "\r\n" and splits
+    prints into 10-byte notifications; once any newline is seen the stream is passed through
+    untouched, and until then a notification of exactly BLE_NOTIFY_CHUNK bytes is taken as the
+    first piece of a split print rather than a whole line. (A complete 10-byte print on old
+    firmware is therefore joined to the next one; none occurs in normal use of this kit.)"""
+
+    def __init__(self, chunk: int = BLE_NOTIFY_CHUNK):
+        self.chunk = chunk
+        self.newline_mode = False
+
+    def frame(self, data: bytes) -> bytes:
+        if not data:
+            return b""
+        if b"\n" in data or b"\r" in data:
+            self.newline_mode = True
+        if self.newline_mode or len(data) == self.chunk:
+            return data
+        return data + b"\n"
 
 
 def is_echo(line: str, token: str) -> bool:

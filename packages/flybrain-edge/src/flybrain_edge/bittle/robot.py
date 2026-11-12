@@ -123,12 +123,9 @@ class Bittle:
         if lines is None:
             log.warning("no echo for '?': firmware may be busy or not OpenCat")
         else:
-            for i, ln in enumerate(lines):
-                if any(k in ln for k in ("Bittle", "Nybble", "DoF16")):
-                    self.model = ln.strip()
-                    if i + 1 < len(lines):
-                        self.version = lines[i + 1].strip()
-                    break
+            # USB: model, version, '?' on separate lines; BLE (B10_250330): one glued print,
+            # already split into those lines by handle_bytes
+            self.model, self.version = P.parse_identify(lines)
         if self.model and "Arm" not in self.model:
             log.warning(
                 "firmware reports %r, not 'Bittle X+Arm': arm joint 1 limits differ", self.model
@@ -212,24 +209,33 @@ class Bittle:
             readings, rest = P.parse_imu(line)
             r = P.preferred_reading(readings)
             if r is not None:
-                self._add_sample(r, now, line)
-            rest = rest.strip()
-            if "Low power" in rest:
-                # e.g. "Low power: 2.18V. The robot won't move." (battery off or flat). The
-                # firmware repeats it every 10 s and blocks for about 1.3 s each time.
-                if self.low_power is None:
-                    log.error(
-                        "ROBOT REPORTS: %s  Servos are unpowered: long-press the "
-                        "battery button to switch it on, or charge it.",
-                        rest,
-                    )
-                self.low_power = rest
-            if rest:
-                self.stats.other_lines += 1
-                with self._cv:
-                    self.recent_lines.append((now, rest))
-                    self._line_seq += 1
-                    self._cv.notify_all()
+                # One chip per line is preferred when both print (MCU over ICM); several
+                # readings from the same chip are consecutive prints glued together (BLE).
+                for q in readings:
+                    if q.source == r.source:
+                        self._add_sample(q, now, line)
+            # a print glued to the end of another one (BLE) becomes its own line, so echoes
+            # such as the 'g' after an IMU line or the '?' after the identify reply are seen
+            for piece in P.split_glued(rest.strip()):
+                self._handle_text_line(piece.strip(), now)
+
+    def _handle_text_line(self, rest: str, now: float) -> None:
+        if "Low power" in rest:
+            # e.g. "Low power: 2.18V. The robot won't move." (battery off or flat). The
+            # firmware repeats it every 10 s and blocks for about 1.3 s each time.
+            if self.low_power is None:
+                log.error(
+                    "ROBOT REPORTS: %s  Servos are unpowered: long-press the "
+                    "battery button to switch it on, or charge it.",
+                    rest,
+                )
+            self.low_power = rest
+        if rest:
+            self.stats.other_lines += 1
+            with self._cv:
+                self.recent_lines.append((now, rest))
+                self._line_seq += 1
+                self._cv.notify_all()
 
     def _add_sample(self, r: P.ImuReading, now: float, raw: str) -> None:
         yaw = self.yaw_sign * r.yaw_deg
@@ -298,6 +304,11 @@ class Bittle:
                         )
                         return None
                     self._cv.wait(remaining)
+
+    def read_joints(self, timeout: float = 1.5) -> dict[int, int] | None:
+        """All joint angles via 'j' ({index: degrees}), USB or BLE framing."""
+        lines = self.send(P.encode_ascii(P.T_JOINTS), echo=P.T_JOINTS, timeout=timeout)
+        return None if lines is None else P.parse_joint_table(lines)
 
     def skill(self, name: str, wait: bool = True, timeout: float = 4.0) -> bool:
         return (

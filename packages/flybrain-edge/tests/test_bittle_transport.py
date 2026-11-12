@@ -32,7 +32,10 @@ def test_rank_ports_linux():
 
 def test_ble_name_matching():
     assert BleTransport.name_matches("BittleA3_BLE", None)
-    assert not BleTransport.name_matches("BittleA3_SSP", None)
+    # a real Bittle X+Arm (B10_250330) advertised its classic name "BittleC2_SSP" over LE
+    assert BleTransport.name_matches("BittleC2_SSP", None)
+    assert not BleTransport.name_matches("Bittle", None)
+    assert not BleTransport.name_matches("Headphones_BLE", None)
     assert not BleTransport.name_matches(None, None)
     assert BleTransport.name_matches("MyDog_BLE", "mydog")
 
@@ -43,3 +46,18 @@ def test_open_transport_selection():
     assert isinstance(open_transport(ble=""), BleTransport)
     t = open_transport(ble="Bittle7F")
     assert isinstance(t, BleTransport) and t.want_name == "Bittle7F"
+
+
+def test_ble_candidates_prefer_uart_service_then_name():
+    uart = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
+    adverts = [
+        ("dev-weak-name", "BittleC2_SSP", [], -80),
+        ("dev-uart", "Petoi?", [uart], -90),
+        ("dev-strong-name", "BittleA3_BLE", [], -40),
+        ("dev-other", "Speaker", ["0000180f-0000-1000-8000-00805f9b34fb"], -30),
+        ("dev-noname", None, [], -20),
+    ]
+    ranked = BleTransport.rank_candidates(adverts, None)
+    assert [d for _, d in ranked] == ["dev-uart", "dev-strong-name", "dev-weak-name"]
+    only = BleTransport.rank_candidates(adverts, "c2")
+    assert [d for _, d in only] == ["dev-weak-name"]

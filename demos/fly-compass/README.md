@@ -64,8 +64,8 @@ uv run fly-compass --mock --mock-script memory --no-dashboard   # just print the
 uv run fly-compass --port ... --blindfold-after 30
 uv run fly-compass                         # real dog, USB, first likely port
 uv run fly-compass --port /dev/cu.usbmodem1101
-uv run fly-compass --ble                   # first BLE device named Bittle*_BLE
-uv run fly-compass --ble BittleA3          # by name
+uv run fly-compass --ble                   # Bluetooth LE (on macOS use ble-run, below)
+uv run fly-compass --ble BittleC2          # by part of the advertised name
 uv run fly-compass --port ... --mode hold --i-have-space
 uv run fly-compass --port ... --mode sweep --i-have-space   # real dog turns itself, on the floor
 uv run fly-compass --replay runs/20261111-101500             # play a session back (dashboard)
@@ -120,6 +120,25 @@ On carpet the real dog turns at only about 2 to 7°/s, so one leg from −35° t
 10 to 35 s; raise `--sweep-timeout` on slow floors. The simulator turns at 8°/s with some
 unevenness (`--mock-turn-rate`), and `--mock-gait-stall S` makes its gait stop silently S
 seconds after each (re)issue, to exercise the watchdog.
+
+### Over Bluetooth
+
+`--ble` finds the dog by its Bluetooth UART service, or by a name like `BittleC2_SSP` /
+`BittleA3_BLE`. The firmware makes the dog lie down whenever a Bluetooth connection opens; the
+demo stands it up again.
+
+On macOS, a program started from Terminal (or the Claude app) is killed by macOS as soon as it
+uses Bluetooth (exit code 134, no message), because the terminal does not declare Bluetooth
+use. Start it through the small helper app instead; the first time, macOS asks whether
+"Flybrain BLE" may use Bluetooth:
+
+```bash
+uv run flybrain-bittle ble-run -- uv run flybrain-bittle probe --ble
+uv run flybrain-bittle ble-run -- uv run fly-compass --ble --mode observe
+```
+
+The output appears in your terminal, the dashboard is at the usual address, and Ctrl-C still
+puts the dog to rest. Details: `packages/flybrain-edge/README.md`, section "Bluetooth".
 
 ### With the real robot
 
@@ -193,6 +212,7 @@ column (older logs without it replay with the cue on).
 | The heading goes the wrong way | `--yaw-sign -1` (and report it) |
 | Short beep every head move | Firmware beeps on `i`; try `--joint-token I`, or mute with `b0` in a serial monitor |
 | Over BLE the dog lies down on connect | The firmware forces rest on each BLE connection; the demo stands it up again |
+| `--ble` on macOS ends with exit 134 and no message | Bluetooth permission: start it through the helper, see "Over Bluetooth" |
 
 ## Checked on hardware, and not
 
@@ -211,8 +231,15 @@ Hold mode also ran on the robot: turned by hand to +55 and -36 degrees it steppe
 settled about 12 degrees from the target (it steers on the connectome heading, which carries
 an offset of about 10 degrees). Right turns are much slower than left turns.
 
-Not yet checked on the robot: the safe pan range with the arm beyond about 45 degrees and
-Bluetooth.
+Over Bluetooth only the probe has run on the robot (connect and IMU stream work); the link was
+then fixed for that firmware's framing using the captured traffic. The demo itself has not yet
+run over Bluetooth.
+
+Over Bluetooth LE, through `flybrain-bittle ble-run` on macOS, observe mode (30 s, about 16
+IMU readings per second, no gaps) and one sweep cycle at +-25 degrees ran on the robot.
+
+Not yet checked on the robot: the safe pan range with the arm beyond about 45 degrees, and
+needle, hold and the blindfold over Bluetooth.
 
 ## Tests
 

@@ -139,3 +139,11 @@ def test_parse_imu_real_b10_250330_line():
     assert (r.source, r.yaw_deg, r.pitch_deg, r.roll_deg) == ("ICM", 130.8, -7.6, -4.5)
     assert r.accel == (-1.3, -0.8, 9.9)
     assert rest.strip() == ""
+
+
+def test_split_version_glued_to_echo_live_ble():
+    """Live BLE on B10_250330: 'Bittle X+Arm', then 'B10_250330' + '?' joined by the framer."""
+    from flybrain_edge.bittle import protocol as P
+
+    assert P.split_glued("B10_250330?") == ["B10_250330", "?"]
+    assert P.parse_identify(["Bittle X+Arm", "B10_250330?"]) == ("Bittle X+Arm", "B10_250330")

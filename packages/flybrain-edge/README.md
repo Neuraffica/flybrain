@@ -28,8 +28,9 @@ bot.close()  # stops printing and always sends 'd' (rest)
 | Module | What it does |
 |---|---|
 | `protocol` | tokens, joint map and limits, BLE UUIDs, encoders, the IMU line parser (works on fixed-width fields that run together and on BLE text without newlines), the experimental camera-line parser |
-| `transport` | `SerialTransport` (macOS auto-detect: `/dev/cu.usbmodem*`, then `cu.wchusbserial*`, then `cu.usbserial*`), `BleTransport` (bleak, Nordic-UART service), `MockTransport` |
-| `mock` | `MockBittle`: boot banner, token echoes, rate-limited IMU print, `g` options, head slewing, `kvtL`/`kvtR` turning (default 8°/s with a slow wobble, `turn_rate_deg_s`, `turn_unevenness`; `gait_stall_after_s` makes a gait stop silently until it is re-issued), rest. Its yaw can follow a script (`trajectory(t)`, with `t` measured from `clock_origin()`), the turn gaits, or `set_world_yaw()` / `nudge()`. The fly-compass demo's blindfold scenarios drive it through `trajectory` |
+| `transport` | `SerialTransport` (macOS auto-detect: `/dev/cu.usbmodem*`, then `cu.wchusbserial*`, then `cu.usbserial*`), `BleTransport` (bleak, Nordic-UART service; one line per notification), `MockTransport` |
+| `macos` | the Bluetooth helper app for macOS (`macos-ble-app`, `ble-run`) |
+| `mock` | `MockBittle`: boot banner, token echoes, rate-limited IMU print, `g` options, head slewing, `kvtL`/`kvtR` turning (default 8°/s with a slow wobble, `turn_rate_deg_s`, `turn_unevenness`; `gait_stall_after_s` makes a gait stop silently until it is re-issued), rest. `ble_notifications=True` makes it talk like firmware B10_250330 over BLE (one print per notification, no newlines, glued IMU+echo and identify reply). Its yaw can follow a script (`trajectory(t)`, with `t` measured from `clock_origin()`), the turn gaits, or `set_world_yaw()` / `nudge()`. The fly-compass demo's blindfold scenarios drive it through `trajectory` |
 | `robot` | `Bittle`: reader thread (tolerates unsolicited prints), one-command-at-a-time writer that waits for each echo, non-blocking joint streamer, `close()` that always rests |
 | `probe` | `flybrain-bittle probe`: read-only queries with raw bytes and timings |
 
@@ -39,7 +40,7 @@ bot.close()  # stops printing and always sends 'd' (rest)
 uv run flybrain-bittle ports            # candidate serial ports (add --ble to scan BLE)
 uv run flybrain-bittle probe            # USB, first likely port
 uv run flybrain-bittle probe --port /dev/cu.usbmodem1101 --rotate-test
-uv run flybrain-bittle probe --ble      # first device named Bittle*_BLE
+uv run flybrain-bittle probe --ble      # macOS: see "Bluetooth" below
 uv run flybrain-bittle probe --mock     # what a good run looks like
 ```
 
@@ -47,6 +48,35 @@ uv run flybrain-bittle probe --mock     # what a good run looks like
 with a timestamp, then a summary: model, version, which commands were acknowledged, IMU stream
 rate, and with `--rotate-test` the sign of yaw when you turn the dog to its left. If the
 verdict says CHECK, paste the whole output into an issue.
+
+## Bluetooth
+
+`--ble` connects to the first device that advertises the Nordic UART service, or else to one
+named `Bittle*_BLE` or `Bittle*_SSP` (a real Bittle X+Arm advertised `BittleC2_SSP`);
+`--ble NAME` picks by part of the name. Firmware B10_250330 sends every print as its own
+notification with no newlines and glues some together (`Bittle X+ArmB10_250330?`,
+`ICM: ...\tg`); the link handles both that and the newer `\r\n` framing. Details and the
+captured traffic: NOTES.md, section "Bluetooth LE on a real Bittle X+Arm".
+
+**macOS:** a program started from Terminal (or the Claude app) is killed by macOS the moment it
+touches Bluetooth (exit code 134), because the terminal app does not declare Bluetooth use.
+Run Bluetooth commands through a small helper app that does:
+
+```bash
+uv run flybrain-bittle ble-run -- uv run flybrain-bittle probe --ble
+uv run flybrain-bittle ble-run -- uv run fly-compass --ble --mode observe
+```
+
+`ble-run` creates `~/Library/Application Support/flybrain/FlybrainBLE.app` if needed (bundle id
+`com.neuraffica.flybrain.blerunner`, no Dock icon, its Info.plist declares Bluetooth use),
+starts the command through it with `open -W`, and shows the command's output in your terminal.
+The first time, macOS asks whether "Flybrain BLE" may use Bluetooth; allow it (System Settings,
+Privacy & Security, Bluetooth, if you missed the prompt). Ctrl-C is passed on to the command, so
+a robot is still put to rest; the exit code is the command's. `flybrain-bittle macos-ble-app
+[--dir PATH]` only creates the helper and prints the equivalent `open -W ... --args ...` line
+for running it by hand (output then goes to two log files). A `--ble` command started outside
+the helper on macOS prints this advice before touching Bluetooth (`FLYBRAIN_BLE_NO_HINT=1`
+hides it).
 
 ## Troubleshooting
 
@@ -60,6 +90,8 @@ verdict says CHECK, paste the whole output into an issue.
 | No IMU lines, `v` works | Old firmware; the link falls back to `v` for one-shot reads. Update the firmware for streaming |
 | Yaw goes the wrong way | Use `--yaw-sign -1` in the demo, and report it |
 | BLE: robot lies down when you connect | Expected: the firmware forces rest on every BLE connection |
+| BLE command ends with exit 134 and no message (macOS) | Bluetooth permission: use `flybrain-bittle ble-run -- ...` (see Bluetooth) |
+| BLE: `No Petoi BLE device found` | Battery on? Another program (the Petoi app, a phone) still connected? Try `--ble` with part of the name shown in "Seen:" |
 | A beep with every head move | `i` commands beep in this firmware. `--joint-token I` avoids it (with caveats, see NOTES.md) or mute the robot with `b0` yourself (stored on the board) |
 
 ## Checked on hardware, and not
@@ -73,8 +105,15 @@ firmware yaw is positive clockwise (`yaw_sign=-1`).
 Confirmed on the robot: a positive pan command turns the head and arm to the robot's left, so
 the default head-pan sign is right, and a turning gait keeps running while head commands stream.
 
-Still unverified: the safe pan range with the arm attached beyond about 45 degrees, whether 15 `i` commands per second stay smooth,
-BLE on macOS with this board, and the camera line format.
+Over Bluetooth LE the transport (scan, connect, notifications, about 200 IMU lines/s) was
+checked with the probe; the framing fix was then tested by replaying that capture
+(`tests/fixtures/ble_probe_b10_250330.txt`) and then run live through `ble-run`: the probe
+reports OK, and observe mode and one sweep cycle of the demo ran over BLE.
+
+Still unverified: the safe pan range with the arm attached beyond about 45 degrees, whether 15
+`i` commands per second stay smooth, the demo running live over BLE (after the framing fix),
+the `ble-run` helper on a machine other than the one it was designed on, and the camera line
+format.
 
 ## Tests
 

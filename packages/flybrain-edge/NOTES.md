@@ -94,9 +94,9 @@ From `src/InstinctBittleESP_arm.h:2401`. `R` variants are mirrored from the stor
 | Fact | Source |
 |---|---|
 | Service `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`; host writes to RX `6E400002-...` (write and write-without-response); robot notifies on TX `6E400003-...` | `src/bleCommon.h:6-8`, `src/bleUart.h:96-130` |
-| Advertised name: `uniqueName + "_BLE"`, where `uniqueName` is `Bittle` + 2 random hex digits unless renamed with `n<name>` | `src/bleUart.h:99`, `src/configConstants.h:495-549`, `src/reaction.h:417-434` |
+| Advertised name: `uniqueName + "_BLE"`, where `uniqueName` is `Bittle` + 2 random hex digits unless renamed with `n<name>`. A real B10_250330 board advertised `BittleC2_SSP` over LE instead (see the BLE section at the end) | `src/bleUart.h:99`, `src/configConstants.h:495-549`, `src/reaction.h:417-434` |
 | Host write chunk: 20 bytes (ardSerial slices at 20; fits the default MTU). A write that arrives while idle starts a new command; later writes are appended until the terminator or 10 ms. | `ardSerial.py:142-150` (OpenCat), `src/bleUart.h:46-90` |
-| Robot notifies in 10-byte pieces | `src/io.h:23-28` |
+| Robot notifies in 10-byte pieces (this source); firmware B10_250330 sends each print as one notification, without newlines (see the end) | `src/io.h:23-28` |
 | **On connect the firmware sends `Petoi <MODEL>`, then forces token `d` (rest) and sends `p`.** | `src/bleUart.h:160-178` |
 
 ## Petoi AI Vision camera (Grove Vision AI V2)
@@ -177,3 +177,46 @@ Read-only probe only; the robot has not been moved by this code yet.
   by hand to -36 deg, it stepped left and settled at +13 deg. It stops about 12 deg from the
   true target because it steers on the connectome heading, which carries an offset of about
   10 deg, and the exit threshold is 6 deg. Left turns overshoot; right turns are slow.
+
+## Bluetooth LE on a real Bittle X+Arm (firmware B10_250330, 2026-11-11)
+
+Capture: `tests/fixtures/ble_probe_b10_250330.txt` (trimmed `flybrain-bittle probe --ble
+BittleC2` output, kept as a test fixture).
+
+- Found by an LE scan under the name **`BittleC2_SSP`**, i.e. the name of its classic-Bluetooth
+  SSP interface, not `..._BLE` as the source suggests. The scanner now prefers devices that
+  advertise the Nordic UART service and otherwise accepts `Bittle*_BLE` and `Bittle*_SSP`.
+- Connecting, writing and notifications work; streaming (`gP`) gives about 200 IMU lines/s.
+- **No newlines at all over BLE.** Each print arrives as its own notification: an echo `g`
+  alone; `Undefined token!` then `v`; the joint table as `=`, the index row, the angle row
+  (`0,\t60,\t...` with commas), `j`. The link therefore treats a notification boundary as a
+  line boundary (`protocol.NotificationFramer`); if a newline ever appears (newer source sends
+  `\r\n` and 10-byte pieces, `src/io.h:11-48`) it switches to plain stream parsing.
+- Some prints are glued inside one notification: an IMU line plus the following echo
+  (`ICM: ... 1.8\tg`), two IMU lines, and the identify reply `Bittle X+ArmB10_250330?`
+  (model, version and the `?` echo with no separators; it is preceded by a lone `G`). The
+  reader splits these (`protocol.split_glued`, `parse_imu`).
+- The greeting is `Petoi Bittle` then `p`.
+- Before the fix every echo was missed, so every command timed out; with it, the replayed
+  capture identifies `Bittle X+Arm` / `B10_250330`, recognises all echoes, parses the joint
+  table and counts every IMU reading (tests/test_bittle_ble_capture.py).
+- Not yet run live after the fix: needle/sweep over BLE, IMU polling (`gp`) rate over BLE.
+
+### macOS permission
+
+On this Mac a CLI process that touches CoreBluetooth is killed (exit 134, TCC: missing
+`NSBluetoothAlwaysUsageDescription`) when started from Terminal.app or the Claude app, because
+macOS attributes it to that app and neither declares Bluetooth use. A small app bundle that
+declares it, started with `open -W`, gets the normal consent prompt and then works:
+`flybrain-bittle macos-ble-app` creates it (`com.neuraffica.flybrain.blerunner`), and
+`flybrain-bittle ble-run -- <command>` runs a command through it with the output in the calling
+terminal.
+- BLE live on the robot through `flybrain-bittle ble-run` (macOS helper bundle; the system
+  Bluetooth prompt appeared for it and CLI BLE then worked):
+  - Probe: verdict OK after one more fix. Live, the identify reply arrives as `Bittle X+Arm`,
+    then `B10_250330` (exactly 10 bytes, so the framer joins it to the next print) + `?`; the
+    version/echo pair is now split.
+  - Observe mode, 30 s: polling gives about 16 readings/s, no gap over 0.13 s, no echo timeouts.
+  - Sweep, 1 cycle at +-25 deg: both legs reached their targets (1.2 s left, 9.9 s right, one
+    stall re-issue on the right leg), head commands flowed, the robot rested at the end.
+  - Not tried over BLE: needle, hold, blindfold, and Ctrl-C through `ble-run`.

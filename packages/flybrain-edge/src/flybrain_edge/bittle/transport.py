@@ -187,7 +187,9 @@ class BleTransport(Transport):
         are appended until the terminator or a 10 ms gap, so a command must not be split with
         long pauses and two commands must not share one write;
       * on connect the firmware sends "Petoi <MODEL>" and then forces token 'd' (REST);
-      * replies are notified in 10-byte pieces and the IMU line has no newline over BLE.
+      * firmware B10_250330 notifies each print separately and sends no newlines at all, so
+        notification boundaries are turned into line boundaries (protocol.NotificationFramer);
+        newer source sends "\r\n" and 10-byte pieces, which the framer passes through.
     """
 
     name = "ble"
@@ -204,6 +206,7 @@ class BleTransport(Transport):
         self._client = None
         self._rx: queue.Queue[bytes] = queue.Queue()
         self._connected = False
+        self.framer = P.NotificationFramer()
 
     @property
     def description(self) -> str:  # type: ignore[override]
@@ -215,7 +218,28 @@ class BleTransport(Transport):
             return False
         if want:
             return want.lower() in adv_name.lower()
-        return adv_name.startswith(P.BLE_NAME_PREFIX) and adv_name.endswith(P.BLE_NAME_SUFFIX)
+        return adv_name.startswith(P.BLE_NAME_PREFIX) and adv_name.endswith(P.BLE_NAME_SUFFIXES)
+
+    @classmethod
+    def rank_candidates(cls, adverts, want: str | None) -> list[tuple[str | None, object]]:
+        """adverts: iterable of (device, name, service_uuids, rssi). Returns [(name, device)],
+        best first. With a name given, only names containing it. Without one, devices that
+        advertise the Nordic UART service come first (any name), then names Bittle*_BLE /
+        Bittle*_SSP; stronger signal first within each group."""
+        ranked = []
+        for dev, nm, uuids, rssi in adverts:
+            has_uart = P.BLE_SERVICE_UUID in [u.lower() for u in (uuids or [])]
+            if want:
+                if not cls.name_matches(nm, want):
+                    continue
+            elif not (has_uart or cls.name_matches(nm, None)):
+                continue
+            ranked.append((0 if has_uart else 1, -(rssi if rssi is not None else -999), nm, dev))
+        ranked.sort(key=lambda r: (r[0], r[1]))
+        return [(nm, dev) for _, _, nm, dev in ranked]
+
+    def _on_notify(self, _char: object, data: bytes) -> None:
+        self._rx.put(self.framer.frame(bytes(data)))
 
     def _run(self, coro, timeout: float):
         assert self._loop is not None
@@ -223,6 +247,9 @@ class BleTransport(Transport):
         return fut.result(timeout)
 
     def open(self) -> None:
+        from .macos import warn_if_ble_will_be_killed
+
+        warn_if_ble_will_be_killed()  # before bleak touches CoreBluetooth
         try:
             import bleak  # noqa: F401
         except ImportError as e:  # pragma: no cover
@@ -245,28 +272,29 @@ class BleTransport(Transport):
         target = self.address
         if target is None:
             devices = await BleakScanner.discover(timeout=self.scan_timeout, return_adv=True)
-            matches = []
-            for dev, adv in devices.values():
-                nm = adv.local_name or dev.name
-                uuids = [u.lower() for u in (adv.service_uuids or [])]
-                if self.name_matches(nm, self.want_name) or (
-                    self.want_name is None and P.BLE_SERVICE_UUID in uuids and nm
-                ):
-                    matches.append((adv.rssi, dev, nm))
+            matches = self.rank_candidates(
+                (
+                    (dev, adv.local_name or dev.name, adv.service_uuids, adv.rssi)
+                    for dev, adv in devices.values()
+                ),
+                self.want_name,
+            )
             if not matches:
                 seen = sorted({(adv.local_name or d.name or "?") for d, adv in devices.values()})
                 raise TransportError(
                     "No Petoi BLE device found"
-                    + (f" matching {self.want_name!r}" if self.want_name else " (name Bittle*_BLE)")
+                    + (
+                        f" matching {self.want_name!r}"
+                        if self.want_name
+                        else " (UART service, or name Bittle*_BLE / Bittle*_SSP)"
+                    )
                     + f". Seen: {', '.join(seen[:20]) or 'nothing'}"
                 )
-            matches.sort(key=lambda m: -(m[0] or -999))
-            _, dev, nm = matches[0]
-            target = dev
+            nm, target = matches[0]
             self.device_name = nm
         client = BleakClient(target)
         await client.connect()
-        await client.start_notify(P.BLE_TX_CHAR_UUID, lambda _c, data: self._rx.put(bytes(data)))
+        await client.start_notify(P.BLE_TX_CHAR_UUID, self._on_notify)
         self._client = client
         self._connected = True
 
@@ -317,9 +345,12 @@ class BleTransport(Transport):
 
 # --- mock ---------------------------------------------------------------------------------------
 class MockTransport(Transport):
-    """Bytes to and from an in-process :class:`~flybrain_edge.bittle.mock.MockBittle`."""
+    """Bytes to and from an in-process :class:`~flybrain_edge.bittle.mock.MockBittle`.
 
-    name = "mock"
+    With a robot in BLE-notification mode (``MockBittle(ble_notifications=True)``) the robot
+    hands over one chunk per firmware print, and this transport frames them exactly like
+    :class:`BleTransport` does; it then also reports ``name == "ble"``."""
+
     description = "simulated Bittle X + Arm"
 
     def __init__(self, robot=None, realtime: bool = True):
@@ -328,6 +359,10 @@ class MockTransport(Transport):
         self.robot = robot if robot is not None else MockBittle()
         self.realtime = realtime
         self._open = False
+        self.framer = P.NotificationFramer()
+        self.name = "ble" if self.robot.ble_notifications else "mock"
+        if self.robot.ble_notifications:
+            self.description = "simulated Bittle X + Arm (BLE notifications)"
 
     def open(self) -> None:
         self.robot.power_on()
@@ -347,6 +382,8 @@ class MockTransport(Transport):
     def read(self, timeout: float = 0.05) -> bytes:
         if not self._open:
             raise TransportError("mock not open")
+        if self.robot.ble_notifications:
+            return b"".join(self.framer.frame(c) for c in self.robot.read_chunks(timeout))
         return self.robot.read_output(timeout)
 
     def close(self) -> None:
