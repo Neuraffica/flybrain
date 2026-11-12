@@ -226,8 +226,8 @@ terminal.
     consistent.
   - Needle over BLE (USB unplugged, 45 s, about 12 readings/s, no gaps or echo timeouts): the
     heading rose steadily to +76 deg and the pan command followed to -68 deg (mean mismatch
-    about 8 deg). Whether that rise was the owner turning the robot or drift is not known; in
-    the hold run that followed, the heading stayed within 1 deg for 33 s.
+    about 8 deg). The owner confirmed he was turning the robot slowly one way, so this is
+    the needle tracking a real turn, not drift.
   - Hold over BLE (USB unplugged, 60 s): the robot stepped back toward the target twice; one
     turn hit the 6 s limit.
   - Not tried over BLE: Ctrl-C through `ble-run`.
