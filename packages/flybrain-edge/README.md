@@ -70,8 +70,8 @@ IMU polling (`gp`, about 18 readings/s; streaming with `gP` floods the link on t
 drift measurement, `kup`, head pan with `i 0 <deg>`, `kvtL` / `kvtR`, and `d` work; the
 firmware yaw is positive clockwise (`yaw_sign=-1`).
 
-Confirmed by eye during a sweep run: the default head-pan sign is right (the arm holds its
-direction while the body turns) and a turning gait keeps running while head commands stream.
+Confirmed on the robot: a positive pan command turns the head and arm to the robot's left, so
+the default head-pan sign is right, and a turning gait keeps running while head commands stream.
 
 Still unverified: the safe pan range with the arm attached beyond about 45 degrees, whether 15 `i` commands per second stay smooth,
 BLE on macOS with this board, and the camera line format.
