@@ -238,8 +238,11 @@ run over Bluetooth.
 Over Bluetooth LE, through `flybrain-bittle ble-run` on macOS, observe mode (30 s, about 16
 IMU readings per second, no gaps) and one sweep cycle at +-25 degrees ran on the robot.
 
+Needle, hold and the blindfold experiment also ran over Bluetooth, the last two with the USB
+cable unplugged.
+
 Not yet checked on the robot: the safe pan range with the arm beyond about 45 degrees, and
-needle, hold and the blindfold over Bluetooth.
+stopping with Ctrl-C through `ble-run`.
 
 ## Tests
 

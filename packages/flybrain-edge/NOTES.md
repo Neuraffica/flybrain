@@ -219,4 +219,15 @@ terminal.
   - Observe mode, 30 s: polling gives about 16 readings/s, no gap over 0.13 s, no echo timeouts.
   - Sweep, 1 cycle at +-25 deg: both legs reached their targets (1.2 s left, 9.9 s right, one
     stall re-issue on the right leg), head commands flowed, the robot rested at the end.
-  - Not tried over BLE: needle, hold, blindfold, and Ctrl-C through `ble-run`.
+  - Blindfold experiment over BLE (USB cable still plugged in): still and blindfolded for 24 s,
+    connectome confidence 0.93 with 23 deg mean error, rewired 0.25 with 128 deg, filter 3 deg.
+    After a blindfolded right turn to -38 deg the connectome bump had not followed (55 deg
+    error, confidence 0.93). The right leg took 3.5 s this time, so the slow right turn is not
+    consistent.
+  - Needle over BLE (USB unplugged, 45 s, about 12 readings/s, no gaps or echo timeouts): the
+    heading rose steadily to +76 deg and the pan command followed to -68 deg (mean mismatch
+    about 8 deg). Whether that rise was the owner turning the robot or drift is not known; in
+    the hold run that followed, the heading stayed within 1 deg for 33 s.
+  - Hold over BLE (USB unplugged, 60 s): the robot stepped back toward the target twice; one
+    turn hit the 6 s limit.
+  - Not tried over BLE: Ctrl-C through `ble-run`.
