@@ -348,5 +348,12 @@ channels fall at slightly different times. Which pin is the robot's left is not 
   voltage query.
 - Hello robot started from the app over BLE: state RUNNING, embedded dashboard live, six head
   wags counted, battery 7.58 V. Stop returned the app to STOPPED.
-- Not yet tried through the app: fly-compass and fly-escape on the robot, Cmd-Q and Force Quit
-  while a demo runs.
+- Fly escape started from the app over BLE (mode escape, swap sides ticked, space confirmed):
+  calibrated (left 3161 +- 13, right 3093 +- 12), state RUNNING with the dashboard embedded, 6
+  escapes in about a minute (3 reported right, 2 left, 1 ahead), every stand confirmed; further
+  triggers were held back by the 6-per-minute cap and the 3 s minimum interval.
+- Quit while that demo was running (the page's quit request, sent directly because the browser
+  automation cannot accept its confirmation dialog): the hub and the demo were gone 2 s later,
+  no process left behind, log ends "flydeck: bye".
+- Not yet tried through the app: fly-compass on the robot, the Dock's Cmd-Q, and Force Quit
+  while a demo runs. Whether the robot lay down on quit was not measured by the host.
