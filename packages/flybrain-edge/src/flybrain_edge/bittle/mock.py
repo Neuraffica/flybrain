@@ -93,6 +93,7 @@ class MockBittle:
         imu: str = "ICM",
         ble_framing: bool = False,
         ble_notifications: bool = False,
+        merge_window_s: float | None = None,
         chatter_per_s: float = 0.0,
         seed: int | None = 0,
         clock: Callable[[], float] = time.monotonic,
@@ -118,6 +119,16 @@ class MockBittle:
         # notification per print, no newlines at all, an IMU line glued to the echo that follows
         # it, the identify reply glued into "Bittle X+ArmB10_250330?". Read with read_chunks().
         self.ble_notifications = ble_notifications
+        # Test hook for the firmware's command merging: a write that arrives within
+        # merge_window_s of the previous one, before that one was processed, is appended to
+        # it. Over USB the merged buffer loses the SECOND command (read_serial truncates at the
+        # first newline); over BLE the FIRST command is broken too (the buffer is parsed as one
+        # command with an embedded newline, src/bleUart.h:46-90), so e.g. "kup" + "gp" loads no
+        # skill and the gait keeps running. Processing is delayed by the window to model a busy
+        # firmware loop.
+        self.merge_window_s = merge_window_s
+        self.merged_writes: list[bytes] = []  # every merged buffer, for tests
+        self._last_rx = -1e9
         self._chunks: list[bytes] = []
         self._ble_pending: str | None = None
         self.chatter_per_s = chatter_per_s
@@ -137,7 +148,7 @@ class MockBittle:
         self._last_t = self._t0
         self._busy_until = 0.0
         self._pending_echo: list[tuple[float, str]] = []
-        self._inbox: list[bytes] = []
+        self._inbox: list[list] = []  # [arrival time, bytes, merged?]
 
         # firmware state
         self.update_gyro = True
@@ -219,7 +230,14 @@ class MockBittle:
     # ---- byte interface --------------------------------------------------------------
     def receive(self, data: bytes) -> None:
         with self._lock:
-            self._inbox.append(bytes(data))
+            now = self.clock()
+            w = self.merge_window_s
+            if w and self._inbox and now - self._last_rx < w:
+                self._inbox[-1][1] += bytes(data)
+                self._inbox[-1][2] = True
+            else:
+                self._inbox.append([now, bytes(data), False])
+            self._last_rx = now
         if not self._running:
             self.advance()
 
@@ -285,7 +303,12 @@ class MockBittle:
             t = now - self._t0
             if now >= self._busy_until:
                 while self._inbox and now >= self._busy_until:
-                    self._handle_write(self._inbox.pop(0), now)
+                    if self.merge_window_s and now - self._inbox[0][0] < self.merge_window_s:
+                        break  # still open for merging
+                    _, data, merged = self._inbox.pop(0)
+                    if merged:
+                        self.merged_writes.append(data)
+                    self._handle_write(data, now, merged)
             for due, tok in list(self._pending_echo):
                 if now >= due:
                     self._emit(tok)
@@ -390,11 +413,18 @@ class MockBittle:
             self._busy_until = now + 0.4
         return True
 
-    def _handle_write(self, data: bytes, now: float) -> None:
+    def _handle_write(self, data: bytes, now: float, merged: bool = False) -> None:
         if not data:
             return
         token = chr(data[0])
         term = b"~" if "A" <= token <= "Z" else b"\n"
+        if merged and (self.ble_notifications or self.ble_framing):
+            # BLE: the whole merged buffer is one command; only its final terminator is
+            # removed, so the first command's argument now contains "\n<next command>"
+            body = data[1:]
+            body = body.removesuffix(term)
+            self._command(token, body, now)
+            return
         end = data.find(term, 1)
         body = data[1:end] if end >= 0 else data[1:]
         if end >= 0 and end + 1 < len(data):
@@ -461,7 +491,12 @@ class MockBittle:
             self._load("rest", now)
             self.token = ""
         elif token in ("i", "m"):
-            nums = [int(float(x)) for x in text.replace(",", " ").split()]
+            nums = []
+            for x in text.replace(",", " ").split():
+                try:
+                    nums.append(int(float(x)))
+                except ValueError:
+                    break  # garbage from a merged command: the firmware's atoi stops here too
             for idx, ang in zip(nums[0::2], nums[1::2]):
                 self._set_joint(idx, ang, smooth=(token == "i" and self.token == "k"))
         elif token == "I":

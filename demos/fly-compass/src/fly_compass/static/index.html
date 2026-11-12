@@ -526,6 +526,10 @@ function renderHeader() {
   $("ro-pan").innerHTML = frame.mode === "observe" ? "—" : fmtDeg(frame.needle.cmd) + (frame.needle.saturated ? "<small> limit</small>" : "");
   $("mock-hint").textContent = st.mock ? "Simulated dog: drag the dial or press ← / → (Shift: 15°) to turn it." : "";
   const legs = $("legs");
+  const stop = frame.stop || {};
+  const stopText = (stop.pending ? ` · stopping, ${(stop.since || 0).toFixed(1)} s` : "") +
+    (stop.resends_total ? ` · stand re-sent ${stop.resends_total}×` : "") +
+    (stop.failures ? ` · STOP FAILED ${stop.failures}× (rested)` : "");
   if (frame.mode === "sweep" && frame.sweep) {
     const sw = frame.sweep;
     legs.classList.remove("hidden");
@@ -534,10 +538,15 @@ function renderHeader() {
       : sw.state === "pausing" ? `pausing, next ${fmtDeg(sw.target)}` : sw.label;
     $("legs-meta").textContent = `${sw.time_in_state.toFixed(0)} s in state · cycle ${sw.cycles}` +
       (sw.max_cycles ? ` of ${sw.max_cycles}` : "") + (sw.reissues ? ` · turn re-issued ${sw.reissues}×` : "") +
-      (sw.timeouts ? ` · ${sw.timeouts} timeout${sw.timeouts > 1 ? "s" : ""} in a row` : "");
+      (sw.timeouts ? ` · ${sw.timeouts} timeout${sw.timeouts > 1 ? "s" : ""} in a row` : "") + stopText;
   } else if (frame.mode === "hold") {
     legs.classList.remove("hidden");
-    $("legs-mode").textContent = "Hold"; $("legs-state").textContent = frame.hold.state; $("legs-meta").textContent = "";
+    $("legs-mode").textContent = "Hold"; $("legs-state").textContent = frame.hold.state;
+    $("legs-meta").textContent = stopText.replace(/^ · /, "");
+  } else if (stop.pending || stop.failures) {
+    legs.classList.remove("hidden");
+    $("legs-mode").textContent = "Legs"; $("legs-state").textContent = stop.failures ? "stop failed, resting" : "stopping";
+    $("legs-meta").textContent = stopText.replace(/^ · /, "");
   } else legs.classList.add("hidden");
   $("dial").classList.toggle("draggable", !!st.mock);
   renderCue(st);

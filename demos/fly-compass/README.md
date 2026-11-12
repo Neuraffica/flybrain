@@ -200,6 +200,14 @@ column (older logs without it replay with the cue on).
   after three timeouts in a row hold disables itself; sweep's limits are described above.
 * Ctrl-C, SIGTERM or any exception leads to `kup` (if a gait is running) and `d` (rest). If the
   link itself is lost nothing can be sent: the robot keeps its last posture.
+* Commands are never written on top of each other: a stand or turn is sent by the link's
+  command thread, which holds the line until the robot echoes it (two commands arriving
+  together are merged by the firmware and one is lost; over Bluetooth that lost a stand once).
+* Stop watchdog (hold and sweep): 1.5 s after a stand, if the measured heading still changes
+  faster than 3°/s, the stand is sent again, once a second, at most 4 times; the dashboard and
+  terminal show each re-send. If the dog still turns after that, the demo sends rest (`d`, servos
+  off) and switches to observe mode with a "STOP FAILED" message. The next turn only starts once
+  the dog has been seen standing still (`STOP_*` constants at the top of `loop.py`).
 
 ## Troubleshooting
 

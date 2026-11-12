@@ -202,6 +202,38 @@ BittleC2` output, kept as a test fixture).
   table and counts every IMU reading (tests/test_bittle_ble_capture.py).
 - Not yet run live after the fix: needle/sweep over BLE, IMU polling (`gp`) rate over BLE.
 
+### Lost stand at the end of a sweep leg (BLE)
+
+Seen on the robot over BLE (sweep, 2 cycles, ±25°): after the first two legs the loop sent
+`kup` and entered its pause, but the heading kept rising at about 25°/s for the whole 3 s pause
+(+29° to +105°) and only reversed when the next leg's `kvtR` arrived. The third and fourth stops
+worked; over USB it never happened in four runs (overshoot 3-9°).
+
+Cause, as far as the code shows (not confirmed with a byte capture of the failing moment):
+the demo sent the stand without waiting for its echo, so the next write (an IMU poll `gp` every
+50 ms, or a head `i` command) could follow 20 ms later. While the firmware's main loop is busy
+(a gait frame), a BLE write that arrives before `readBle()` has consumed the previous one is
+appended to it (`src/bleUart.h:46-90`: `bleMessageShift` is still 0). The buffer `up\ngp` is
+then parsed as one command with an embedded newline, so the skill name `up\ngp` is not found
+and nothing is loaded: the gait keeps running and the firmware still echoes `k`. Over USB
+`read_serial()` truncates at the first newline instead, which keeps the FIRST command and loses
+the second (`src/moduleManager.h:430-445`), which fits USB never losing a stand. Starting a
+turn from standing survives because the loop is fast then.
+
+Fixes (flybrain-edge `robot.py`, fly-compass `loop.py`):
+
+- Skills sent with `wait=False` go through a command thread that holds the write lock until
+  the `k` echo, so nothing can be written in between; the control loop is not blocked.
+- Every command waits `min_gap` after the previous one (USB 20 ms, BLE 50 ms), and after a
+  command whose echo was not seen (timeout, or a write without echo) the next write waits a
+  guard interval (USB 0.1 s, BLE 0.5 s).
+- A stop watchdog in hold and sweep: 1.5 s after a stand, if the IMU heading still changes
+  faster than 3°/s (over 1 s of samples), the stand is re-sent once a second, at most 4 times,
+  then `d` and observe mode. A new turn never starts before the stop is confirmed.
+- The simulator can reproduce the merge (`MockBittle(merge_window_s=...)`), with the BLE and USB
+  behaviours above; tests show the old way of sending loses the stand there and the new one
+  does not.
+
 ### macOS permission
 
 On this Mac a CLI process that touches CoreBluetooth is killed (exit 134, TCC: missing
@@ -239,3 +271,10 @@ terminal.
   acceleration value before it: `ICM:  -0.3   0.6   9.910565.4   -1.4    3.5`. Every IMU line
   then failed to parse and the demo ran with no heading at all (no error, no motion). The
   parser now handles the glued form. Power-cycling the board resets the total.
+
+Checked on the robot after the fix (sweep over BLE, 3 cycles, +-25 deg): no runaway in any of
+the six pauses. Each leg now ends about 20 deg past its target (for example target +25, robot
+settles at +44): roughly 10 deg while the link waits for the `kup` echo and another 10 to 15
+deg during the pause. Over USB the overshoot was 3 to 9 deg. The stop watchdog fired once
+(still moving at 3.3 deg/s 1.5 s after the stand) and one re-send was enough. Not yet re-run
+over USB with the fix.
