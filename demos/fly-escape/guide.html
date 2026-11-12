@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fly escape guide</title>
+<style>
+:root {
+  --paper: #f6f2ea; --card: #fffdf8; --ink: #1f1b16; --muted: #6b6257; --line: #e2d9ca;
+  --accent: #b8402a; --accent-soft: #f3ddd4; --ok: #2f6f4f; --warn: #9a6a00; --code: #efe8db;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #15130f; --card: #1d1a15; --ink: #ece6da; --muted: #a0968a; --line: #322d25;
+    --accent: #e8735a; --accent-soft: #3a211b; --ok: #7fc8a0; --warn: #e0b050; --code: #26221b;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #15130f; --card: #1d1a15; --ink: #ece6da; --muted: #a0968a; --line: #322d25;
+  --accent: #e8735a; --accent-soft: #3a211b; --ok: #7fc8a0; --warn: #e0b050; --code: #26221b;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.6 var(--sans); }
+main { max-width: 920px; margin: 0 auto; padding: 0 16px 96px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2.4rem, 7vw, 4.2rem); letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.6rem, 4vw, 2.1rem); margin: 72px 0 8px; }
+h3 { font-size: 1.15rem; margin: 0 0 6px; }
+p { margin: 0 0 14px; }
+a { color: var(--accent); }
+.kicker { font: 600 0.78rem/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: 1.2rem; color: var(--muted); max-width: 40em; }
+.sub { color: var(--muted); max-width: 44em; margin-bottom: 24px; }
+
+.hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 32px; align-items: center; padding: 72px 0 24px; }
+.hero svg { width: 100%; height: auto; max-width: 380px; justify-self: center; }
+.hero h1 { margin: 14px 0 18px; }
+.status { display: inline-block; margin-top: 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 0.9rem; color: var(--muted); background: var(--card); }
+.status b { color: var(--warn); }
+
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.card .n { font: 600 0.8rem/1 var(--mono); color: var(--accent); display: block; margin-bottom: 12px; }
+.card p:last-child { margin-bottom: 0; }
+.card p { font-size: 0.97rem; color: var(--muted); }
+
+.flow { display: grid; grid-template-columns: 1fr auto 1.3fr auto 1fr; gap: 10px; align-items: stretch; margin: 20px 0; }
+.flow .box { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.flow .box.mid { border-color: var(--accent); }
+.flow .box small { display: block; color: var(--muted); font-size: 0.88rem; line-height: 1.45; margin-top: 4px; }
+.flow .arrow { align-self: center; color: var(--muted); font-size: 0.8rem; text-align: center; line-height: 1.3; }
+.flow .arrow span { display: block; font-size: 1.4rem; color: var(--accent); }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; min-width: 560px; }
+th, td { padding: 11px 14px; text-align: right; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+thead th { font: 600 0.74rem/1.3 var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+tbody tr:last-child td { border-bottom: 0; }
+tr.fly td { font-weight: 600; }
+tr.fly td:first-child { color: var(--accent); }
+td.good { color: var(--ok); font-weight: 600; }
+.note { font-size: 0.9rem; color: var(--muted); margin-top: 10px; }
+
+.verdict { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 16px 20px; border-radius: 0 12px 12px 0; margin: 24px 0; }
+.verdict p:last-child { margin: 0; }
+
+ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 20px 0 0; }
+ol.steps > li { counter-increment: s; position: relative; padding: 0 0 26px 52px; border-left: 1px solid var(--line); margin-left: 17px; }
+ol.steps > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+ol.steps > li::before { content: counter(s); position: absolute; left: -17px; top: -2px; width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: var(--paper); font: 600 0.9rem/34px var(--mono); text-align: center; }
+ol.steps .tag { font: 600 0.7rem/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 7px; border-radius: 5px; margin-left: 8px; vertical-align: 2px; }
+.tag.still { background: var(--code); color: var(--muted); }
+.tag.moves { background: var(--accent-soft); color: var(--accent); }
+pre { background: var(--code); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font: 0.88rem/1.5 var(--mono); margin: 8px 0 12px; }
+code { font: 0.9em var(--mono); background: var(--code); padding: 1px 5px; border-radius: 4px; }
+pre code { background: none; padding: 0; }
+ul { padding-left: 20px; margin: 0 0 14px; }
+li { margin-bottom: 6px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 0.88rem; color: var(--muted); }
+
+@media (max-width: 720px) {
+  .hero { grid-template-columns: 1fr; padding-top: 40px; }
+  .grid3, .two { grid-template-columns: 1fr; }
+  .flow { grid-template-columns: 1fr; }
+  .flow .arrow span { transform: rotate(90deg); }
+}
+.todo { border: 1px dashed var(--warn); color: var(--warn); border-radius: 8px; padding: 2px 8px; font-size: 0.9em; }
+.sockets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 0 8px; }
+.sockets div { border: 1px solid var(--line); border-radius: 10px; padding: 14px 8px; text-align: center; font: 600 0.95rem/1.2 var(--mono); background: var(--card); color: var(--muted); }
+.sockets div.use { border: 2px solid var(--accent); color: var(--accent); background: var(--accent-soft); }
+.sockets small { display: block; font: 0.75rem/1.3 var(--sans); margin-top: 6px; }
+</style>
+</head>
+<body>
+<main>
+
+<section class="hero">
+  <div>
+    <div class="kicker">Fly Brain &amp; Tiny Machines · demo</div>
+    <h1>Fly escape</h1>
+    <p class="lede">A fruit fly escapes a looming swatter in a few milliseconds, using a small circuit of neurons that react to things rushing towards it. Here a model of that circuit, wired from the fly connectome, makes a robot dog step back from an approaching hand.</p>
+    <div class="status"><b>Run on a real Bittle X+Arm over USB.</b> The dog backs away from a hand on either side and stands up again each time. Keep it away from windows: daylight blinds the sensor.</div>
+  </div>
+  <svg viewBox="0 0 360 300" role="img" aria-label="A hand growing larger as it approaches the robot's sensor">
+    <circle cx="70" cy="150" r="14" fill="var(--accent)" fill-opacity="0.18"/>
+    <circle cx="125" cy="150" r="24" fill="var(--accent)" fill-opacity="0.32"/>
+    <circle cx="190" cy="150" r="40" fill="var(--accent)" fill-opacity="0.55"/>
+    <rect x="262" y="110" width="70" height="80" rx="14" fill="var(--ink)"/>
+    <rect x="248" y="138" width="14" height="24" rx="4" fill="var(--accent)"/>
+    <path d="M272 222 h50" stroke="var(--muted)" stroke-width="3" stroke-linecap="round"/>
+    <path d="M322 222 l-10 -7 v14 z" fill="var(--muted)"/>
+    <text x="297" y="245" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--muted)">steps back</text>
+    <text x="130" y="215" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--muted)">a hand, looming</text>
+  </svg>
+</section>
+
+<h2>What you will see</h2>
+<p class="sub">On the table and on a live dashboard on the laptop.</p>
+<div class="grid3">
+  <div class="card"><span class="n">01 · on the floor</span><h3>The escape</h3><p>Bring a hand quickly towards the dog's head. It walks backwards for about a second, then stands again. A hand that stops a little way off and hovers is the harder case: watch which models fire.</p></div>
+  <div class="card"><span class="n">02 · on the screen</span><h3>The circuit</h3><p>Two traces show how close something is on each side. Below them, a mark appears whenever each model decides to escape, and the escape neuron's drive climbs towards its threshold.</p></div>
+  <div class="card"><span class="n">03 · the comparison</span><h3>Five models, one input</h3><p>The fly wiring, the same neurons rewired, a random network, and two simple rules all see the same readings. Only one of them, the driver, moves the dog. The others are scored against it.</p></div>
+</div>
+
+<h2>How it works</h2>
+<p class="sub">An infrared proximity sensor stands in for the fly's eye. The model runs on the laptop; the dog is the body.</p>
+<div class="flow">
+  <div class="box"><h3>Proximity sensor</h3><small>Two infrared channels on the dog's head. Each reads high with nothing in front and drops as a hand comes close, over a narrow band of distances only.</small></div>
+  <div class="arrow"><span>→</span>left, right</div>
+  <div class="box mid"><h3>Escape circuit on the laptop</h3><small>Looming-sensitive neurons on each side feed the giant fibre, the fly's escape command neuron. When its drive crosses threshold, the model says "escape" and on which side the threat is.</small></div>
+  <div class="arrow"><span>→</span>escape</div>
+  <div class="box"><h3>Bittle X</h3><small>Walks straight back for about one second, then stands. While it walks the sensor is not read: reading it would stop the walk.</small></div>
+</div>
+<p class="note">The sensor is not an eye. It sees one number per side, not an image, so the "looming" the circuit gets is how fast those numbers change. That is a fair test of the circuit's timing and of its left/right decision, not of fly vision.</p>
+
+<h2>What to expect, in numbers</h2>
+<p class="sub">From the offline benchmark: 384 simulated hand approaches, slow to fast, from both sides, at 12 and 28 readings a second.</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Model</th><th>Approaches caught</th><th>False escapes</th><th>Time to escape</th></tr></thead>
+<tbody>
+<tr class="fly"><td>Fly wiring</td><td>100%</td><td>1.9 per minute</td><td>78 ms</td></tr>
+<tr><td>Rewired wiring</td><td>71%</td><td>1.5 per minute</td><td>90 ms</td></tr>
+<tr><td>Random wiring</td><td>0%</td><td>0</td><td>never</td></tr>
+<tr><td>Proximity threshold</td><td>100%</td><td>1.5 per minute</td><td>125 ms</td></tr>
+<tr><td>Looming-rate threshold</td><td>100%</td><td>1.2 per minute</td><td>62 ms</td></tr>
+</tbody>
+</table>
+</div>
+<p class="note">Rewired is the mean of 5 shuffles and random of 3, with the same settings as the fly wiring. False escapes are counted on hands that stop short, hover or drift slowly. Numbers come from <code>packages/flybrain-models/src/flybrain_models/escape_benchmark.json</code>.</p>
+
+<div class="verdict">
+  <p><b>What this shows.</b> The fly's wiring makes a working escape reflex: it catches every simulated approach, from either side, and keeps working at half the reading rate. Shuffle the wiring and it loses approaches seen by one side only; randomise it and it never fires.</p>
+  <p><b>What it does not show.</b> It is not better than a plain rule. The looming-rate threshold is faster and has fewer false escapes, and a shuffled circuit that gets its own tuned settings does as well as the real one. This pathway is close to a straight line from sensor to trigger, so once the gains are tuned the exact wiring matters little.</p>
+  <p><b>One thing the wiring did reveal.</b> In this fly the right giant fiber gets about half again as many inputs as the left (967 against 634). On the robot that first showed up as a dog that fled from one side only. Each side now has its own trigger level.</p>
+</div>
+
+<p class="note">The same model also compiles into the robot's own firmware (BiBoard V1, +20 KB flash, +4 KB RAM), so it could run on the dog without the laptop. That build has been compiled but not yet flashed or tried on the robot. See <code>firmware/bittle/fly_escape/</code>.</p>
+
+<h2>Try it without the robot</h2>
+<p class="sub">A simulated dog, sensor and hand, drawn from above. Do this first; it takes one command.</p>
+<pre><code>uv sync
+uv run fly-escape --mock --open</code></pre>
+<p>The browser opens on the simulator with the dog standing. Wait 2 seconds while the simulated sensor is calibrated. Then press an <b>Approach now</b> button: a hand comes in slowly or fast, from the left, the right or head-on. The two sensor beams on the dog's head light up as each side sees the hand; when the model driving the dog decides to escape, the dog flashes, walks back and stands again. You can also drag the hand yourself.</p>
+<p>Some hands are not threats: one that hovers in front, one that lunges and stops short, one that drifts in very slowly, one that moves away. A good escape circuit should leave these alone. Turn on <b>Random</b> and the simulator keeps sending a mix of both, from a seed you can see and change, and scores every model against what each approach really was: threats caught, false escapes, reaction time, whether it got the side right. Pick another model under <b>Driving the dog</b> to watch how the dog behaves with it.</p>
+<div class="two">
+  <div class="card"><h3>Same run, no browser</h3><pre><code>uv run fly-escape --mock --mock-random 7 --no-dashboard --duration 120</code></pre><p>Two minutes of random approaches from seed 7, then the scoreboard in the terminal. The same seed gives the same approaches.</p></div>
+  <div class="card"><h3>A real recording</h3><pre><code>uv run fly-escape --replay packages/flybrain-models/tests/fixtures/ir_hand_approaches_usb.json</code></pre><p>Hand approaches recorded from the real sensor, played back through all five models with no robot.</p></div>
+</div>
+<p class="note">One thing to know when reading the scores: while the dog walks back, the sensor is not read (on the real robot a read would stop the walk), and the simulator does the same. So once the driving model has escaped, the other models see nothing more of that approach. To compare the models on equal terms, run with <code>--mode observe</code>: the dog stays still and every model sees every approach to the end.</p>
+
+<h2>Wiring the sensor</h2>
+<p class="sub">The Petoi double infrared proximity sensor plugs into one of the four Grove sockets on the robot's main board.</p>
+<p><b>Switch the battery off before plugging anything in.</b> The cable only fits one way round.</p>
+<p>The board's four sockets, from the robot's left to its right:</p>
+<div class="sockets">
+  <div>UART</div><div>I2C</div><div class="use">39/36<small>this sensor</small></div><div>35/34</div>
+</div>
+<p class="note">The socket labelled 39/36 connects the sensor's two channels to the board's analog pins 39 and 36. The app reads them directly and does not switch on the firmware's own sensor module (which would start reactions of its own).</p>
+<p><b>Where to put it on the arm version.</b> Strap the sensor across the top of the yellow head cover, facing forward and slightly up, and clear of the claw. This is our suggestion: Petoi documents no mount for the arm version. Make sure the arm cannot hit it and the cable has slack when the head turns.</p>
+
+<h2>With the real dog</h2>
+<p class="sub">In this order. Each step only adds motion once the one before looks right.</p>
+
+<div class="card" style="margin-bottom:28px">
+<h3>Before you start</h3>
+<ul>
+  <li>Bittle X with the arm, firmware built as "Bittle X+Arm", battery charged and switched on.</li>
+  <li>The proximity sensor in the socket labelled 39/36, strapped to the head as above.</li>
+  <li>A USB-C <b>data</b> cable, or Bluetooth (see below).</li>
+  <li>Floor space: about a metre clear behind the dog. It walks backwards.</li>
+</ul>
+</div>
+
+<ol class="steps">
+  <li><h3>Read the sensor <span class="tag still">no movement</span></h3>
+    <pre><code>uv run flybrain-bittle probe --analog 36,39 --seconds 5</code></pre>
+    <p>Prints both channels about 25 times a second and a minimum and maximum for each second. With nothing in front you want about 3400 on both; move a hand in and both should fall towards 0. If one stays near 0, the cable or the socket is wrong.</p></li>
+  <li><h3>Find which side is which <span class="tag still">no movement</span></h3>
+    <pre><code>uv run flybrain-bittle probe --analog 36,39 --seconds 5 --side-test</code></pre>
+    <p>Cover only the robot's <b>left</b> side of the sensor when asked. The probe says which pin that was. If it tells you to, add <code>--swap-sides</code> to every command below.</p></li>
+  <li><h3>Observe <span class="tag still">stands, then still</span></h3>
+    <pre><code>uv run fly-escape</code></pre>
+    <p>The dog stands. Keep hands away for 2 seconds while the resting level is measured; the app refuses escape mode if a channel reads about 0 (unplugged) or is very noisy. Then open <a href="http://127.0.0.1:8766/">http://127.0.0.1:8766</a> and bring a hand in, fast and slow, from each side. Watch which models mark an escape.</p></li>
+  <li><h3>Escape <span class="tag moves">the dog walks</span></h3>
+    <pre><code>uv run fly-escape --i-have-space</code></pre>
+    <p>Now the driver model's escape makes the dog walk back for a second and stand again. At most one escape every 3 seconds and six a minute, whatever the model says. Pick another driver on the dashboard to compare how the dog behaves under each model.</p></li>
+</ol>
+<p style="margin-top:24px"><b>To stop:</b> press <code>Ctrl-C</code>. The dog stands if it was walking, then lies down and its servos switch off.</p>
+
+<div class="two" style="margin-top:28px">
+  <div class="card"><h3>Over Bluetooth</h3><pre><code>uv run flybrain-bittle ble-run -- uv run fly-escape --ble</code></pre><p>On a Mac, start Bluetooth commands through this helper; macOS asks once whether "Flybrain BLE" may use Bluetooth. Sensor readings come more slowly over Bluetooth than over USB.</p></div>
+  <div class="card"><h3>Replay a session</h3><pre><code>uv run fly-escape --replay runs/escape-&lt;stamp&gt;</code></pre><p>Every run logs the raw sensor readings, every model's triggers and every escape under <code>runs/</code>.</p></div>
+</div>
+
+<h2>If something looks wrong</h2>
+<div class="tablewrap">
+<table style="min-width:480px">
+<thead><tr><th>What you see</th><th style="text-align:left">What to do</th></tr></thead>
+<tbody>
+<tr><td>"Calibration FAILED", both sides rest near 0 to 200</td><td style="text-align:left">Daylight is blinding the sensor. Move the dog away from windows or shade the sensor, then press Recalibrate.</td></tr>
+<tr><td>"calibration FAILED … rests at 0"</td><td style="text-align:left">Sensor unplugged, in the wrong socket, or a hand in front during the first 2 seconds. Check with the probe, then press Recalibrate.</td></tr>
+<tr><td>Escapes on the wrong side</td><td style="text-align:left"><code>--swap-sides</code> (run the side test above)</td></tr>
+<tr><td>Escapes with nobody near</td><td style="text-align:left">Turn on Hands off (<code>H</code>) and watch the False column; sunlight and shiny surfaces disturb infrared sensors.</td></tr>
+<tr><td>The dog does not move</td><td style="text-align:left">Is the dashboard in Escape mode, and was the app started with <code>--i-have-space</code>? A "low power" message means the battery is off or flat.</td></tr>
+<tr><td>Port 8766 is taken</td><td style="text-align:left"><code>--http-port 8767</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>What has not been checked on a real dog</h2>
+<p class="sub">Measured so far: the sensor reads work over USB, about 28 readings a second, and the robot does not move while they run.</p>
+<div class="two">
+  <div class="card"><h3>Not yet tried</h3><ul>
+    <li>Escape mode on the robot: how far one second of walking back takes it, and whether it stands cleanly every time.</li>
+    <li>Which sensor pin is the robot's left.</li>
+    <li>The sensor over Bluetooth, and how many readings a second it gives there.</li>
+    <li>The suggested mount on the arm version.</li>
+  </ul></div>
+  <div class="card"><h3>Hardware results</h3><ul>
+    <li>Sensor reads: about 80 a second from the probe, about 27 a second in the app, over USB. The dog does not move.</li>
+    <li>Observe mode: calibrated and caught hand approaches.</li>
+    <li>Escape mode, first model: 6 escapes in 45 s, each one stood up again, but only for a hand on one side.</li>
+    <li>Escape mode, fixed model: 6 escapes in 90 s, 4 from the left and 2 from the right, each one stood up again; 2 more were held back by the limit of 6 a minute.</li>
+    <li>Daylight: beside a window at midday the sensor read as if permanently covered and calibration refused to start. Away from the window it read normally at once.</li>
+    <li>Calibration also refused to start when a hand was in front of the sensor, as designed.</li>
+    <li>On that dog the half of the sensor on pin 39 was on its left, so it needs <code>--swap-sides</code>. This depends on which way round the sensor is strapped on.</li>
+    <li>Not yet tried on the robot: a full escape run over Bluetooth (sensor reads work there, about 10 a second), and backing away with a turn.</li>
+  </ul></div>
+</div>
+
+<footer>
+  Connectome data: FlyWire FAFB v783, CC BY 4.0 (Dorkenwald et al. 2024; Schlegel et al. 2024). Benchmark numbers come from <code>packages/flybrain-models/src/flybrain_models/escape_benchmark.json</code>. More detail: <code>demos/fly-escape/README.md</code>.
+</footer>
+</main>
+</body>
+</html>

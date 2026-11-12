@@ -1,0 +1,3496 @@
+{
+ "about": "flybrain_models.escape_benchmark output; regenerate with `uv run python -m flybrain_models.escape_benchmark`",
+ "date": "2026-11-11",
+ "machine": "Darwin arm64 python 3.13.12",
+ "key_numbers": {
+  "sim_hit_rate": {
+   "connectome": 1.0,
+   "rewired": 0.711,
+   "random": 0.0,
+   "no_interneurons": 1.0,
+   "proximity_threshold": 1.0,
+   "looming_rate_threshold": 1.0
+  },
+  "sim_fa_per_min": {
+   "connectome": 1.871,
+   "rewired": 1.478,
+   "random": 0.0,
+   "no_interneurons": 5.986,
+   "proximity_threshold": 1.45,
+   "looming_rate_threshold": 1.169
+  },
+  "sim_latency_ms": {
+   "connectome": 77.617,
+   "rewired": 89.557,
+   "random": null,
+   "no_interneurons": 65.293,
+   "proximity_threshold": 125.375,
+   "looming_rate_threshold": 62.254
+  },
+  "sim_side_correct": {
+   "connectome": 0.9,
+   "rewired": 0.769,
+   "random": null,
+   "no_interneurons": 0.919,
+   "proximity_threshold": 0.887,
+   "looming_rate_threshold": 0.963
+  },
+  "sim_side_correct_gf_readout": {
+   "connectome": 0.894,
+   "rewired": 0.476,
+   "random": null,
+   "no_interneurons": 0.875,
+   "proximity_threshold": 0.887,
+   "looming_rate_threshold": 0.963
+  },
+  "sim_hit_rate_12hz": {
+   "connectome": 1.0,
+   "rewired": 0.65,
+   "random": 0.0,
+   "no_interneurons": 1.0,
+   "proximity_threshold": 1.0,
+   "looming_rate_threshold": 1.0
+  },
+  "sim_fa_per_min_noisy": {
+   "connectome": 2.899,
+   "rewired": 2.282,
+   "random": 0.0,
+   "no_interneurons": 5.05,
+   "proximity_threshold": 1.59,
+   "looming_rate_threshold": 1.683
+  },
+  "sim_fa_per_min_drift": {
+   "connectome": 1.675,
+   "rewired": 1.273,
+   "random": 0.0,
+   "no_interneurons": 8.041,
+   "proximity_threshold": 8.041,
+   "looming_rate_threshold": 0.0
+  },
+  "sim_fa_per_min_hover": {
+   "connectome": 7.361,
+   "rewired": 4.015,
+   "random": 0.0,
+   "no_interneurons": 29.109,
+   "proximity_threshold": 2.342,
+   "looming_rate_threshold": 3.011
+  },
+  "sim_fa_per_min_stop_short": {
+   "connectome": 6.718,
+   "rewired": 8.285,
+   "random": 0.0,
+   "no_interneurons": 9.517,
+   "proximity_threshold": 0.0,
+   "looming_rate_threshold": 8.957
+  },
+  "sim_trigger_distance_cm_fast": {
+   "connectome": 5.472,
+   "rewired": 5.34,
+   "random": null,
+   "no_interneurons": 6.285,
+   "proximity_threshold": 3.633,
+   "looming_rate_threshold": 6.713
+  },
+  "sim_trigger_distance_cm_slow": {
+   "connectome": 8.284,
+   "rewired": 7.273,
+   "random": null,
+   "no_interneurons": 8.879,
+   "proximity_threshold": 5.423,
+   "looming_rate_threshold": 8.975
+  },
+  "sim_hit_rate_left": {
+   "connectome": 1.0,
+   "rewired": 1.0,
+   "random": 0.0,
+   "no_interneurons": 1.0,
+   "proximity_threshold": 1.0,
+   "looming_rate_threshold": 1.0
+  },
+  "sim_hit_rate_right": {
+   "connectome": 1.0,
+   "rewired": 1.0,
+   "random": 0.0,
+   "no_interneurons": 1.0,
+   "proximity_threshold": 1.0,
+   "looming_rate_threshold": 1.0
+  },
+  "sim_hit_rate_head_on": {
+   "connectome": 1.0,
+   "rewired": 1.0,
+   "random": 0.0,
+   "no_interneurons": 1.0,
+   "proximity_threshold": 1.0,
+   "looming_rate_threshold": 1.0
+  },
+  "sim_hit_rate_left_only": {
+   "connectome": 1.0,
+   "rewired": 0.0,
+   "random": 0.0,
+   "no_interneurons": 1.0,
+   "proximity_threshold": 1.0,
+   "looming_rate_threshold": 1.0
+  },
+  "sim_hit_rate_right_only": {
+   "connectome": 1.0,
+   "rewired": 0.555,
+   "random": 0.0,
+   "no_interneurons": 1.0,
+   "proximity_threshold": 1.0,
+   "looming_rate_threshold": 1.0
+  },
+  "real_hits_of_5": {
+   "connectome": 5.0,
+   "rewired": 5.0,
+   "random": 0.0,
+   "no_interneurons": 5.0,
+   "proximity_threshold": 5.0,
+   "looming_rate_threshold": 5.0
+  },
+  "real_latency_ms": {
+   "connectome": 86.0,
+   "rewired": 121.6,
+   "random": null,
+   "no_interneurons": 79.2,
+   "proximity_threshold": 122.4,
+   "looming_rate_threshold": 71.8
+  },
+  "real_false_alarms": {
+   "connectome": 0.0,
+   "rewired": 0.0,
+   "random": 0.0,
+   "no_interneurons": 0.0,
+   "proximity_threshold": 0.0,
+   "looming_rate_threshold": 0.0
+  },
+  "robot_hits_of_9": {
+   "connectome": 8.0,
+   "rewired": 6.2,
+   "random": 0.0,
+   "no_interneurons": 9.0,
+   "proximity_threshold": 9.0,
+   "looming_rate_threshold": 8.0
+  },
+  "robot_hits_left": {
+   "connectome": 2.0,
+   "rewired": 0.0,
+   "random": 0.0,
+   "no_interneurons": 2.0,
+   "proximity_threshold": 2.0,
+   "looming_rate_threshold": 2.0
+  },
+  "robot_hits_right": {
+   "connectome": 5.0,
+   "rewired": 5.2,
+   "random": 0.0,
+   "no_interneurons": 6.0,
+   "proximity_threshold": 6.0,
+   "looming_rate_threshold": 5.0
+  },
+  "robot_latency_ms": {
+   "connectome": 87.137,
+   "rewired": 86.57,
+   "random": null,
+   "no_interneurons": 81.656,
+   "proximity_threshold": 130.411,
+   "looming_rate_threshold": 68.875
+  },
+  "robot_false_alarms": {
+   "connectome": 0.0,
+   "rewired": 0.0,
+   "random": 0.0,
+   "no_interneurons": 0.0,
+   "proximity_threshold": 0.0,
+   "looming_rate_threshold": 0.0
+  },
+  "gf_ipsilateral_fraction": {
+   "connectome": 1.0,
+   "rewired": 0.539,
+   "random": 0.518,
+   "no_interneurons": 1.0,
+   "proximity_threshold": null,
+   "looming_rate_threshold": null
+  },
+  "gf_lc4_to_lplc2_ratio": {
+   "connectome": 0.897,
+   "rewired": 0.897,
+   "random": 0.341,
+   "no_interneurons": 0.897,
+   "proximity_threshold": null,
+   "looming_rate_threshold": null
+  }
+ },
+ "key_numbers_doc": {
+  "models": "connectome = shipped EscapeCircuit; rewired / random = mean over 5 / 3 control seeds with the connectome's scalars; no_interneurons = interneurons removed, connectome scalars; proximity_threshold and looming_rate_threshold = baselines (one fitted threshold each)",
+  "sim_hit_rate": "fraction of simulated threats (>= 0.3 m/s to contact) with a trigger within -0.1..+1.0 s of the hand entering sensor range",
+  "sim_fa_per_min": "triggers that are not hits, per minute of scored non-threat time",
+  "sim_latency_ms": "mean trigger time after the hand enters range (D_FAR = 12 cm)",
+  "sim_side_correct": "fraction of lateral hits with the correct side (shipped readout: LC4+LPLC2 left/right activity)",
+  "sim_side_correct_gf_readout": "same, if the side were read from GF left vs right (the wiring-dependent readout)",
+  "sim_hit_rate_12hz": "hit rate at 12 Hz (Bluetooth-like) sampling",
+  "sim_fa_per_min_noisy": "false alarms per minute with sensor noise sd 80",
+  "sim_fa_per_min_{drift,hover,stop_short}": "false alarms per minute in those non-threat episodes",
+  "sim_trigger_distance_cm_{fast,slow}": "hand distance at trigger, 0.8-1.6 m/s and 0.3-0.5 m/s approaches",
+  "sim_hit_rate_{left,right,head_on}": "hit rate for approaches from the left, right and head-on (both channels see the hand)",
+  "sim_hit_rate_{left,right}_only": "hit rate when only that side's channel ever sees the hand (the far channel stays at baseline), as seen on the robot",
+  "robot_hits_of_9": "approaches with a trigger in the 45 s robot escape run (runs/escape-20261111-183054, offline rule; 9 approach events)",
+  "robot_hits_{left,right}": "same, split by the channel that saw the hand first (left = pin 36; robot run: 2 left events, both seen by pin 36 only, 6 right, and 1 that both channels saw at once, counted in neither)",
+  "robot_latency_ms": "mean trigger time after labelled onset, robot run",
+  "robot_false_alarms": "triggers outside approach events, robot run",
+  "real_hits_of_5": "recorded approaches (offline rule) with a trigger",
+  "real_latency_ms": "mean trigger time after the labelled onset (first sample < 3100) on the recording",
+  "real_false_alarms": "triggers outside the five labelled events (25 s)",
+  "gf_ipsilateral_fraction": "fraction of direct LC4+LPLC2 -> GF synapses that come from the GF's own side (wiring, not behaviour)",
+  "gf_lc4_to_lplc2_ratio": "direct LC4 -> GF over LPLC2 -> GF synapses"
+ },
+ "protocols": {
+  "sensor": "simulated raw = 3400 * clip((d - 5 cm) / 7 cm, 0, 1) + noise",
+  "ground_truth": "threat = approach >= 0.3 m/s to within 5 cm; non-threats: stop short inside the band, slow drift <= 0.08 m/s, hover with tremor, moving away, empty; 0.15-0.3 m/s ambiguous (speed curve only)",
+  "recording_labels": "offline rule: event onset = first sample with min(raw) < 3100 after >= 0.5 s quiet; approach if min(raw) < 500 within 0.5 s; event ends when both channels >= 3100; leading side = channel first below 1700. pin36 assumed left (not established)",
+  "n_episodes": 384
+ },
+ "params_connectome": {
+  "w_scale": 100.0,
+  "gain": {
+   "vpn": 0.7084980778992223,
+   "exc": 0.1032397693979779,
+   "inh": 1.0971663769486746,
+   "gf": 0.20122523729345995
+  },
+  "bias": {
+   "vpn": -1.0364875773272382,
+   "in": -0.7297687770571342,
+   "gf": -1.2309249733874774
+  },
+  "tau": 0.01346409064668307,
+  "k_in": 2.9803509490155093,
+  "threshold_left": 0.19796088967511558,
+  "threshold_right": 0.833687963601424
+ },
+ "results": [
+  {
+   "model": "connectome",
+   "description": "FlyWire wiring, shipped scalars",
+   "n_instances": 1,
+   "n_neurons": 351,
+   "fitted_scalars": 11,
+   "sim": {
+    "all": {
+     "hit_rate": 1.0,
+     "fa_per_min": 1.8705869100567862,
+     "latency_ms_mean": 77.61717717882173,
+     "latency_ms_median": 69.80439232307867,
+     "side_correct": 0.9,
+     "side_correct_gf_readout": 0.89375,
+     "headon_side_zero": 0.95
+    },
+    "us_per_step": 297.48346634761,
+    "hit_rate_by_side": {
+     "left": 1.0,
+     "right": 1.0,
+     "head_on": 1.0,
+     "left_only": 1.0,
+     "right_only": 1.0
+    },
+    "12Hz": {
+     "hit_rate": 1.0,
+     "fa_per_min": 0.4690598210044145,
+     "latency_ms_mean": 96.77844453794263,
+     "latency_ms_median": 92.81894392899592,
+     "side_correct": 0.8375,
+     "side_correct_gf_readout": 0.825,
+     "headon_side_zero": 0.95
+    },
+    "28Hz": {
+     "hit_rate": 1.0,
+     "fa_per_min": 3.2636948585172654,
+     "latency_ms_mean": 58.45590981970086,
+     "latency_ms_median": 53.04208120081544,
+     "side_correct": 0.9625,
+     "side_correct_gf_readout": 0.9625,
+     "headon_side_zero": 0.95
+    },
+    "noise_normal": {
+     "hit_rate": 1.0,
+     "fa_per_min": 0.8418376836653868,
+     "latency_ms_mean": 79.33192859951654,
+     "latency_ms_median": 72.4343714710678,
+     "side_correct": 0.8875,
+     "side_correct_gf_readout": 0.875,
+     "headon_side_zero": 1.0
+    },
+    "noise_noisy": {
+     "hit_rate": 1.0,
+     "fa_per_min": 2.899156332843628,
+     "latency_ms_mean": 75.90242575812695,
+     "latency_ms_median": 65.94134349212754,
+     "side_correct": 0.9125,
+     "side_correct_gf_readout": 0.9125,
+     "headon_side_zero": 0.9
+    },
+    "fa_per_min_by_kind": {
+     "stop_short": 6.717601028604031,
+     "hover": 7.360799609764595,
+     "drift": 1.6752335703687207,
+     "retreat": 0.8385273268236609,
+     "noise": 0.0
+    },
+    "speed_curve": {
+     "0.15-0.3": {
+      "trigger_prob": 0.95,
+      "latency_ms": null,
+      "distance_cm_at_trigger": null
+     },
+     "0.3-0.5": {
+      "trigger_prob": 1.0,
+      "latency_ms": 102.66955335581432,
+      "distance_cm_at_trigger": 8.283719271423708
+     },
+     "0.5-0.8": {
+      "trigger_prob": 1.0,
+      "latency_ms": 67.92671881117485,
+      "distance_cm_at_trigger": 7.2463107128457525
+     },
+     "0.8-1.6": {
+      "trigger_prob": 1.0,
+      "latency_ms": 57.41003018565262,
+      "distance_cm_at_trigger": 5.472484943898931
+     }
+    }
+   },
+   "recording": {
+    "hand_usb": {
+     "hits": 5,
+     "events": 5,
+     "latency_ms_mean": 86.0,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 4,
+      "events": 4
+     },
+     "right": {
+      "hits": 1,
+      "events": 1
+     },
+     "left_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "right_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "side_matches_leading_channel": 5,
+     "events_with_leading_channel": 5,
+     "detail": [
+      {
+       "t_gt": 1.59,
+       "t_end": 2.64,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 28.0,
+       "hit": true,
+       "latency_ms": 69.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 8.609,
+       "t_end": 10.54,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 32.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 11.145,
+       "t_end": 13.592,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 78.0,
+       "side": 1,
+       "extra_triggers": 1,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 15.344,
+       "t_end": 16.945,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 214.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 19.591,
+       "t_end": 20.653,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 50.0,
+       "min_right": 11.0,
+       "hit": true,
+       "latency_ms": 37.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      }
+     ]
+    },
+    "robot_run": {
+     "hits": 8,
+     "events": 9,
+     "latency_ms_mean": 87.13749999999999,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 2,
+      "events": 2
+     },
+     "right": {
+      "hits": 5,
+      "events": 6
+     },
+     "left_only": {
+      "hits": 2,
+      "events": 2
+     },
+     "right_only": {
+      "hits": 4,
+      "events": 4
+     },
+     "side_matches_leading_channel": 7,
+     "events_with_leading_channel": 7,
+     "detail": [
+      {
+       "t_gt": 3.3858,
+       "t_end": 5.0669,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3361.0,
+       "min_right": 14.0,
+       "hit": true,
+       "latency_ms": 80.3,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 7.5162,
+       "t_end": 8.8858,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 3024.0,
+       "hit": true,
+       "latency_ms": 0.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 11.3244,
+       "t_end": 13.0828,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3379.0,
+       "min_right": 109.0,
+       "hit": true,
+       "latency_ms": 177.6,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 15.8353,
+       "t_end": 17.4674,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3357.0,
+       "min_right": 107.0,
+       "hit": true,
+       "latency_ms": 73.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 20.107,
+       "t_end": 21.7835,
+       "approach": 1.0,
+       "leading_side": 0,
+       "min_left": 202.0,
+       "min_right": 716.0,
+       "hit": true,
+       "latency_ms": 32.2,
+       "side": 0,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 26.8098,
+       "t_end": 28.4845,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3358.0,
+       "min_right": 45.0,
+       "hit": true,
+       "latency_ms": 67.1,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 29.3468,
+       "t_end": 30.8548,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 684.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 103.7,
+       "side": -1,
+       "extra_triggers": 1,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 31.3867,
+       "t_end": 33.0905,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 2571.0,
+       "min_right": 77.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 40.6474,
+       "t_end": 41.8044,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 11.0,
+       "min_right": 3120.0,
+       "hit": true,
+       "latency_ms": 163.2,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      }
+     ]
+    }
+   },
+   "structure": {
+    "LC4->GF_L_ipsi": 329,
+    "LC4->GF_L_contra": 0,
+    "LPLC2->GF_L_ipsi": 305,
+    "LPLC2->GF_L_contra": 0,
+    "LC4->GF_R_ipsi": 428,
+    "LC4->GF_R_contra": 0,
+    "LPLC2->GF_R_ipsi": 539,
+    "LPLC2->GF_R_contra": 0,
+    "two_step_via_interneurons_exc": 1224.58,
+    "two_step_via_interneurons_inh": 2230.4700000000003,
+    "LC4_to_LPLC2_ratio_at_GF": 0.8969194312796208,
+    "ipsilateral_fraction": 1.0
+   }
+  },
+  {
+   "model": "rewired",
+   "description": "degree-preserving rewire within type blocks, x5, connectome scalars",
+   "n_instances": 5,
+   "n_neurons": 351,
+   "fitted_scalars": 11,
+   "sim": {
+    "all": {
+     "hit_rate": 0.7110000000000001,
+     "hit_rate_sd": 0.03228776858192588,
+     "fa_per_min": 1.4777636589448613,
+     "fa_per_min_sd": 0.13872643812344085,
+     "latency_ms_mean": 89.55718835831593,
+     "latency_ms_mean_sd": 4.36108291453194,
+     "latency_ms_median": 77.21628901594708,
+     "latency_ms_median_sd": 4.145341121289506,
+     "side_correct": 0.768792143326416,
+     "side_correct_sd": 0.021277868383471968,
+     "side_correct_gf_readout": 0.4760539611859051,
+     "side_correct_gf_readout_sd": 0.13333012912112915,
+     "headon_side_zero": 0.915,
+     "headon_side_zero_sd": 0.022360679774997873
+    },
+    "us_per_step": 326.31900903018624,
+    "us_per_step_sd": 15.304452095662485,
+    "hit_rate_by_side": {
+     "left": 1.0,
+     "left_sd": 0.0,
+     "right": 1.0,
+     "right_sd": 0.0,
+     "head_on": 1.0,
+     "head_on_sd": 0.0,
+     "left_only": 0.0,
+     "left_only_sd": 0.0,
+     "right_only": 0.555,
+     "right_only_sd": 0.1614388429096294
+    },
+    "12Hz": {
+     "hit_rate": 0.65,
+     "hit_rate_sd": 0.06041522986797286,
+     "fa_per_min": 0.43153503532406134,
+     "fa_per_min_sd": 0.05138292895669069,
+     "latency_ms_mean": 108.67748506472212,
+     "latency_ms_mean_sd": 4.196035194441959,
+     "latency_ms_median": 104.24922057784595,
+     "latency_ms_median_sd": 5.718908852596591,
+     "side_correct": 0.5326266985622333,
+     "side_correct_sd": 0.055952789469513056,
+     "side_correct_gf_readout": 0.3561224579016633,
+     "side_correct_gf_readout_sd": 0.18390262787767406,
+     "headon_side_zero": 0.8800000000000001,
+     "headon_side_zero_sd": 0.04472135954999579
+    },
+    "28Hz": {
+     "hit_rate": 0.772,
+     "hit_rate_sd": 0.017888543819998333,
+     "fa_per_min": 2.517707462284748,
+     "fa_per_min_sd": 0.23773776814274256,
+     "latency_ms_mean": 73.58386071826826,
+     "latency_ms_mean_sd": 4.215910496667294,
+     "latency_ms_median": 58.72954496661843,
+     "latency_ms_median_sd": 2.9828830013179637,
+     "side_correct": 0.9510207336523125,
+     "side_correct_sd": 0.01925374150569723,
+     "side_correct_gf_readout": 0.5680223285486443,
+     "side_correct_gf_readout_sd": 0.10094802437906468,
+     "headon_side_zero": 0.95,
+     "headon_side_zero_sd": 0.0
+    },
+    "noise_normal": {
+     "hit_rate": 0.712,
+     "hit_rate_sd": 0.037682887362833546,
+     "fa_per_min": 0.6734701469323094,
+     "fa_per_min_sd": 0.07825910430587414,
+     "latency_ms_mean": 90.44400291621005,
+     "latency_ms_mean_sd": 5.237337589915744,
+     "latency_ms_median": 81.93964255616126,
+     "latency_ms_median_sd": 5.212980213835661,
+     "side_correct": 0.7845894736566346,
+     "side_correct_sd": 0.015710331399676664,
+     "side_correct_gf_readout": 0.4621396633422945,
+     "side_correct_gf_readout_sd": 0.14314305060966143,
+     "headon_side_zero": 0.9700000000000001,
+     "headon_side_zero_sd": 0.027386127875258334
+    },
+    "noise_noisy": {
+     "hit_rate": 0.71,
+     "hit_rate_sd": 0.0273861278752583,
+     "fa_per_min": 2.281916597464017,
+     "fa_per_min_sd": 0.2048946220945046,
+     "latency_ms_mean": 88.66289572537335,
+     "latency_ms_mean_sd": 3.5301447440857867,
+     "latency_ms_median": 70.48188322856656,
+     "latency_ms_median_sd": 4.31311197694203,
+     "side_correct": 0.7529678444804495,
+     "side_correct_sd": 0.02953073011965369,
+     "side_correct_gf_readout": 0.4897407704340478,
+     "side_correct_gf_readout_sd": 0.12532966037635426,
+     "headon_side_zero": 0.86,
+     "headon_side_zero_sd": 0.022360679774997918
+    },
+    "fa_per_min_by_kind": {
+     "stop_short": 8.285041268611637,
+     "stop_short_sd": 0.9198454039215833,
+     "hover": 4.014981605326144,
+     "hover_sd": 0.5290202765212433,
+     "drift": 1.273177513480228,
+     "drift_sd": 0.5505379293485199,
+     "retreat": 0.8385273268236609,
+     "retreat_sd": 0.0,
+     "noise": 0.0,
+     "noise_sd": 0.0
+    },
+    "speed_curve": {
+     "0.15-0.3": {
+      "trigger_prob": 0.5700000000000001,
+      "trigger_prob_sd": 0.030103986446980754,
+      "latency_ms": null,
+      "distance_cm_at_trigger": null
+     },
+     "0.3-0.5": {
+      "trigger_prob": 0.6725000000000001,
+      "trigger_prob_sd": 0.027099354235848496,
+      "latency_ms": 128.41976771048834,
+      "latency_ms_sd": 5.921781032015675,
+      "distance_cm_at_trigger": 7.272650969765978,
+      "distance_cm_at_trigger_sd": 0.24797143571333263
+     },
+     "0.5-0.8": {
+      "trigger_prob": 0.7200000000000001,
+      "trigger_prob_sd": 0.044721359549995836,
+      "latency_ms": 81.15425699052214,
+      "latency_ms_sd": 5.786162564834414,
+      "distance_cm_at_trigger": 6.351029448015889,
+      "distance_cm_at_trigger_sd": 0.3979637922688629
+     },
+     "0.8-1.6": {
+      "trigger_prob": 0.745,
+      "trigger_prob_sd": 0.042019340784929055,
+      "latency_ms": 58.428130743540066,
+      "latency_ms_sd": 3.2897132537293605,
+      "distance_cm_at_trigger": 5.33997113471386,
+      "distance_cm_at_trigger_sd": 0.27925735640415705
+     }
+    }
+   },
+   "recording": {
+    "hand_usb": {
+     "hits": 5.0,
+     "hits_sd": 0.0,
+     "events": 5.0,
+     "events_sd": 0.0,
+     "latency_ms_mean": 121.6,
+     "latency_ms_mean_sd": 10.256705123966467,
+     "false_alarms": 0.0,
+     "false_alarms_sd": 0.0,
+     "fa_per_min": 0.0,
+     "fa_per_min_sd": 0.0,
+     "left": {
+      "hits": 4.0,
+      "hits_sd": 0.0,
+      "events": 4.0,
+      "events_sd": 0.0
+     },
+     "right": {
+      "hits": 1.0,
+      "hits_sd": 0.0,
+      "events": 1.0,
+      "events_sd": 0.0
+     },
+     "left_only": {
+      "hits": 0.0,
+      "hits_sd": 0.0,
+      "events": 0.0,
+      "events_sd": 0.0
+     },
+     "right_only": {
+      "hits": 0.0,
+      "hits_sd": 0.0,
+      "events": 0.0,
+      "events_sd": 0.0
+     },
+     "side_matches_leading_channel": 4.6,
+     "side_matches_leading_channel_sd": 0.5477225575051662,
+     "events_with_leading_channel": 5.0,
+     "events_with_leading_channel_sd": 0.0,
+     "detail": [
+      {
+       "t_gt": 1.59,
+       "t_end": 2.64,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 28.0,
+       "hit": true,
+       "latency_ms": 207.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 8.609,
+       "t_end": 10.54,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 69.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 11.145,
+       "t_end": 13.592,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 78.0,
+       "side": 1,
+       "extra_triggers": 1,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 15.344,
+       "t_end": 16.945,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 251.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 19.591,
+       "t_end": 20.653,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 50.0,
+       "min_right": 11.0,
+       "hit": true,
+       "latency_ms": 77.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      }
+     ]
+    },
+    "robot_run": {
+     "hits": 6.2,
+     "hits_sd": 0.8366600265340756,
+     "events": 9.0,
+     "events_sd": 0.0,
+     "latency_ms_mean": 86.57038095238096,
+     "latency_ms_mean_sd": 13.353960738009166,
+     "false_alarms": 0.0,
+     "false_alarms_sd": 0.0,
+     "fa_per_min": 0.0,
+     "fa_per_min_sd": 0.0,
+     "left": {
+      "hits": 0.0,
+      "hits_sd": 0.0,
+      "events": 2.0,
+      "events_sd": 0.0
+     },
+     "right": {
+      "hits": 5.2,
+      "hits_sd": 0.8366600265340756,
+      "events": 6.0,
+      "events_sd": 0.0
+     },
+     "left_only": {
+      "hits": 0.0,
+      "hits_sd": 0.0,
+      "events": 2.0,
+      "events_sd": 0.0
+     },
+     "right_only": {
+      "hits": 3.2,
+      "hits_sd": 0.8366600265340756,
+      "events": 4.0,
+      "events_sd": 0.0
+     },
+     "side_matches_leading_channel": 5.2,
+     "side_matches_leading_channel_sd": 0.8366600265340756,
+     "events_with_leading_channel": 5.2,
+     "events_with_leading_channel_sd": 0.8366600265340756,
+     "detail": [
+      {
+       "t_gt": 3.3858,
+       "t_end": 5.0669,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3361.0,
+       "min_right": 14.0,
+       "hit": true,
+       "latency_ms": 114.4,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 7.5162,
+       "t_end": 8.8858,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 3024.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 11.3244,
+       "t_end": 13.0828,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3379.0,
+       "min_right": 109.0,
+       "hit": true,
+       "latency_ms": 215.2,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 15.8353,
+       "t_end": 17.4674,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3357.0,
+       "min_right": 107.0,
+       "hit": true,
+       "latency_ms": 110.3,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 20.107,
+       "t_end": 21.7835,
+       "approach": 1.0,
+       "leading_side": 0,
+       "min_left": 202.0,
+       "min_right": 716.0,
+       "hit": true,
+       "latency_ms": 32.2,
+       "side": 0,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 26.8098,
+       "t_end": 28.4845,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3358.0,
+       "min_right": 45.0,
+       "hit": true,
+       "latency_ms": 104.1,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 29.3468,
+       "t_end": 30.8548,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 684.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 70.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 31.3867,
+       "t_end": 33.0905,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 2571.0,
+       "min_right": 77.0,
+       "hit": true,
+       "latency_ms": 108.6,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 40.6474,
+       "t_end": 41.8044,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 11.0,
+       "min_right": 3120.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      }
+     ]
+    }
+   },
+   "structure": {
+    "LC4->GF_L_ipsi": 161.0,
+    "LC4->GF_L_ipsi_sd": 29.16333314283537,
+    "LC4->GF_L_contra": 176.2,
+    "LC4->GF_L_contra_sd": 23.402991261802413,
+    "LPLC2->GF_L_ipsi": 116.8,
+    "LPLC2->GF_L_ipsi_sd": 26.47073856166465,
+    "LPLC2->GF_L_contra": 206.0,
+    "LPLC2->GF_L_contra_sd": 26.89795531262553,
+    "LC4->GF_R_ipsi": 251.8,
+    "LC4->GF_R_ipsi_sd": 23.402991261802413,
+    "LC4->GF_R_contra": 168.0,
+    "LC4->GF_R_contra_sd": 29.16333314283537,
+    "LPLC2->GF_R_ipsi": 333.0,
+    "LPLC2->GF_R_ipsi_sd": 26.89795531262553,
+    "LPLC2->GF_R_contra": 188.2,
+    "LPLC2->GF_R_contra_sd": 26.470738561664653,
+    "two_step_via_interneurons_exc": 909.234,
+    "two_step_via_interneurons_exc_sd": 20.259974827230145,
+    "two_step_via_interneurons_inh": 1890.042,
+    "two_step_via_interneurons_inh_sd": 23.41915284548118,
+    "LC4_to_LPLC2_ratio_at_GF": 0.8969194312796208,
+    "LC4_to_LPLC2_ratio_at_GF_sd": 0.0,
+    "ipsilateral_fraction": 0.538788257339163,
+    "ipsilateral_fraction_sd": 0.024084350800339212
+   }
+  },
+  {
+   "model": "random",
+   "description": "random graph, same size/density/sign ratio, x3, connectome scalars",
+   "n_instances": 3,
+   "n_neurons": 351,
+   "fitted_scalars": 11,
+   "sim": {
+    "all": {
+     "hit_rate": 0.0,
+     "hit_rate_sd": 0.0,
+     "fa_per_min": 0.0,
+     "fa_per_min_sd": 0.0,
+     "latency_ms_mean": null,
+     "latency_ms_median": null,
+     "side_correct": null,
+     "side_correct_gf_readout": null,
+     "headon_side_zero": null
+    },
+    "us_per_step": 311.06644112566374,
+    "us_per_step_sd": 26.24510634439457,
+    "hit_rate_by_side": {
+     "left": 0.0,
+     "left_sd": 0.0,
+     "right": 0.0,
+     "right_sd": 0.0,
+     "head_on": 0.0,
+     "head_on_sd": 0.0,
+     "left_only": 0.0,
+     "left_only_sd": 0.0,
+     "right_only": 0.0,
+     "right_only_sd": 0.0
+    },
+    "12Hz": {
+     "hit_rate": 0.0,
+     "hit_rate_sd": 0.0,
+     "fa_per_min": 0.0,
+     "fa_per_min_sd": 0.0,
+     "latency_ms_mean": null,
+     "latency_ms_median": null,
+     "side_correct": null,
+     "side_correct_gf_readout": null,
+     "headon_side_zero": null
+    },
+    "28Hz": {
+     "hit_rate": 0.0,
+     "hit_rate_sd": 0.0,
+     "fa_per_min": 0.0,
+     "fa_per_min_sd": 0.0,
+     "latency_ms_mean": null,
+     "latency_ms_median": null,
+     "side_correct": null,
+     "side_correct_gf_readout": null,
+     "headon_side_zero": null
+    },
+    "noise_normal": {
+     "hit_rate": 0.0,
+     "hit_rate_sd": 0.0,
+     "fa_per_min": 0.0,
+     "fa_per_min_sd": 0.0,
+     "latency_ms_mean": null,
+     "latency_ms_median": null,
+     "side_correct": null,
+     "side_correct_gf_readout": null,
+     "headon_side_zero": null
+    },
+    "noise_noisy": {
+     "hit_rate": 0.0,
+     "hit_rate_sd": 0.0,
+     "fa_per_min": 0.0,
+     "fa_per_min_sd": 0.0,
+     "latency_ms_mean": null,
+     "latency_ms_median": null,
+     "side_correct": null,
+     "side_correct_gf_readout": null,
+     "headon_side_zero": null
+    },
+    "fa_per_min_by_kind": {
+     "stop_short": 0.0,
+     "stop_short_sd": 0.0,
+     "hover": 0.0,
+     "hover_sd": 0.0,
+     "drift": 0.0,
+     "drift_sd": 0.0,
+     "retreat": 0.0,
+     "retreat_sd": 0.0,
+     "noise": 0.0,
+     "noise_sd": 0.0
+    },
+    "speed_curve": {
+     "0.15-0.3": {
+      "trigger_prob": 0.0,
+      "trigger_prob_sd": 0.0,
+      "latency_ms": null,
+      "distance_cm_at_trigger": null
+     },
+     "0.3-0.5": {
+      "trigger_prob": 0.0,
+      "trigger_prob_sd": 0.0,
+      "latency_ms": null,
+      "distance_cm_at_trigger": null
+     },
+     "0.5-0.8": {
+      "trigger_prob": 0.0,
+      "trigger_prob_sd": 0.0,
+      "latency_ms": null,
+      "distance_cm_at_trigger": null
+     },
+     "0.8-1.6": {
+      "trigger_prob": 0.0,
+      "trigger_prob_sd": 0.0,
+      "latency_ms": null,
+      "distance_cm_at_trigger": null
+     }
+    }
+   },
+   "recording": {
+    "hand_usb": {
+     "hits": 0.0,
+     "hits_sd": 0.0,
+     "events": 5.0,
+     "events_sd": 0.0,
+     "latency_ms_mean": null,
+     "false_alarms": 0.0,
+     "false_alarms_sd": 0.0,
+     "fa_per_min": 0.0,
+     "fa_per_min_sd": 0.0,
+     "left": {
+      "hits": 0.0,
+      "hits_sd": 0.0,
+      "events": 4.0,
+      "events_sd": 0.0
+     },
+     "right": {
+      "hits": 0.0,
+      "hits_sd": 0.0,
+      "events": 1.0,
+      "events_sd": 0.0
+     },
+     "left_only": {
+      "hits": 0.0,
+      "hits_sd": 0.0,
+      "events": 0.0,
+      "events_sd": 0.0
+     },
+     "right_only": {
+      "hits": 0.0,
+      "hits_sd": 0.0,
+      "events": 0.0,
+      "events_sd": 0.0
+     },
+     "side_matches_leading_channel": 0.0,
+     "side_matches_leading_channel_sd": 0.0,
+     "events_with_leading_channel": 0.0,
+     "events_with_leading_channel_sd": 0.0,
+     "detail": [
+      {
+       "t_gt": 1.59,
+       "t_end": 2.64,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 28.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 8.609,
+       "t_end": 10.54,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 11.145,
+       "t_end": 13.592,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 15.344,
+       "t_end": 16.945,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 19.591,
+       "t_end": 20.653,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 50.0,
+       "min_right": 11.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      }
+     ]
+    },
+    "robot_run": {
+     "hits": 0.0,
+     "hits_sd": 0.0,
+     "events": 9.0,
+     "events_sd": 0.0,
+     "latency_ms_mean": null,
+     "false_alarms": 0.0,
+     "false_alarms_sd": 0.0,
+     "fa_per_min": 0.0,
+     "fa_per_min_sd": 0.0,
+     "left": {
+      "hits": 0.0,
+      "hits_sd": 0.0,
+      "events": 2.0,
+      "events_sd": 0.0
+     },
+     "right": {
+      "hits": 0.0,
+      "hits_sd": 0.0,
+      "events": 6.0,
+      "events_sd": 0.0
+     },
+     "left_only": {
+      "hits": 0.0,
+      "hits_sd": 0.0,
+      "events": 2.0,
+      "events_sd": 0.0
+     },
+     "right_only": {
+      "hits": 0.0,
+      "hits_sd": 0.0,
+      "events": 4.0,
+      "events_sd": 0.0
+     },
+     "side_matches_leading_channel": 0.0,
+     "side_matches_leading_channel_sd": 0.0,
+     "events_with_leading_channel": 0.0,
+     "events_with_leading_channel_sd": 0.0,
+     "detail": [
+      {
+       "t_gt": 3.3858,
+       "t_end": 5.0669,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3361.0,
+       "min_right": 14.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 7.5162,
+       "t_end": 8.8858,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 3024.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 11.3244,
+       "t_end": 13.0828,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3379.0,
+       "min_right": 109.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 15.8353,
+       "t_end": 17.4674,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3357.0,
+       "min_right": 107.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 20.107,
+       "t_end": 21.7835,
+       "approach": 1.0,
+       "leading_side": 0,
+       "min_left": 202.0,
+       "min_right": 716.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 26.8098,
+       "t_end": 28.4845,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3358.0,
+       "min_right": 45.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 29.3468,
+       "t_end": 30.8548,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 684.0,
+       "min_right": 0.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 31.3867,
+       "t_end": 33.0905,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 2571.0,
+       "min_right": 77.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 40.6474,
+       "t_end": 41.8044,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 11.0,
+       "min_right": 3120.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      }
+     ]
+    }
+   },
+   "structure": {
+    "LC4->GF_L_ipsi": 3.3333333333333335,
+    "LC4->GF_L_ipsi_sd": 5.773502691896257,
+    "LC4->GF_L_contra": 0.0,
+    "LC4->GF_L_contra_sd": 0.0,
+    "LPLC2->GF_L_ipsi": 26.333333333333332,
+    "LPLC2->GF_L_ipsi_sd": 20.5993527406405,
+    "LPLC2->GF_L_contra": 6.333333333333333,
+    "LPLC2->GF_L_contra_sd": 5.507570547286102,
+    "LC4->GF_R_ipsi": 3.0,
+    "LC4->GF_R_ipsi_sd": 5.196152422706632,
+    "LC4->GF_R_contra": 12.333333333333334,
+    "LC4->GF_R_contra_sd": 3.214550253664318,
+    "LPLC2->GF_R_ipsi": 18.0,
+    "LPLC2->GF_R_ipsi_sd": 21.656407827707714,
+    "LPLC2->GF_R_contra": 18.0,
+    "LPLC2->GF_R_contra_sd": 11.135528725660043,
+    "two_step_via_interneurons_exc": 0.5366666666666666,
+    "two_step_via_interneurons_exc_sd": 0.9295339333952973,
+    "two_step_via_interneurons_inh": 4.523333333333333,
+    "two_step_via_interneurons_inh_sd": 1.3984396066092137,
+    "LC4_to_LPLC2_ratio_at_GF": 0.3406286295005807,
+    "LC4_to_LPLC2_ratio_at_GF_sd": 0.19998358160585727,
+    "ipsilateral_fraction": 0.5182031023615182,
+    "ipsilateral_fraction_sd": 0.21328125305695816
+   }
+  },
+  {
+   "model": "no_interneurons",
+   "description": "ablation: interneurons removed, connectome scalars",
+   "n_instances": 1,
+   "n_neurons": 351,
+   "fitted_scalars": 11,
+   "sim": {
+    "all": {
+     "hit_rate": 1.0,
+     "fa_per_min": 5.985878112181716,
+     "latency_ms_mean": 65.29342395879792,
+     "latency_ms_median": 57.96454269438212,
+     "side_correct": 0.91875,
+     "side_correct_gf_readout": 0.875,
+     "headon_side_zero": 0.875
+    },
+    "us_per_step": 276.91622565644246,
+    "hit_rate_by_side": {
+     "left": 1.0,
+     "right": 1.0,
+     "head_on": 1.0,
+     "left_only": 1.0,
+     "right_only": 1.0
+    },
+    "12Hz": {
+     "hit_rate": 1.0,
+     "fa_per_min": 4.878222138445911,
+     "latency_ms_mean": 81.22772454557487,
+     "latency_ms_median": 80.19143901396797,
+     "side_correct": 0.8625,
+     "side_correct_gf_readout": 0.7875,
+     "headon_side_zero": 0.85
+    },
+    "28Hz": {
+     "hit_rate": 1.0,
+     "fa_per_min": 7.086880264208919,
+     "latency_ms_mean": 49.359123372020946,
+     "latency_ms_median": 46.56099904941369,
+     "side_correct": 0.975,
+     "side_correct_gf_readout": 0.9625,
+     "headon_side_zero": 0.9
+    },
+    "noise_normal": {
+     "hit_rate": 1.0,
+     "fa_per_min": 6.921776510137624,
+     "latency_ms_mean": 66.44697347286598,
+     "latency_ms_median": 57.28777619428105,
+     "side_correct": 0.9125,
+     "side_correct_gf_readout": 0.8875,
+     "headon_side_zero": 0.95
+    },
+    "noise_noisy": {
+     "hit_rate": 1.0,
+     "fa_per_min": 5.0501432894695455,
+     "latency_ms_mean": 64.13987444472983,
+     "latency_ms_median": 60.46980466850849,
+     "side_correct": 0.925,
+     "side_correct_gf_readout": 0.8625,
+     "headon_side_zero": 0.8
+    },
+    "fa_per_min_by_kind": {
+     "stop_short": 9.516601457189044,
+     "hover": 29.10861663861454,
+     "drift": 8.04112113776986,
+     "retreat": 0.0,
+     "noise": 0.0
+    },
+    "speed_curve": {
+     "0.15-0.3": {
+      "trigger_prob": 1.0,
+      "latency_ms": null,
+      "distance_cm_at_trigger": null
+     },
+     "0.3-0.5": {
+      "trigger_prob": 1.0,
+      "latency_ms": 84.96515931226466,
+      "distance_cm_at_trigger": 8.878786067682418
+     },
+     "0.5-0.8": {
+      "trigger_prob": 1.0,
+      "latency_ms": 57.87242110303358,
+      "distance_cm_at_trigger": 7.948930522787646
+     },
+     "0.8-1.6": {
+      "trigger_prob": 1.0,
+      "latency_ms": 49.33219003321334,
+      "distance_cm_at_trigger": 6.28477037950675
+     }
+    }
+   },
+   "recording": {
+    "hand_usb": {
+     "hits": 5,
+     "events": 5,
+     "latency_ms_mean": 79.2,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 4,
+      "events": 4
+     },
+     "right": {
+      "hits": 1,
+      "events": 1
+     },
+     "left_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "right_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "side_matches_leading_channel": 5,
+     "events_with_leading_channel": 5,
+     "detail": [
+      {
+       "t_gt": 1.59,
+       "t_end": 2.64,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 28.0,
+       "hit": true,
+       "latency_ms": 35.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 8.609,
+       "t_end": 10.54,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 32.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 11.145,
+       "t_end": 13.592,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 78.0,
+       "side": 1,
+       "extra_triggers": 1,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 15.344,
+       "t_end": 16.945,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 214.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 19.591,
+       "t_end": 20.653,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 50.0,
+       "min_right": 11.0,
+       "hit": true,
+       "latency_ms": 37.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      }
+     ]
+    },
+    "robot_run": {
+     "hits": 9,
+     "events": 9,
+     "latency_ms_mean": 81.65555555555557,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 2,
+      "events": 2
+     },
+     "right": {
+      "hits": 6,
+      "events": 6
+     },
+     "left_only": {
+      "hits": 2,
+      "events": 2
+     },
+     "right_only": {
+      "hits": 4,
+      "events": 4
+     },
+     "side_matches_leading_channel": 8,
+     "events_with_leading_channel": 8,
+     "detail": [
+      {
+       "t_gt": 3.3858,
+       "t_end": 5.0669,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3361.0,
+       "min_right": 14.0,
+       "hit": true,
+       "latency_ms": 80.3,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 7.5162,
+       "t_end": 8.8858,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 3024.0,
+       "hit": true,
+       "latency_ms": 0.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 11.3244,
+       "t_end": 13.0828,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3379.0,
+       "min_right": 109.0,
+       "hit": true,
+       "latency_ms": 140.5,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 15.8353,
+       "t_end": 17.4674,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3357.0,
+       "min_right": 107.0,
+       "hit": true,
+       "latency_ms": 73.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 20.107,
+       "t_end": 21.7835,
+       "approach": 1.0,
+       "leading_side": 0,
+       "min_left": 202.0,
+       "min_right": 716.0,
+       "hit": true,
+       "latency_ms": 32.2,
+       "side": 0,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 26.8098,
+       "t_end": 28.4845,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3358.0,
+       "min_right": 45.0,
+       "hit": true,
+       "latency_ms": 67.1,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 29.3468,
+       "t_end": 30.8548,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 684.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 70.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 31.3867,
+       "t_end": 33.0905,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 2571.0,
+       "min_right": 77.0,
+       "hit": true,
+       "latency_ms": 108.6,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 40.6474,
+       "t_end": 41.8044,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 11.0,
+       "min_right": 3120.0,
+       "hit": true,
+       "latency_ms": 163.2,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      }
+     ]
+    }
+   },
+   "structure": {
+    "LC4->GF_L_ipsi": 329,
+    "LC4->GF_L_contra": 0,
+    "LPLC2->GF_L_ipsi": 305,
+    "LPLC2->GF_L_contra": 0,
+    "LC4->GF_R_ipsi": 428,
+    "LC4->GF_R_contra": 0,
+    "LPLC2->GF_R_ipsi": 539,
+    "LPLC2->GF_R_contra": 0,
+    "two_step_via_interneurons_exc": 0.0,
+    "two_step_via_interneurons_inh": -0.0,
+    "LC4_to_LPLC2_ratio_at_GF": 0.8969194312796208,
+    "ipsilateral_fraction": 1.0
+   }
+  },
+  {
+   "model": "no_interneurons_refit",
+   "description": "no_interneurons with its own fitted scalars",
+   "n_instances": 1,
+   "n_neurons": 351,
+   "fitted_scalars": 11,
+   "sim": {
+    "all": {
+     "hit_rate": 1.0,
+     "fa_per_min": 2.1044102738138846,
+     "latency_ms_mean": 67.56906350748056,
+     "latency_ms_median": 57.55750149913841,
+     "side_correct": 0.95,
+     "side_correct_gf_readout": 0.85625,
+     "headon_side_zero": 0.775
+    },
+    "us_per_step": 271.15871818594155,
+    "hit_rate_by_side": {
+     "left": 1.0,
+     "right": 1.0,
+     "head_on": 1.0,
+     "left_only": 1.0,
+     "right_only": 1.0
+    },
+    "12Hz": {
+     "hit_rate": 1.0,
+     "fa_per_min": 1.782427319816775,
+     "latency_ms_mean": 87.60595924534157,
+     "latency_ms_median": 88.9058980989561,
+     "side_correct": 0.925,
+     "side_correct_gf_readout": 0.775,
+     "headon_side_zero": 0.75
+    },
+    "28Hz": {
+     "hit_rate": 1.0,
+     "fa_per_min": 2.4244590377556827,
+     "latency_ms_mean": 47.53216776961956,
+     "latency_ms_median": 44.22274841505414,
+     "side_correct": 0.975,
+     "side_correct_gf_readout": 0.9375,
+     "headon_side_zero": 0.8
+    },
+    "noise_normal": {
+     "hit_rate": 1.0,
+     "fa_per_min": 1.870750408145304,
+     "latency_ms_mean": 69.45934834132396,
+     "latency_ms_median": 62.57411954601622,
+     "side_correct": 0.9375,
+     "side_correct_gf_readout": 0.85,
+     "headon_side_zero": 0.85
+    },
+    "noise_noisy": {
+     "hit_rate": 1.0,
+     "fa_per_min": 2.338029300680345,
+     "latency_ms_mean": 65.67877867363715,
+     "latency_ms_median": 52.94738494079931,
+     "side_correct": 0.9625,
+     "side_correct_gf_readout": 0.8625,
+     "headon_side_zero": 0.7
+    },
+    "fa_per_min_by_kind": {
+     "stop_short": 8.956801371472041,
+     "hover": 1.6729090022192263,
+     "drift": 8.04112113776986,
+     "retreat": 0.0,
+     "noise": 0.0
+    },
+    "speed_curve": {
+     "0.15-0.3": {
+      "trigger_prob": 1.0,
+      "latency_ms": null,
+      "distance_cm_at_trigger": null
+     },
+     "0.3-0.5": {
+      "trigger_prob": 1.0,
+      "latency_ms": 91.40069835482522,
+      "distance_cm_at_trigger": 8.688412731557476
+     },
+     "0.5-0.8": {
+      "trigger_prob": 1.0,
+      "latency_ms": 58.00533603115387,
+      "distance_cm_at_trigger": 7.939626477819225
+     },
+     "0.8-1.6": {
+      "trigger_prob": 1.0,
+      "latency_ms": 48.51929239829924,
+      "distance_cm_at_trigger": 6.455348834439268
+     }
+    }
+   },
+   "recording": {
+    "hand_usb": {
+     "hits": 5,
+     "events": 5,
+     "latency_ms_mean": 78.6,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 4,
+      "events": 4
+     },
+     "right": {
+      "hits": 1,
+      "events": 1
+     },
+     "left_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "right_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "side_matches_leading_channel": 5,
+     "events_with_leading_channel": 5,
+     "detail": [
+      {
+       "t_gt": 1.59,
+       "t_end": 2.64,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 28.0,
+       "hit": true,
+       "latency_ms": 69.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 8.609,
+       "t_end": 10.54,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 32.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 11.145,
+       "t_end": 13.592,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 78.0,
+       "side": 1,
+       "extra_triggers": 1,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 15.344,
+       "t_end": 16.945,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 214.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 19.591,
+       "t_end": 20.653,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 50.0,
+       "min_right": 11.0,
+       "hit": true,
+       "latency_ms": 0.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      }
+     ]
+    },
+    "robot_run": {
+     "hits": 9,
+     "events": 9,
+     "latency_ms_mean": 76.77777777777777,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 2,
+      "events": 2
+     },
+     "right": {
+      "hits": 6,
+      "events": 6
+     },
+     "left_only": {
+      "hits": 2,
+      "events": 2
+     },
+     "right_only": {
+      "hits": 4,
+      "events": 4
+     },
+     "side_matches_leading_channel": 8,
+     "events_with_leading_channel": 8,
+     "detail": [
+      {
+       "t_gt": 3.3858,
+       "t_end": 5.0669,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3361.0,
+       "min_right": 14.0,
+       "hit": true,
+       "latency_ms": 36.7,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 7.5162,
+       "t_end": 8.8858,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 3024.0,
+       "hit": true,
+       "latency_ms": 0.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 11.3244,
+       "t_end": 13.0828,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3379.0,
+       "min_right": 109.0,
+       "hit": true,
+       "latency_ms": 177.6,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 15.8353,
+       "t_end": 17.4674,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3357.0,
+       "min_right": 107.0,
+       "hit": true,
+       "latency_ms": 73.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 20.107,
+       "t_end": 21.7835,
+       "approach": 1.0,
+       "leading_side": 0,
+       "min_left": 202.0,
+       "min_right": 716.0,
+       "hit": true,
+       "latency_ms": 32.2,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 26.8098,
+       "t_end": 28.4845,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3358.0,
+       "min_right": 45.0,
+       "hit": true,
+       "latency_ms": 33.1,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 29.3468,
+       "t_end": 30.8548,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 684.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 70.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 31.3867,
+       "t_end": 33.0905,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 2571.0,
+       "min_right": 77.0,
+       "hit": true,
+       "latency_ms": 71.1,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 40.6474,
+       "t_end": 41.8044,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 11.0,
+       "min_right": 3120.0,
+       "hit": true,
+       "latency_ms": 197.3,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      }
+     ]
+    }
+   },
+   "structure": {
+    "LC4->GF_L_ipsi": 329,
+    "LC4->GF_L_contra": 0,
+    "LPLC2->GF_L_ipsi": 305,
+    "LPLC2->GF_L_contra": 0,
+    "LC4->GF_R_ipsi": 428,
+    "LC4->GF_R_contra": 0,
+    "LPLC2->GF_R_ipsi": 539,
+    "LPLC2->GF_R_contra": 0,
+    "two_step_via_interneurons_exc": 0.0,
+    "two_step_via_interneurons_inh": -0.0,
+    "LC4_to_LPLC2_ratio_at_GF": 0.8969194312796208,
+    "ipsilateral_fraction": 1.0
+   }
+  },
+  {
+   "model": "rewired_seed0_refit",
+   "description": "rewired_seed0 with its own fitted scalars",
+   "n_instances": 1,
+   "n_neurons": 351,
+   "fitted_scalars": 11,
+   "sim": {
+    "all": {
+     "hit_rate": 1.0,
+     "fa_per_min": 2.1511749465653045,
+     "latency_ms_mean": 65.89113398024031,
+     "latency_ms_median": 57.28777619428105,
+     "side_correct": 0.95,
+     "side_correct_gf_readout": 0.2,
+     "headon_side_zero": 0.75
+    },
+    "us_per_step": 277.58149627805165,
+    "hit_rate_by_side": {
+     "left": 1.0,
+     "right": 1.0,
+     "head_on": 1.0,
+     "left_only": 1.0,
+     "right_only": 1.0
+    },
+    "12Hz": {
+     "hit_rate": 1.0,
+     "fa_per_min": 1.688615355615892,
+     "latency_ms_mean": 87.60595924534157,
+     "latency_ms_median": 88.9058980989561,
+     "side_correct": 0.925,
+     "side_correct_gf_readout": 0.25,
+     "headon_side_zero": 0.75
+    },
+    "28Hz": {
+     "hit_rate": 1.0,
+     "fa_per_min": 2.6109558868138123,
+     "latency_ms_mean": 44.17630871513906,
+     "latency_ms_median": 42.66497405799518,
+     "side_correct": 0.975,
+     "side_correct_gf_readout": 0.15,
+     "headon_side_zero": 0.75
+    },
+    "noise_normal": {
+     "hit_rate": 1.0,
+     "fa_per_min": 1.7772128877380386,
+     "latency_ms_mean": 68.20001383035998,
+     "latency_ms_median": 59.84542948739191,
+     "side_correct": 0.9375,
+     "side_correct_gf_readout": 0.2375,
+     "headon_side_zero": 0.8
+    },
+    "noise_noisy": {
+     "hit_rate": 1.0,
+     "fa_per_min": 2.5250716447347727,
+     "latency_ms_mean": 63.58225413012064,
+     "latency_ms_median": 52.94738494079931,
+     "side_correct": 0.9625,
+     "side_correct_gf_readout": 0.1625,
+     "headon_side_zero": 0.7
+    },
+    "fa_per_min_by_kind": {
+     "stop_short": 8.956801371472041,
+     "hover": 2.0074908026630713,
+     "drift": 8.04112113776986,
+     "retreat": 0.0,
+     "noise": 0.0
+    },
+    "speed_curve": {
+     "0.15-0.3": {
+      "trigger_prob": 1.0,
+      "latency_ms": null,
+      "distance_cm_at_trigger": null
+     },
+     "0.3-0.5": {
+      "trigger_prob": 1.0,
+      "latency_ms": 87.69709835537962,
+      "distance_cm_at_trigger": 8.807518079230778
+     },
+     "0.5-0.8": {
+      "trigger_prob": 1.0,
+      "latency_ms": 57.02288839384382,
+      "distance_cm_at_trigger": 8.008397812430928
+     },
+     "0.8-1.6": {
+      "trigger_prob": 1.0,
+      "latency_ms": 48.51929239829924,
+      "distance_cm_at_trigger": 6.455348834439268
+     }
+    }
+   },
+   "recording": {
+    "hand_usb": {
+     "hits": 5,
+     "events": 5,
+     "latency_ms_mean": 78.6,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 4,
+      "events": 4
+     },
+     "right": {
+      "hits": 1,
+      "events": 1
+     },
+     "left_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "right_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "side_matches_leading_channel": 5,
+     "events_with_leading_channel": 5,
+     "detail": [
+      {
+       "t_gt": 1.59,
+       "t_end": 2.64,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 28.0,
+       "hit": true,
+       "latency_ms": 69.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 8.609,
+       "t_end": 10.54,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 32.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 11.145,
+       "t_end": 13.592,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 78.0,
+       "side": 1,
+       "extra_triggers": 1,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 15.344,
+       "t_end": 16.945,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 214.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 19.591,
+       "t_end": 20.653,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 50.0,
+       "min_right": 11.0,
+       "hit": true,
+       "latency_ms": 0.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      }
+     ]
+    },
+    "robot_run": {
+     "hits": 9,
+     "events": 9,
+     "latency_ms_mean": 76.77777777777777,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 2,
+      "events": 2
+     },
+     "right": {
+      "hits": 6,
+      "events": 6
+     },
+     "left_only": {
+      "hits": 2,
+      "events": 2
+     },
+     "right_only": {
+      "hits": 4,
+      "events": 4
+     },
+     "side_matches_leading_channel": 8,
+     "events_with_leading_channel": 8,
+     "detail": [
+      {
+       "t_gt": 3.3858,
+       "t_end": 5.0669,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3361.0,
+       "min_right": 14.0,
+       "hit": true,
+       "latency_ms": 36.7,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 7.5162,
+       "t_end": 8.8858,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 3024.0,
+       "hit": true,
+       "latency_ms": 0.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 11.3244,
+       "t_end": 13.0828,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3379.0,
+       "min_right": 109.0,
+       "hit": true,
+       "latency_ms": 177.6,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 15.8353,
+       "t_end": 17.4674,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3357.0,
+       "min_right": 107.0,
+       "hit": true,
+       "latency_ms": 73.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 20.107,
+       "t_end": 21.7835,
+       "approach": 1.0,
+       "leading_side": 0,
+       "min_left": 202.0,
+       "min_right": 716.0,
+       "hit": true,
+       "latency_ms": 32.2,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 26.8098,
+       "t_end": 28.4845,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3358.0,
+       "min_right": 45.0,
+       "hit": true,
+       "latency_ms": 33.1,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 29.3468,
+       "t_end": 30.8548,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 684.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 70.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 31.3867,
+       "t_end": 33.0905,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 2571.0,
+       "min_right": 77.0,
+       "hit": true,
+       "latency_ms": 71.1,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 40.6474,
+       "t_end": 41.8044,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 11.0,
+       "min_right": 3120.0,
+       "hit": true,
+       "latency_ms": 197.3,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      }
+     ]
+    }
+   },
+   "structure": {
+    "LC4->GF_L_ipsi": 176,
+    "LC4->GF_L_contra": 151,
+    "LPLC2->GF_L_ipsi": 130,
+    "LPLC2->GF_L_contra": 215,
+    "LC4->GF_R_ipsi": 277,
+    "LC4->GF_R_contra": 153,
+    "LPLC2->GF_R_ipsi": 324,
+    "LPLC2->GF_R_contra": 175,
+    "two_step_via_interneurons_exc": 931.92,
+    "two_step_via_interneurons_inh": 1915.94,
+    "LC4_to_LPLC2_ratio_at_GF": 0.8969194312796208,
+    "ipsilateral_fraction": 0.5665209244222361
+   }
+  },
+  {
+   "model": "random_seed0_refit",
+   "description": "random_seed0 with its own fitted scalars",
+   "n_instances": 1,
+   "n_neurons": 351,
+   "fitted_scalars": 11,
+   "sim": {
+    "all": {
+     "hit_rate": 0.76,
+     "fa_per_min": 0.28058803650851794,
+     "latency_ms_mean": 102.3728712207452,
+     "latency_ms_median": 92.16916480708647,
+     "side_correct": 0.375,
+     "side_correct_gf_readout": 0.0,
+     "headon_side_zero": 1.0
+    },
+    "us_per_step": 278.2351219230032,
+    "hit_rate_by_side": {
+     "left": 0.975,
+     "right": 1.0,
+     "head_on": 1.0,
+     "left_only": 0.825,
+     "right_only": 0.0
+    },
+    "12Hz": {
+     "hit_rate": 0.76,
+     "fa_per_min": 0.18762392840176578,
+     "latency_ms_mean": 116.295287074339,
+     "latency_ms_median": 111.45478295621035,
+     "side_correct": 0.32142857142857145,
+     "side_correct_gf_readout": 0.0,
+     "headon_side_zero": 1.0
+    },
+    "28Hz": {
+     "hit_rate": 0.76,
+     "fa_per_min": 0.3729936981162589,
+     "latency_ms_mean": 88.4504553671514,
+     "latency_ms_median": 75.96656101608168,
+     "side_correct": 0.42857142857142855,
+     "side_correct_gf_readout": 0.0,
+     "headon_side_zero": 1.0
+    },
+    "noise_normal": {
+     "hit_rate": 0.76,
+     "fa_per_min": 0.09353752040726519,
+     "latency_ms_mean": 103.37541643241407,
+     "latency_ms_median": 93.63216297605248,
+     "side_correct": 0.375,
+     "side_correct_gf_readout": 0.0,
+     "headon_side_zero": 1.0
+    },
+    "noise_noisy": {
+     "hit_rate": 0.76,
+     "fa_per_min": 0.46760586013606903,
+     "latency_ms_mean": 101.37032600907634,
+     "latency_ms_median": 86.22792241048816,
+     "side_correct": 0.375,
+     "side_correct_gf_readout": 0.0,
+     "headon_side_zero": 1.0
+    },
+    "fa_per_min_by_kind": {
+     "stop_short": 1.1196001714340051,
+     "hover": 1.3383272017753811,
+     "drift": 0.0,
+     "retreat": 0.0,
+     "noise": 0.0
+    },
+    "speed_curve": {
+     "0.15-0.3": {
+      "trigger_prob": 0.1625,
+      "latency_ms": null,
+      "distance_cm_at_trigger": null
+     },
+     "0.3-0.5": {
+      "trigger_prob": 0.7,
+      "latency_ms": 148.74302038235626,
+      "distance_cm_at_trigger": 6.488802285587389
+     },
+     "0.5-0.8": {
+      "trigger_prob": 0.8,
+      "latency_ms": 87.53682272362363,
+      "distance_cm_at_trigger": 5.926564940562496
+     },
+     "0.8-1.6": {
+      "trigger_prob": 0.8,
+      "latency_ms": 69.2170149528963,
+      "distance_cm_at_trigger": 4.369117174033196
+     }
+    }
+   },
+   "recording": {
+    "hand_usb": {
+     "hits": 5,
+     "events": 5,
+     "latency_ms_mean": 136.8,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 4,
+      "events": 4
+     },
+     "right": {
+      "hits": 1,
+      "events": 1
+     },
+     "left_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "right_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "side_matches_leading_channel": 2,
+     "events_with_leading_channel": 5,
+     "detail": [
+      {
+       "t_gt": 1.59,
+       "t_end": 2.64,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 28.0,
+       "hit": true,
+       "latency_ms": 102.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 8.609,
+       "t_end": 10.54,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 69.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 11.145,
+       "t_end": 13.592,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 113.0,
+       "side": 0,
+       "extra_triggers": 1,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 15.344,
+       "t_end": 16.945,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 251.0,
+       "side": 0,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 19.591,
+       "t_end": 20.653,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 50.0,
+       "min_right": 11.0,
+       "hit": true,
+       "latency_ms": 149.0,
+       "side": 0,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      }
+     ]
+    },
+    "robot_run": {
+     "hits": 4,
+     "events": 9,
+     "latency_ms_mean": 100.72500000000001,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 2,
+      "events": 2
+     },
+     "right": {
+      "hits": 1,
+      "events": 6
+     },
+     "left_only": {
+      "hits": 2,
+      "events": 2
+     },
+     "right_only": {
+      "hits": 0,
+      "events": 4
+     },
+     "side_matches_leading_channel": 2,
+     "events_with_leading_channel": 3,
+     "detail": [
+      {
+       "t_gt": 3.3858,
+       "t_end": 5.0669,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3361.0,
+       "min_right": 14.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 7.5162,
+       "t_end": 8.8858,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 3024.0,
+       "hit": true,
+       "latency_ms": 35.9,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 11.3244,
+       "t_end": 13.0828,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3379.0,
+       "min_right": 109.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 15.8353,
+       "t_end": 17.4674,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3357.0,
+       "min_right": 107.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 20.107,
+       "t_end": 21.7835,
+       "approach": 1.0,
+       "leading_side": 0,
+       "min_left": 202.0,
+       "min_right": 716.0,
+       "hit": true,
+       "latency_ms": 66.0,
+       "side": 0,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 26.8098,
+       "t_end": 28.4845,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3358.0,
+       "min_right": 45.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 29.3468,
+       "t_end": 30.8548,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 684.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 103.7,
+       "side": 0,
+       "extra_triggers": 1,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 31.3867,
+       "t_end": 33.0905,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 2571.0,
+       "min_right": 77.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 40.6474,
+       "t_end": 41.8044,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 11.0,
+       "min_right": 3120.0,
+       "hit": true,
+       "latency_ms": 197.3,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      }
+     ]
+    }
+   },
+   "structure": {
+    "LC4->GF_L_ipsi": 0,
+    "LC4->GF_L_contra": 0,
+    "LPLC2->GF_L_ipsi": 7,
+    "LPLC2->GF_L_contra": 10,
+    "LC4->GF_R_ipsi": 0,
+    "LC4->GF_R_contra": 16,
+    "LPLC2->GF_R_ipsi": 5,
+    "LPLC2->GF_R_contra": 6,
+    "two_step_via_interneurons_exc": 1.6099999999999999,
+    "two_step_via_interneurons_inh": 6.02,
+    "LC4_to_LPLC2_ratio_at_GF": 0.5714285714285714,
+    "ipsilateral_fraction": 0.2727272727272727
+   }
+  },
+  {
+   "model": "proximity_threshold",
+   "description": "baseline: max(prox) crosses a threshold",
+   "n_instances": 1,
+   "n_neurons": 0,
+   "fitted_scalars": 1,
+   "sim": {
+    "all": {
+     "hit_rate": 1.0,
+     "fa_per_min": 1.4497048552940095,
+     "latency_ms_mean": 125.37509417342677,
+     "latency_ms_median": 118.33912390350409,
+     "side_correct": 0.8875,
+     "side_correct_gf_readout": 0.8875,
+     "headon_side_zero": 1.0
+    },
+    "us_per_step": 2.2455289789224735,
+    "hit_rate_by_side": {
+     "left": 1.0,
+     "right": 1.0,
+     "head_on": 1.0,
+     "left_only": 1.0,
+     "right_only": 1.0
+    },
+    "12Hz": {
+     "hit_rate": 1.0,
+     "fa_per_min": 1.3133674988123605,
+     "latency_ms_mean": 137.124977740631,
+     "latency_ms_median": 129.00302463972957,
+     "side_correct": 0.8125,
+     "side_correct_gf_readout": 0.8125,
+     "headon_side_zero": 1.0
+    },
+    "28Hz": {
+     "hit_rate": 1.0,
+     "fa_per_min": 1.5852232169941003,
+     "latency_ms_mean": 113.6252106062225,
+     "latency_ms_median": 93.70231242906758,
+     "side_correct": 0.9625,
+     "side_correct_gf_readout": 0.9625,
+     "headon_side_zero": 1.0
+    },
+    "noise_normal": {
+     "hit_rate": 1.0,
+     "fa_per_min": 1.3095252857017128,
+     "latency_ms_mean": 126.22203101635414,
+     "latency_ms_median": 119.77936651003373,
+     "side_correct": 0.875,
+     "side_correct_gf_readout": 0.875,
+     "headon_side_zero": 1.0
+    },
+    "noise_noisy": {
+     "hit_rate": 1.0,
+     "fa_per_min": 1.5898599244626346,
+     "latency_ms_mean": 124.52815733049938,
+     "latency_ms_median": 115.40883839815919,
+     "side_correct": 0.9,
+     "side_correct_gf_readout": 0.9,
+     "headon_side_zero": 1.0
+    },
+    "fa_per_min_by_kind": {
+     "stop_short": 0.0,
+     "hover": 2.342072603106917,
+     "drift": 8.04112113776986,
+     "retreat": 0.0,
+     "noise": 0.0
+    },
+    "speed_curve": {
+     "0.15-0.3": {
+      "trigger_prob": 1.0,
+      "latency_ms": null,
+      "distance_cm_at_trigger": null
+     },
+     "0.3-0.5": {
+      "trigger_prob": 1.0,
+      "latency_ms": 181.42135706881663,
+      "distance_cm_at_trigger": 5.423072331242105
+     },
+     "0.5-0.8": {
+      "trigger_prob": 1.0,
+      "latency_ms": 109.40306146097502,
+      "distance_cm_at_trigger": 4.451082423289819
+     },
+     "0.8-1.6": {
+      "trigger_prob": 1.0,
+      "latency_ms": 77.31484763426279,
+      "distance_cm_at_trigger": 3.6332324623625794
+     }
+    }
+   },
+   "recording": {
+    "hand_usb": {
+     "hits": 5,
+     "events": 5,
+     "latency_ms_mean": 122.4,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 4,
+      "events": 4
+     },
+     "right": {
+      "hits": 1,
+      "events": 1
+     },
+     "left_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "right_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "side_matches_leading_channel": 5,
+     "events_with_leading_channel": 5,
+     "detail": [
+      {
+       "t_gt": 1.59,
+       "t_end": 2.64,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 28.0,
+       "hit": true,
+       "latency_ms": 102.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 8.609,
+       "t_end": 10.54,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 69.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 11.145,
+       "t_end": 13.592,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 113.0,
+       "side": 1,
+       "extra_triggers": 1,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 15.344,
+       "t_end": 16.945,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 251.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 19.591,
+       "t_end": 20.653,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 50.0,
+       "min_right": 11.0,
+       "hit": true,
+       "latency_ms": 77.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      }
+     ]
+    },
+    "robot_run": {
+     "hits": 9,
+     "events": 9,
+     "latency_ms_mean": 130.41111111111113,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 2,
+      "events": 2
+     },
+     "right": {
+      "hits": 6,
+      "events": 6
+     },
+     "left_only": {
+      "hits": 2,
+      "events": 2
+     },
+     "right_only": {
+      "hits": 4,
+      "events": 4
+     },
+     "side_matches_leading_channel": 8,
+     "events_with_leading_channel": 8,
+     "detail": [
+      {
+       "t_gt": 3.3858,
+       "t_end": 5.0669,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3361.0,
+       "min_right": 14.0,
+       "hit": true,
+       "latency_ms": 114.4,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 7.5162,
+       "t_end": 8.8858,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 3024.0,
+       "hit": true,
+       "latency_ms": 35.9,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 11.3244,
+       "t_end": 13.0828,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3379.0,
+       "min_right": 109.0,
+       "hit": true,
+       "latency_ms": 215.2,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 15.8353,
+       "t_end": 17.4674,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3357.0,
+       "min_right": 107.0,
+       "hit": true,
+       "latency_ms": 110.3,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 20.107,
+       "t_end": 21.7835,
+       "approach": 1.0,
+       "leading_side": 0,
+       "min_left": 202.0,
+       "min_right": 716.0,
+       "hit": true,
+       "latency_ms": 100.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 26.8098,
+       "t_end": 28.4845,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3358.0,
+       "min_right": 45.0,
+       "hit": true,
+       "latency_ms": 104.1,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 29.3468,
+       "t_end": 30.8548,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 684.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 144.7,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 31.3867,
+       "t_end": 33.0905,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 2571.0,
+       "min_right": 77.0,
+       "hit": true,
+       "latency_ms": 108.6,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 40.6474,
+       "t_end": 41.8044,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 11.0,
+       "min_right": 3120.0,
+       "hit": true,
+       "latency_ms": 240.5,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      }
+     ]
+    }
+   },
+   "structure": {}
+  },
+  {
+   "model": "looming_rate_threshold",
+   "description": "baseline: d(prox)/dt crosses a threshold",
+   "n_instances": 1,
+   "n_neurons": 0,
+   "fitted_scalars": 1,
+   "sim": {
+    "all": {
+     "hit_rate": 1.0,
+     "fa_per_min": 1.1691168187854915,
+     "latency_ms_mean": 62.25390991761171,
+     "latency_ms_median": 53.41141617519085,
+     "side_correct": 0.9625,
+     "side_correct_gf_readout": 0.9625,
+     "headon_side_zero": 0.875
+    },
+    "us_per_step": 3.134396247028408,
+    "hit_rate_by_side": {
+     "left": 1.0,
+     "right": 1.0,
+     "head_on": 1.0,
+     "left_only": 1.0,
+     "right_only": 1.0
+    },
+    "12Hz": {
+     "hit_rate": 1.0,
+     "fa_per_min": 0.37524785680353157,
+     "latency_ms_mean": 84.61818695092614,
+     "latency_ms_median": 83.67113831505156,
+     "side_correct": 0.925,
+     "side_correct_gf_readout": 0.925,
+     "headon_side_zero": 0.95
+    },
+    "28Hz": {
+     "hit_rate": 1.0,
+     "fa_per_min": 1.9582169151103592,
+     "latency_ms_mean": 39.88963288429729,
+     "latency_ms_median": 40.1901069295193,
+     "side_correct": 1.0,
+     "side_correct_gf_readout": 1.0,
+     "headon_side_zero": 0.8
+    },
+    "noise_normal": {
+     "hit_rate": 1.0,
+     "fa_per_min": 0.6547626428508564,
+     "latency_ms_mean": 63.616373842744885,
+     "latency_ms_median": 54.03042635264388,
+     "side_correct": 0.95,
+     "side_correct_gf_readout": 0.95,
+     "headon_side_zero": 1.0
+    },
+    "noise_noisy": {
+     "hit_rate": 1.0,
+     "fa_per_min": 1.6833810964898483,
+     "latency_ms_mean": 60.89144599247852,
+     "latency_ms_median": 52.02984530572985,
+     "side_correct": 0.975,
+     "side_correct_gf_readout": 0.975,
+     "headon_side_zero": 0.75
+    },
+    "fa_per_min_by_kind": {
+     "stop_short": 8.956801371472041,
+     "hover": 3.0112362039946072,
+     "drift": 0.0,
+     "retreat": 0.0,
+     "noise": 0.0
+    },
+    "speed_curve": {
+     "0.15-0.3": {
+      "trigger_prob": 0.225,
+      "latency_ms": null,
+      "distance_cm_at_trigger": null
+     },
+     "0.3-0.5": {
+      "trigger_prob": 1.0,
+      "latency_ms": 82.31697120006808,
+      "distance_cm_at_trigger": 8.975024705558765
+     },
+     "0.5-0.8": {
+      "trigger_prob": 1.0,
+      "latency_ms": 54.891219697687504,
+      "distance_cm_at_trigger": 8.157614621161871
+     },
+     "0.8-1.6": {
+      "trigger_prob": 1.0,
+      "latency_ms": 45.87219374511744,
+      "distance_cm_at_trigger": 6.713008165476753
+     }
+    }
+   },
+   "recording": {
+    "hand_usb": {
+     "hits": 5,
+     "events": 5,
+     "latency_ms_mean": 71.8,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 4,
+      "events": 4
+     },
+     "right": {
+      "hits": 1,
+      "events": 1
+     },
+     "left_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "right_only": {
+      "hits": 0,
+      "events": 0
+     },
+     "side_matches_leading_channel": 5,
+     "events_with_leading_channel": 5,
+     "detail": [
+      {
+       "t_gt": 1.59,
+       "t_end": 2.64,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 28.0,
+       "hit": true,
+       "latency_ms": 35.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 8.609,
+       "t_end": 10.54,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 32.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 11.145,
+       "t_end": 13.592,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 78.0,
+       "side": 1,
+       "extra_triggers": 1,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 15.344,
+       "t_end": 16.945,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 214.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 19.591,
+       "t_end": 20.653,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 50.0,
+       "min_right": 11.0,
+       "hit": true,
+       "latency_ms": 0.0,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      }
+     ]
+    },
+    "robot_run": {
+     "hits": 8,
+     "events": 9,
+     "latency_ms_mean": 68.875,
+     "false_alarms": 0,
+     "fa_per_min": 0.0,
+     "left": {
+      "hits": 2,
+      "events": 2
+     },
+     "right": {
+      "hits": 5,
+      "events": 6
+     },
+     "left_only": {
+      "hits": 2,
+      "events": 2
+     },
+     "right_only": {
+      "hits": 4,
+      "events": 4
+     },
+     "side_matches_leading_channel": 7,
+     "events_with_leading_channel": 7,
+     "detail": [
+      {
+       "t_gt": 3.3858,
+       "t_end": 5.0669,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3361.0,
+       "min_right": 14.0,
+       "hit": true,
+       "latency_ms": 36.7,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 7.5162,
+       "t_end": 8.8858,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 0.0,
+       "min_right": 3024.0,
+       "hit": true,
+       "latency_ms": 0.0,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 11.3244,
+       "t_end": 13.0828,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3379.0,
+       "min_right": 109.0,
+       "hit": true,
+       "latency_ms": 177.6,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 15.8353,
+       "t_end": 17.4674,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3357.0,
+       "min_right": 107.0,
+       "hit": true,
+       "latency_ms": 38.2,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 20.107,
+       "t_end": 21.7835,
+       "approach": 1.0,
+       "leading_side": 0,
+       "min_left": 202.0,
+       "min_right": 716.0,
+       "hit": true,
+       "latency_ms": 32.2,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 26.8098,
+       "t_end": 28.4845,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 3358.0,
+       "min_right": 45.0,
+       "hit": true,
+       "latency_ms": 33.1,
+       "side": -1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      },
+      {
+       "t_gt": 29.3468,
+       "t_end": 30.8548,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 684.0,
+       "min_right": 0.0,
+       "hit": true,
+       "latency_ms": 70.0,
+       "side": -1,
+       "extra_triggers": 1,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 31.3867,
+       "t_end": 33.0905,
+       "approach": 1.0,
+       "leading_side": -1,
+       "min_left": 2571.0,
+       "min_right": 77.0,
+       "hit": false,
+       "latency_ms": null,
+       "side": null,
+       "extra_triggers": 0,
+       "one_channel_only": false
+      },
+      {
+       "t_gt": 40.6474,
+       "t_end": 41.8044,
+       "approach": 1.0,
+       "leading_side": 1,
+       "min_left": 11.0,
+       "min_right": 3120.0,
+       "hit": true,
+       "latency_ms": 163.2,
+       "side": 1,
+       "extra_triggers": 0,
+       "one_channel_only": true
+      }
+     ]
+    }
+   },
+   "structure": {}
+  }
+ ]
+}

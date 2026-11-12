@@ -74,6 +74,7 @@ M5 is the riskiest step and should start no later than one week before the event
 | Path integration drifts because step length is not constant | Short maze; calibrate distance per gait cycle; reset heading at known walls |
 | UART link to BiBoard V1 does not work as on V0 | Found in M0. Fall back to BLE between XIAO and BiBoard, or tier B |
 | Fly circuit does no better than its control | Report it. A measured null result satisfies the rules better than a claim |
+| Daylight blinds the infrared proximity sensor (measured: beside a window at midday it reads as permanently covered) | Put sensor demos away from windows or shield the sensor; the app refuses to start in that state |
 | Venue radio congestion | The demo is wired or on-device; telemetry is optional |
 
 ## Smaller demos that fall out of this

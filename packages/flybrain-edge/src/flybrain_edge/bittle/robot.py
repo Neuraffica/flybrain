@@ -64,6 +64,12 @@ class ImuSample:
     raw: str = ""
 
 
+@dataclass(frozen=True)
+class AnalogSample:
+    t: float  # host time.monotonic() when the reply was complete
+    values: dict[int, int]  # pin -> raw reading
+
+
 @dataclass
 class LinkStats:
     lines: int = 0
@@ -73,6 +79,8 @@ class LinkStats:
     commands: int = 0
     imu_rate_hz: float = 0.0
     last_sample_t: float = 0.0
+    analog_samples: int = 0
+    analog_errors: int = 0
 
 
 class Bittle:
@@ -123,6 +131,11 @@ class Bittle:
         self.yaw_drift_dps = 0.0  # subtracted from every sample once measured
         self._drift_t0 = 0.0
         self._poll_stop = threading.Event()
+        self._analog: deque[AnalogSample] = deque(maxlen=5000)
+        self._analog_thread: threading.Thread | None = None
+        self._analog_stop = threading.Event()
+        self._analog_paused = threading.Event()
+        self._analog_gate = threading.Lock()
         self._sample_listeners: list[Callable[[ImuSample], None]] = []
         self._splitter = P.LineSplitter()
         self._cv = threading.Condition()
@@ -347,6 +360,71 @@ class Bittle:
                         return None
                     self._cv.wait(remaining)
 
+    def read_analog(self, pins, timeout: float = 0.5) -> dict[int, int] | None:
+        """Raw analog readings {pin: value} with one 'R' command (0..4095 on the ESP32).
+
+        Read-only on the sensor side, but see protocol.encode_analog_read: never call this
+        while a gait runs, it stops the gait. Returns None if the echo or a value is missing."""
+        pins = [int(p) for p in pins]
+        lines = self.send(P.encode_analog_read(pins), echo=P.T_READ, timeout=timeout, quiet=True)
+        if lines is None:
+            return None
+        vals = P.parse_analog_reply(lines, len(pins))
+        if vals is None:
+            self.stats.analog_errors += 1
+            return None
+        return dict(zip(pins, vals, strict=True))
+
+    def poll_analog(self, pins, rate_hz: float = 40.0) -> None:
+        """Read ``pins`` up to ``rate_hz`` times a second from a background thread; samples
+        (AnalogSample) go to a queue read with drain_analog(). The link allows about 28 reads
+        a second of two pins over USB when nothing else is polled. pause_analog() stops the
+        reads without stopping the thread (needed while a gait runs: an 'R' stops it)."""
+        if self._analog_thread is not None:
+            return
+        pins = tuple(int(p) for p in pins)
+        self._analog_stop.clear()
+        period = 1.0 / max(1.0, rate_hz)
+
+        def run() -> None:
+            nxt = time.monotonic()
+            while not self._analog_stop.is_set() and self.connected:
+                with self._analog_gate:  # pause_analog() waits for a read in flight
+                    if not self._analog_paused.is_set():
+                        vals = self.read_analog(pins)
+                        if vals is not None:
+                            s = AnalogSample(time.monotonic(), vals)
+                            with self._cv:
+                                self._analog.append(s)
+                            self.stats.analog_samples += 1
+                nxt = max(nxt + period, time.monotonic())
+                self._analog_stop.wait(max(0.0, nxt - time.monotonic()))
+
+        self._analog_thread = threading.Thread(target=run, name="bittle-analog", daemon=True)
+        self._analog_thread.start()
+
+    def pause_analog(self, paused: bool = True) -> None:
+        """Pause (or resume) analog polling. Pausing returns only after any read already in
+        flight has finished, so a command sent right after cannot be followed by an 'R'."""
+        if paused:
+            self._analog_paused.set()
+            with self._analog_gate:
+                pass
+        else:
+            self._analog_paused.clear()
+
+    def stop_poll_analog(self) -> None:
+        self._analog_stop.set()
+        t, self._analog_thread = self._analog_thread, None
+        if t is not None and t is not threading.current_thread():
+            t.join(timeout=1.0)
+
+    def drain_analog(self) -> list[AnalogSample]:
+        with self._cv:
+            out = list(self._analog)
+            self._analog.clear()
+        return out
+
     def read_joints(self, timeout: float = 1.5) -> dict[int, int] | None:
         """All joint angles via 'j' ({index: degrees}), USB or BLE framing."""
         lines = self.send(P.encode_ascii(P.T_JOINTS), echo=P.T_JOINTS, timeout=timeout)
@@ -554,6 +632,7 @@ class Bittle:
         """Stop streaming and leave the robot resting, whatever state it was in."""
         try:
             self.stop_poll_imu()
+            self.stop_poll_analog()
             self.forget_joint_targets()
             self.flush_commands()  # a queued stand goes out before the rest
             if self.connected and self.transport.is_open:

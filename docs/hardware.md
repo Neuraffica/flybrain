@@ -34,7 +34,7 @@ about 300 KB as int8 weights with int16 column indices. Measuring this is the fi
 
 | | |
 |---|---|
-| Main board | BiBoard V1, ESP32 (classic, dual-core LX6). Petoi pages disagree on the module: WROOM-32D with 16 MB flash or U4WDH with 4 MB **(verify)** |
+| Main board | BiBoard V1, ESP32-U4WDH (classic, dual-core LX6) with 4 MB embedded flash, read from a real unit. Petoi's specs page says WROOM-32D with 16 MB, which this unit is not |
 | Joints | 8 leg servos + 1 neck. The arm variant adds 2 servos (arm, claw) on the head |
 | IMU | MPU6050 or ICM42670, on board |
 | Battery | 7.4 V 1000 mAh, about 1 hour |
@@ -81,8 +81,13 @@ Three tiers, all supported by the starter kit:
 
 Recommendations:
 
-- **Do not run models on the BiBoard itself.** It is a classic ESP32 without vector
-  instructions and it is busy driving servos. Treat it as a motor controller.
+- **Do not run large models on the BiBoard.** It is a classic ESP32 without vector
+  instructions and it is busy driving servos. Small sensor reflexes are the exception: the
+  exported fly-escape circuit (351 neurons, 2,212 synapses) needs about 16 KB of flash, 4 KB
+  of RAM and an estimated 0.5 to 2 ms per 35 ms step, and can run as an OpenCat firmware
+  module (see `firmware/bittle/fly_escape/`). It compiles into the stock firmware for
+  BiBoard V1, adding 20.2 KB of flash and 4.3 KB of RAM; it has not been flashed or run on
+  a robot, and its run time is an estimate. Anything bigger, or anything that needs images, goes on the XIAO or a laptop.
 - **Default to tier B in the first hour, then move to tier A.** The same Python model that
   drives the dog over USB gets exported to C and flashed on the XIAO.
 - **The XIAO Sense is the eye.** The Petoi camera module cannot give raw frames, so any

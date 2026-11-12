@@ -16,6 +16,7 @@ resolution-markers = [
 [manifest]
 members = [
     "fly-compass",
+    "fly-escape",
     "flybrain",
     "flybrain-data",
     "flybrain-edge",
@@ -125,11 +126,32 @@ requires-dist = [
 ]
 
 [[package]]
+name = "fly-escape"
+version = "0.0.1"
+source = { editable = "demos/fly-escape" }
+dependencies = [
+    { name = "fly-compass" },
+    { name = "flybrain-edge" },
+    { name = "flybrain-models" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fly-compass", editable = "demos/fly-compass" },
+    { name = "flybrain-edge", editable = "packages/flybrain-edge" },
+    { name = "flybrain-models", editable = "packages/flybrain-models" },
+    { name = "numpy" },
+]
+
+[[package]]
 name = "flybrain"
 version = "0.0.1"
 source = { virtual = "." }
 dependencies = [
     { name = "fly-compass" },
+    { name = "fly-escape" },
     { name = "flybrain-data" },
     { name = "flybrain-edge" },
     { name = "flybrain-models" },
@@ -144,6 +166,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fly-compass", editable = "demos/fly-compass" },
+    { name = "fly-escape", editable = "demos/fly-escape" },
     { name = "flybrain-data", editable = "packages/flybrain-data" },
     { name = "flybrain-edge", editable = "packages/flybrain-edge" },
     { name = "flybrain-models", editable = "packages/flybrain-models" },
@@ -179,12 +202,14 @@ version = "0.0.1"
 source = { editable = "packages/flybrain-edge" }
 dependencies = [
     { name = "bleak" },
+    { name = "flybrain-models" },
     { name = "pyserial" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "bleak", specifier = ">=3.1.0" },
+    { name = "flybrain-models", editable = "packages/flybrain-models" },
     { name = "pyserial", specifier = ">=3.5" },
 ]
 

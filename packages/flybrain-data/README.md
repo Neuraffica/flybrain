@@ -66,6 +66,33 @@ rotation and a reflection. Checks stored in `metadata["ring_angle"]`:
   known PEN offset that lets PENs rotate the bump (a consistency check, not an independent
   label, since the seriation also used these synapses).
 
+## The `escape` pack
+
+Looming-escape pathway, FlyWire v783, same weight convention and threshold (>= 5 synapses per
+pair): 351 neurons, 2,212 connected pairs, 25,147 synapses (46,486 synapses / 15,521 pairs
+before the threshold; many LPLC2-LPLC2 pairs have fewer than 5 synapses).
+
+| cell_type | left | right | sign | role |
+|---|---|---|---|---|
+| `LC4` | 54 | 50 | + | looming angular velocity (visual projection neuron) |
+| `LPLC2` | 108 | 102 | + | looming angular size (visual projection neuron) |
+| `DNp01` | 1 | 1 | + / - | giant fiber (GF); the right GF is predicted glutamatergic, so signed -1 by the convention (the GF is known to be cholinergic; only its outputs inside the pack are affected) |
+| `DNp02`, `DNp04`, `DNp06`, `DNp11` | 1 each | 1 each | + | other looming descending neurons named in the brief; each gets >= 500 LC4+LPLC2 synapses (1006, 3066, 1166, 942); they send <= 4 synapses to the GF |
+| `PVLP122b` (2/2), `PVLP151` (2/2), `AMMC-A1` (2/3), `AVLP396` (1/1) | | | + | excitatory interneurons LC4/LPLC2 -> GF |
+| `LHAD1g1`, `PVLP010`, `PVLP017`, `CB3513b` (1/1 each), `PVLP024` (2/2) | | | - | inhibitory interneurons LC4/LPLC2 -> GF |
+
+Interneuron rule: every cell type that receives >= 200 synapses from LC4+LPLC2 and makes >= 50
+synapses onto the GF (whole-brain counts, summed over the type). The counts are recomputed
+at build time and stored in `metadata["escape"]`. `AMMC-A1` passes the rule though it is
+known as an auditory (antennal) neuron; it is kept because the rule is the rule.
+
+GF input from LC4 / LPLC2, synapses after the threshold (before): left GF 329 (374) from left
+LC4 and 305 (458) from left LPLC2; right GF 428 (431) from right LC4 and 539 (622) from right
+LPLC2. All direct LC4/LPLC2 input to each GF is ipsilateral. The GF's electrical synapses are
+not in the connectome. The `rewired` control keeps every type-to-type block total but mixes
+sides (about half of each GF's LC4/LPLC2 input becomes contralateral); `random` leaves the GF
+with almost no input from these types (58 synapses in seed 0).
+
 ## Controls
 
 Both are seeded and deterministic (`load_pack(name, variant, seed)`).
@@ -83,6 +110,7 @@ Both are seeded and deterministic (`load_pack(name, variant, seed)`).
 ```bash
 uv run flybrain-data download            # ~1.1 GB into ./data (resumable, md5-checked)
 uv run flybrain-data build-pack central_complex
+uv run flybrain-data build-pack escape
 ```
 
 `download` fetches `proofread_connections_783.feather` (852 MB) from

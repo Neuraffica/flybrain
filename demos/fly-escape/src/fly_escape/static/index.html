@@ -1,0 +1,942 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fly escape</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f4f4f2; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --ink-3: #85847f;
+  --line: #e3e2de; --line-2: #cfcec9; --accent-bg: #eceae6;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4;
+  --good: #2f7d32; --warn: #b26a00; --bad: #c62828; --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #121211; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #8f8e86;
+    --line: #2c2c2a; --line-2: #3d3d3a; --accent-bg: #252523;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181;
+    --good: #66bb6a; --warn: #e0a030; --bad: #ef6b6b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #121211; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #8f8e86;
+  --line: #2c2c2a; --line-2: #3d3d3a; --accent-bg: #252523;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181;
+  --good: #66bb6a; --warn: #e0a030; --bad: #ef6b6b;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--page); color: var(--ink);
+  font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased; }
+.num { font-variant-numeric: tabular-nums; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 16px 24px;
+  border-bottom: 1px solid var(--line); background: var(--surface); }
+.brand h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+.brand p { margin: 2px 0 0; color: var(--ink-2); font-size: 13px; }
+.spacer { flex: 1; }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+  background: var(--accent-bg); font-size: 13px; color: var(--ink-2); max-width: 100%; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.dot.ok { background: var(--good); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-right: 1px solid var(--line-2); border-radius: 0; }
+.seg button:last-child { border-right: 0; }
+button { font: inherit; font-size: 14px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+button:hover { background: var(--accent-bg); }
+button:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+main { display: grid; gap: 16px; padding: 16px 24px 24px; grid-template-columns: repeat(12, minmax(0, 1fr));
+  max-width: 1500px; margin: 0 auto; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; min-width: 0; }
+.card h2 { font-size: 13px; font-weight: 600; margin: 0 0 10px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; }
+.span-4 { grid-column: span 4; } .span-6 { grid-column: span 6; } .span-8 { grid-column: span 8; } .span-12 { grid-column: span 12; }
+@media (max-width: 1100px) { .span-4, .span-6, .span-8 { grid-column: span 12; } }
+@media (max-width: 600px) { header, main, footer { padding-left: 16px; padding-right: 16px; } .spacer { display: none; } }
+.bar { grid-column: span 12; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px;
+  border-radius: var(--radius); padding: 14px 18px; border: 1px solid var(--line); background: var(--surface); }
+.bar .state { font-size: 22px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+.bar .facts { font-size: 16px; font-weight: 600; }
+.bar .explain { flex: 1 1 380px; color: var(--ink-2); font-size: 14px; }
+.bar.active { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.bar.active .explain { color: var(--surface); opacity: .85; }
+.bar.problem { border-color: var(--bad); }
+canvas { display: block; width: 100%; }
+#trace { height: 360px; }
+#top { aspect-ratio: 1 / 1; max-height: 340px; margin: 0 auto; touch-action: none; }
+#top.draggable { cursor: grab; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+.legend .l1 { width: 16px; height: 0; border-top: 2px solid var(--ink); }
+.legend .l2 { width: 16px; height: 0; border-top: 2px dashed var(--ink-2); }
+.legend .band { width: 14px; height: 10px; background: var(--accent-bg); border: 1px solid var(--line-2); }
+.scripts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.scripts button { padding: 5px 10px; font-size: 13px; }
+.strips { display: grid; grid-template-columns: max-content 1fr; gap: 6px 10px; align-items: center; font-size: 12px; color: var(--ink-2); }
+.strip { display: flex; gap: 1px; height: 16px; }
+.strip i { flex: 1; border-radius: 2px; background: var(--s1); }
+.gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.gauge .k { font-size: 12px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; }
+.gauge .v { font-size: 26px; font-weight: 650; }
+.gauge .track { position: relative; height: 10px; background: var(--accent-bg); border-radius: 5px; margin-top: 6px; }
+.gauge .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--s1); width: 0; }
+.gauge .thr { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: right; font-weight: 600; color: var(--ink-2); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; padding: 6px; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; }
+td { text-align: right; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+td.big { font-size: 20px; font-weight: 650; }
+td .name { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.drive { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--ink-2); font-size: 13px; }
+.note { color: var(--ink-2); font-size: 13px; margin: 10px 0 0; }
+.small { font-size: 12px; color: var(--ink-3); }
+#msg { font-size: 13px; color: var(--ink-2); min-height: 18px; }
+#msg.err { color: var(--bad); }
+.hidden { display: none !important; }
+.scroll-x { overflow-x: auto; }
+#bench td:first-child { white-space: nowrap; font-weight: 600; }
+.bench-sec { margin: 14px 0 0; } .bench-sec h3 { font-size: 14px; margin: 0 0 6px; }
+details > summary { cursor: pointer; color: var(--ink-2); font-size: 13px; margin: 8px 0; }
+dl.gloss { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 13px; margin: 0; }
+dl.gloss dt { font-weight: 600; } dl.gloss dd { margin: 0; color: var(--ink-2); }
+pre { white-space: pre-wrap; font-size: 12px; color: var(--ink-2); margin: 0; }
+.yes { font-weight: 600; } .no { color: var(--ink-3); }
+
+/* simulator */
+.sim-only { display: none; } body.sim .sim-only { display: block; } body.sim .robot-only { display: none; }
+body.sim section.sim-only { display: block; }
+#scene { aspect-ratio: 16 / 11; max-height: 620px; touch-action: none; cursor: grab; }
+@media (max-width: 600px) { #scene { aspect-ratio: 4 / 5; } }
+#side { height: 120px; margin-top: 10px; }
+.ctl h3 { font-size: 12px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; margin: 14px 0 6px; }
+.ctl h3:first-child { margin-top: 0; }
+.agrid { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.agrid button, .safe button { padding: 6px 8px; font-size: 13px; }
+.safe { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.row input[type=number] { width: 84px; font: inherit; font-size: 13px; padding: 5px 6px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink); }
+.row input[type=range] { flex: 1; min-width: 120px; }
+.drivers { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); gap: 4px; }
+.drivers button { padding: 6px 2px; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.drivers button .sw { width: 10px; height: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 1px 6px; border-radius: 999px; background: var(--accent-bg); color: var(--ink); }
+.badge { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; }
+.badge.threat { background: var(--bad); color: var(--surface); } .badge.safe { background: var(--accent-bg); color: var(--ink-2); }
+tr.driver td { background: var(--accent-bg); }
+#trials td { text-align: left; vertical-align: middle; } #trials td:first-child { width: 2.5em; }
+#trials td:last-child { text-align: right; } .badge { display: inline-block; margin-right: 6px; }
+body.sim .trace-card { grid-column: span 12; }
+.gauge.flash .track { box-shadow: 0 0 0 3px var(--bad); transition: box-shadow 0s; }
+.gauge .track { transition: box-shadow .6s; }
+footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--ink-3); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><h1>Fly escape</h1><p>A fruit-fly looming-escape circuit makes a robot dog back away from a hand</p></div>
+  <span class="pill"><span class="dot" id="conn-dot"></span><span id="conn-text">connecting…</span></span>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="Mode">
+    <button data-mode="observe" title="Models run, the robot does not move">Observe</button>
+    <button data-mode="escape" title="The driver model's trigger makes the robot back away">Escape</button>
+  </div>
+  <button id="handsoff" aria-pressed="false" title="Mark that no hand is near: any trigger now counts as a false alarm (key H)">Hands off <span class="small">H</span></button>
+  <button id="recal" title="Measure the resting level again (keep hands away for 2 s)">Recalibrate</button>
+  <button id="reset" title="Clear trigger counts and events">Reset scores</button>
+</header>
+<main>
+  <section class="bar" id="bar" aria-live="polite">
+    <span class="state" id="bar-state">Starting</span>
+    <span class="facts num" id="bar-facts"></span>
+    <span class="explain" id="bar-explain"></span>
+  </section>
+
+
+  <section class="card span-8 sim-only" aria-labelledby="h-sim">
+    <h2 id="h-sim">Simulator</h2>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--s1);opacity:.6"></i>Sensor beam, lit as its channel responds</span>
+      <span><i class="band"></i>Graded band (12–20 cm)</span>
+      <span class="small">Drag the hand, or launch an approach</span>
+    </div>
+    <canvas id="scene" aria-label="Top view of the simulated Bittle and the approaching hand"></canvas>
+    <canvas id="side" aria-label="Side view: the dog stepping back"></canvas>
+    <p class="note" id="sim-note"></p>
+  </section>
+
+  <section class="card span-4 sim-only ctl" aria-labelledby="h-ctl">
+    <h2 id="h-ctl">Simulator controls</h2>
+    <h3>Driving the dog</h3>
+    <div class="drivers" id="drivers"></div>
+    <p class="small" id="driver-note"></p>
+    <h3>Approach now (threats)</h3>
+    <div class="agrid">
+      <span></span><span class="small">slow</span><span class="small">fast</span>
+      <span>From the left</span><button data-launch="slow,1">Slow</button><button data-launch="fast,1">Fast</button>
+      <span>Head-on</span><button data-launch="slow,0">Slow</button><button data-launch="fast,0">Fast</button>
+      <span>From the right</span><button data-launch="slow,-1">Slow</button><button data-launch="fast,-1">Fast</button>
+    </div>
+    <h3>Not threats</h3>
+    <div class="safe">
+      <button data-launch="hover,0">Hover</button><button data-launch="stop-short,0">Stop short</button>
+      <button data-launch="drift,0">Slow drift</button><button data-launch="retreat,0">Retreat</button>
+    </div>
+    <h3>Random</h3>
+    <div class="row">
+      <button id="rand" aria-pressed="false">Random approaches</button>
+      <label>seed <input type="number" id="seed" min="0" step="1"></label>
+      <span id="rand-next" class="num"></span>
+    </div>
+    <h3>Approach speed</h3>
+    <div class="row"><input type="range" id="speed" min="0.25" max="3" step="0.05" value="1"><span id="speed-v" class="num">1.0×</span></div>
+    <h3>Run</h3>
+    <div class="row">
+      <button id="pause" aria-pressed="false">Pause</button>
+      <button id="stophand">Hand away</button>
+      <button id="simreset" title="Clear the simulator scores, hand away, dog back on its mark">Reset</button>
+    </div>
+  </section>
+
+  <section class="card span-12 sim-only" aria-labelledby="h-gt">
+    <h2 id="h-gt">Simulator scoreboard (ground truth)</h2>
+    <p class="note" id="gt-sum" style="margin:0 0 8px"></p>
+    <div class="scroll-x"><table>
+      <thead><tr><th>Model</th>
+        <th title="Threat approaches with a trigger / all threat approaches">Caught</th>
+        <th title="Non-threat approaches (hover, stop short, drift, retreat) with a trigger">False escapes</th>
+        <th title="From the hand entering the sensor's range to the trigger">Reaction</th>
+        <th title="Trigger side equal to the approach side, over approaches from the left or right">Side right</th>
+        <th title="Hand distance from the sensor at the trigger (threats)">Distance</th>
+        <th title="Triggers with no approach running">Spontaneous</th></tr></thead>
+      <tbody id="gt"></tbody>
+    </table></div>
+    <h3 class="small" style="margin:14px 0 6px;font-weight:600">Last approaches</h3>
+    <div class="scroll-x"><table><thead><tr><th>#</th><th style="text-align:left">Approach</th><th style="text-align:left">Fired (reaction ms)</th><th>Dog</th></tr></thead><tbody id="trials"></tbody></table></div>
+  </section>
+
+  <section class="card span-8 trace-card">
+    <h2>Proximity, last 12 s</h2>
+    <div class="legend">
+      <span><i class="l1"></i>Left channel</span><span><i class="l2"></i>Right channel</span>
+      <span><i class="band"></i>Hands off</span>
+      <span class="small">Ticks below: when each model triggered</span>
+    </div>
+    <canvas id="trace" aria-label="Proximity of both channels over time, with trigger marks"></canvas>
+  </section>
+
+  <section class="card span-4 robot-only">
+    <h2>Top view</h2>
+    <canvas id="top" aria-label="The dog seen from above, with the sensed side lit"></canvas>
+    <p class="note" id="hand-note"></p>
+    <div class="scripts" id="scripts"></div>
+  </section>
+
+  <section class="card span-6">
+    <h2>Connectome activity</h2>
+    <div class="strips" id="strips"></div>
+    <div class="gauges">
+      <div class="gauge" id="gauge-l"><div class="k">Giant fibre, left</div><div class="v num" id="gf-l">—</div><div class="track"><i class="fill" id="gf-l-fill"></i><i class="thr" id="gf-l-thr"></i></div></div>
+      <div class="gauge" id="gauge-r"><div class="k">Giant fibre, right</div><div class="v num" id="gf-r">—</div><div class="track"><i class="fill" id="gf-r-fill"></i><i class="thr" id="gf-r-thr"></i></div></div>
+    </div>
+    <p class="note">Strips: looming-sensitive cell groups on each side, one cell per box, darker = more active. Gauges: the driver's giant-fibre drive on each side, as a fraction of that side's own threshold (the dark line, at 1).</p>
+  </section>
+
+  <section class="card span-6">
+    <h2>Scoreboard</h2>
+    <div class="scroll-x"><table>
+      <thead><tr><th>Model</th><th title="Triggers since reset">Triggers</th><th title="Triggers while 'Hands off' was on">False</th>
+        <th title="Events this model fired in">Events</th><th title="Events (outside hands-off) other models fired in and this one did not">Missed</th>
+        <th title="Mean time of this model's trigger minus the driver's, over events where both fired">Δt vs driver</th><th>ms/step</th></tr></thead>
+      <tbody id="score"></tbody>
+    </table></div>
+    <p class="note">No ground truth here: an event is a group of triggers within 1 s. "False" counts triggers while you marked Hands off.</p>
+    <div id="msg" role="status"></div>
+  </section>
+
+  <section class="card span-12">
+    <h2>Events</h2>
+    <div class="scroll-x"><table><thead id="ev-head"></thead><tbody id="ev"></tbody></table></div>
+  </section>
+
+  <section class="card span-12 hidden" id="bench-card">
+    <h2>Offline benchmark</h2>
+    <div id="bench"></div>
+  </section>
+</main>
+<footer>
+  An infrared proximity sensor stands in for the fly's eye: each of its two channels reads high with nothing in front and drops
+  as a hand comes close, only over a narrow band of distances. All five models get the same two numbers at every reading; only the
+  driver moves the robot. While the robot backs away the sensor is not read (a read would stop the walk), so the trace has a gap.
+</footer>
+<script>
+"use strict";
+const KEYS = ["connectome", "rewired", "random", "prox", "looming"];
+const NAMES = { connectome: "Connectome", rewired: "Rewired", random: "Random", prox: "Proximity thr.", looming: "Looming thr." };
+const VAR = { connectome: "--s1", rewired: "--s2", random: "--s3", prox: "--s4", looming: "--s5" };
+const TRACE_S = 12;
+let frame = null, trace = [], trigs = [], dirty = true, css = {};
+function readCss() {
+  const s = getComputedStyle(document.documentElement);
+  for (const v of ["--ink", "--ink-2", "--ink-3", "--line", "--line-2", "--surface", "--accent-bg", "--s1", "--s2", "--s3", "--s4", "--s5", "--bad"])
+    css[v] = s.getPropertyValue(v).trim();
+  dirty = true;
+}
+readCss();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readCss);
+const $ = (id) => document.getElementById(id);
+function setupCanvas(c) {
+  const r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const w = Math.max(10, Math.round(r.width)), h = Math.max(10, Math.round(r.height));
+  if (c.width !== w * dpr || c.height !== h * dpr) { c.width = w * dpr; c.height = h * dpr; }
+  const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  return [g, w, h];
+}
+const sideName = (s) => s > 0 ? "left" : s < 0 ? "right" : "ahead";
+
+function drawTrace() {
+  const [g, w, h] = setupCanvas($("trace"));
+  const lanes = KEYS.length, laneH = 18, G = { l: 104, r: w - 8, t: 10, b: h - 26 - lanes * laneH - 14 };
+  const tNow = frame ? frame.t : 0, t0 = tNow - TRACE_S;
+  const X = (t) => G.l + (t - t0) / TRACE_S * (G.r - G.l), Y = (v) => G.t + (1 - v) * (G.b - G.t);
+  // hands-off spans
+  if (frame) {
+    g.fillStyle = css["--accent-bg"];
+    for (const [a, b] of frame.hands_off_spans) {
+      const x0 = Math.max(G.l, X(a)), x1 = Math.min(G.r, X(b == null ? tNow : b));
+      if (x1 > x0) g.fillRect(x0, G.t, x1 - x0, h - G.t - 18);
+    }
+  }
+  g.font = "12px system-ui, sans-serif"; g.fillStyle = css["--ink-2"]; g.textAlign = "right"; g.textBaseline = "middle";
+  for (const v of [0, 0.5, 1]) {
+    g.strokeStyle = v === 0 ? css["--line-2"] : css["--line"]; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(G.l, Y(v)); g.lineTo(G.r, Y(v)); g.stroke();
+    g.fillText(v === 1 ? "close" : v === 0 ? "nothing" : "0.5", G.l - 6, Y(v));
+  }
+  g.save(); g.beginPath(); g.rect(G.l, G.t - 2, G.r - G.l, G.b - G.t + 4); g.clip();
+  for (const [idx, color, dash] of [[1, css["--ink"], []], [2, css["--ink-2"], [6, 4]]]) {
+    g.strokeStyle = color; g.lineWidth = 2; g.setLineDash(dash); g.beginPath();
+    let first = true, lastT = null;
+    for (const p of trace) {
+      if (p[0] < t0) continue;
+      const x = X(p[0]), y = Y(p[idx]);
+      if (first || (lastT != null && p[0] - lastT > 0.4)) g.moveTo(x, y); else g.lineTo(x, y);  // gaps stay gaps
+      first = false; lastT = p[0];
+    }
+    g.stroke();
+  }
+  g.setLineDash([]); g.restore();
+  // trigger lanes
+  const laneTop = G.b + 16;
+  g.textAlign = "right";
+  KEYS.forEach((k, i) => {
+    const y = laneTop + i * laneH + laneH / 2;
+    g.fillStyle = css["--ink-2"]; g.fillText(NAMES[k], G.l - 6, y);
+    g.strokeStyle = css["--line"]; g.lineWidth = 1; g.beginPath(); g.moveTo(G.l, y); g.lineTo(G.r, y); g.stroke();
+  });
+  for (const [t, k, side] of trigs) {
+    if (t < t0) continue;
+    const i = KEYS.indexOf(k); if (i < 0) continue;
+    const y = laneTop + i * laneH + laneH / 2, x = X(t);
+    g.fillStyle = css[VAR[k]]; g.beginPath(); g.moveTo(x, y - 5); g.lineTo(x + 4, y); g.lineTo(x, y + 5); g.lineTo(x - 4, y); g.closePath(); g.fill();
+    if (frame && k === frame.driver) { g.strokeStyle = css[VAR[k]]; g.globalAlpha = 0.5; g.beginPath(); g.moveTo(x, G.t); g.lineTo(x, G.b); g.stroke(); g.globalAlpha = 1; }
+  }
+  g.textAlign = "center"; g.textBaseline = "top"; g.fillStyle = css["--ink-2"];
+  for (let s = 0; s <= TRACE_S; s += 3) g.fillText(s === 0 ? "now" : "−" + s + " s", X(tNow - s), h - 16);
+}
+
+// top view: dog nose at top; hand position <-> (distance cm, side)
+function topGeom(w, h) { const R = Math.min(w, h); return { cx: w / 2, nose: h * 0.62, scale: R * 0.55 / 60 }; }
+function handXY(G, d, side) { const a = Math.asin(Math.max(-1, Math.min(1, side))) * 0.9; return [G.cx - Math.sin(a) * d * G.scale, G.nose - Math.cos(a) * d * G.scale]; }
+function drawTop() {
+  const c = $("top"); const [g, w, h] = setupCanvas(c); const G = topGeom(w, h);
+  const pl = frame ? frame.prox[0] : 0, pr = frame ? frame.prox[1] : 0;
+  // sensing wedges
+  for (const [sgn, p] of [[1, pl], [-1, pr]]) {
+    g.fillStyle = css["--s1"]; g.globalAlpha = 0.08 + 0.7 * p;
+    g.beginPath(); g.moveTo(G.cx, G.nose);
+    const r = 24 * G.scale, a0 = -Math.PI / 2 - sgn * 0.05, a1 = -Math.PI / 2 - sgn * 0.6;
+    g.arc(G.cx, G.nose, r, Math.min(a0, a1), Math.max(a0, a1)); g.closePath(); g.fill(); g.globalAlpha = 1;
+  }
+  // body
+  const bw = 15 * G.scale, bl = 32 * G.scale;
+  g.fillStyle = css["--ink"]; g.beginPath(); g.roundRect ? g.roundRect(G.cx - bw / 2, G.nose + 3 * G.scale, bw, bl, 6) : g.rect(G.cx - bw / 2, G.nose + 3 * G.scale, bw, bl); g.fill();
+  g.beginPath(); g.arc(G.cx, G.nose + 2 * G.scale, 5 * G.scale, 0, 2 * Math.PI); g.fill();
+  g.fillStyle = css["--ink-2"]; g.font = "12px system-ui, sans-serif"; g.textAlign = "center";
+  g.fillText("left", G.cx - 30 * G.scale, G.nose - 4); g.fillText("right", G.cx + 30 * G.scale, G.nose - 4);
+  if (frame && frame.hand) {
+    const far = frame.hand.distance > 50;
+    const [x, y] = handXY(G, Math.min(frame.hand.distance, 50), frame.hand.side);
+    if (far) { g.fillStyle = css["--ink-3"]; g.fillText("hand away", x, y - 16); }
+    g.fillStyle = css["--s2"]; g.globalAlpha = 0.9; g.beginPath(); g.arc(x, y, 9, 0, 2 * Math.PI); g.fill(); g.globalAlpha = 1;
+    g.strokeStyle = css["--surface"]; g.lineWidth = 2; g.stroke();
+  }
+}
+let dragging = false, lastSend = 0;
+function handFromEvent(e) {
+  const c = $("top"), r = c.getBoundingClientRect(), G = topGeom(r.width, r.height);
+  const dx = e.clientX - r.left - G.cx, dy = G.nose - (e.clientY - r.top);
+  const d = Math.hypot(dx, dy) / G.scale, side = Math.max(-1, Math.min(1, -dx / Math.max(1, Math.hypot(dx, dy)) / 0.9));
+  return { distance: Math.max(0, d), side: dy < 0 ? 0 : side };
+}
+$("top").addEventListener("pointerdown", (e) => { if (!frame || !frame.status.mock) return; dragging = true; $("top").setPointerCapture(e.pointerId); send({ action: "mock_hand", ...handFromEvent(e) }); });
+$("top").addEventListener("pointermove", (e) => { if (!dragging) return; const n = performance.now(); if (n - lastSend < 40) return; lastSend = n; send({ action: "mock_hand", ...handFromEvent(e) }); });
+$("top").addEventListener("pointerup", () => { dragging = false; send({ action: "mock_hand", distance: 80, side: 0 }); });
+
+function renderActivity() {
+  const act = (frame.models.connectome || {}).activity || {};
+  const box = $("strips");
+  const names = Object.keys(act).filter((n) => n !== "GF");
+  if (box.dataset.names !== names.join()) {
+    box.replaceChildren(); box.dataset.names = names.join();
+    for (const n of names) {
+      const lab = document.createElement("span"); lab.textContent = n.replace(/_/g, " ");
+      const st = document.createElement("div"); st.className = "strip"; st.dataset.name = n;
+      for (let i = 0; i < act[n].length; i++) st.appendChild(document.createElement("i"));
+      box.append(lab, st);
+    }
+  }
+  for (const st of box.querySelectorAll(".strip")) {
+    const vals = act[st.dataset.name] || []; const cells = st.children;
+    for (let i = 0; i < cells.length; i++) cells[i].style.opacity = (0.08 + 0.92 * Math.max(0, Math.min(1, Math.abs(vals[i] || 0)))).toFixed(2);
+  }
+  // drive is normalised by each side's own threshold, so the firing line sits at 1
+  const m = frame.models[frame.driver] || {};
+  const scale = 1.5;
+  for (const [k, v] of [["l", m.gf_left_n], ["r", m.gf_right_n]]) {
+    $("gf-" + k).textContent = v == null ? "—" : v.toFixed(2);
+    $("gf-" + k + "-fill").style.width = (100 * Math.min(1, Math.max(0, v || 0) / scale)).toFixed(1) + "%";
+    $("gf-" + k + "-thr").style.left = (100 / scale).toFixed(1) + "%";
+  }
+}
+
+function renderScore() {
+  const tb = $("score");
+  if (!tb.children.length) {
+    for (const k of KEYS) {
+      const tr = document.createElement("tr"); tr.dataset.key = k;
+      tr.innerHTML = `<td><span class="name"><i class="sw" style="background:var(${VAR[k]})"></i>${NAMES[k]}</span><br>
+        <label class="drive"><input type="radio" name="driver" value="${k}"> drives robot</label></td>
+        <td class="big num trig"></td><td class="num fa"></td><td class="num evn"></td><td class="num miss"></td><td class="num lat"></td><td class="num ms"></td>`;
+      tb.appendChild(tr);
+    }
+    tb.addEventListener("change", (e) => { if (e.target.name === "driver") send({ action: "driver", model: e.target.value }); });
+  }
+  for (const tr of tb.children) {
+    const k = tr.dataset.key, m = frame.models[k];
+    tr.querySelector(".trig").textContent = m.triggers;
+    tr.querySelector(".fa").textContent = m.false_alarms;
+    tr.querySelector(".evn").textContent = m.events;
+    tr.querySelector(".miss").textContent = m.missed;
+    tr.querySelector(".lat").textContent = k === frame.driver ? "driver" : m.latency_ms == null ? "—" : (m.latency_ms > 0 ? "+" : "") + m.latency_ms + " ms";
+    tr.querySelector(".ms").textContent = m.ms.toFixed(2);
+    tr.querySelector("input").checked = frame.driver === k;
+  }
+}
+
+function renderEvents() {
+  const head = $("ev-head");
+  if (!head.children.length) {
+    const r = head.insertRow();
+    for (const t of ["#", "Time", "Side", ...KEYS.map((k) => NAMES[k])]) { const th = document.createElement("th"); th.textContent = t; r.appendChild(th); }
+  }
+  const tb = $("ev"); tb.replaceChildren();
+  if (!frame.events.length) { const r = tb.insertRow(); const c = r.insertCell(); c.colSpan = 3 + KEYS.length; c.className = "small"; c.textContent = "No triggers yet. Bring a hand towards the sensor."; return; }
+  for (const ev of frame.events) {
+    const r = tb.insertRow();
+    r.insertCell().textContent = ev.id + (ev.hands_off ? " (hands off)" : "");
+    r.insertCell().textContent = ev.t.toFixed(1) + " s";
+    r.insertCell().textContent = sideName(ev.side);
+    for (const k of KEYS) {
+      const c = r.insertCell(), f = ev.fired[k];
+      if (!f) { c.textContent = "—"; c.className = "no"; continue; }
+      c.className = "yes num";
+      c.textContent = k === frame.driver ? "driver" : f.dt_ms == null ? "fired" : (f.dt_ms > 0 ? "+" : "") + f.dt_ms + " ms";
+    }
+  }
+}
+
+function renderHeader() {
+  const st = frame.status || {}, cal = frame.calibration, esc = frame.escape;
+  let cls = "ok", text = st.source || "";
+  if (!st.connected) { cls = "bad"; text = "disconnected"; }
+  if (st.low_power) { cls = "bad"; text += " · LOW POWER: robot will not move"; }
+  if (st.replay_progress != null) text += ` · ${(100 * st.replay_progress).toFixed(0)}%` + (st.replay_done ? " done" : "");
+  if (st.firmware) text += ` · ${st.firmware}`;
+  $("conn-dot").className = "dot " + cls; $("conn-text").textContent = text;
+  for (const b of document.querySelectorAll("[data-mode]")) {
+    b.setAttribute("aria-pressed", String(b.dataset.mode === frame.mode));
+    if (b.dataset.mode === "escape") { b.disabled = !frame.allow_moves || !cal.ok; b.title = !frame.allow_moves ? "Moves the legs: start with --i-have-space" : !cal.ok ? "Not calibrated" : "The driver model's trigger makes the robot back away"; }
+  }
+  $("handsoff").setAttribute("aria-pressed", String(frame.hands_off));
+  const bar = $("bar");
+  bar.classList.toggle("active", esc.state === "acting" || esc.state === "standing");
+  bar.classList.toggle("problem", (cal.done && !cal.ok) || esc.state === "failed");
+  if (!cal.done) { $("bar-state").textContent = "Calibrating"; $("bar-facts").textContent = ""; $("bar-explain").textContent = "Keep hands away from the sensor for 2 seconds while its resting level is measured."; }
+  else if (!cal.ok) { $("bar-state").textContent = "Not calibrated"; $("bar-facts").textContent = ""; $("bar-explain").textContent = cal.message + ". Escape mode is off; fix it and press Recalibrate."; }
+  else if (esc.state === "acting") { $("bar-state").textContent = "Escaping"; $("bar-facts").textContent = `${esc.last.skill}, threat ${sideName(esc.last.side)}`; $("bar-explain").textContent = "Backing away; the sensor is not read until the dog stands again."; }
+  else if (esc.state === "standing") { $("bar-state").textContent = "Standing up"; $("bar-facts").textContent = ""; $("bar-explain").textContent = "Waiting for the robot to confirm the stand."; }
+  else if (esc.state === "failed") { $("bar-state").textContent = "Stand failed"; $("bar-facts").textContent = ""; $("bar-explain").textContent = "The robot did not confirm standing; it was rested and the demo is in observe mode."; }
+  else {
+    $("bar-state").textContent = frame.mode === "escape" ? "Ready to escape" : "Observing";
+    $("bar-facts").textContent = `${esc.count} escape${esc.count === 1 ? "" : "s"} · ${esc.per_minute}/${esc.max_per_minute} this minute`;
+    $("bar-explain").textContent = (frame.mode === "escape" ? `The ${NAMES[frame.driver]} model's trigger moves the robot. ` : "The robot does not move. ") +
+      (esc.last_block ? `Last ignored trigger: ${esc.last_block}. ` : "") + cal.message + ".";
+  }
+  $("hand-note").textContent = st.mock ? "Simulated: drag the orange hand towards the dog, or run a scripted approach." : "";
+  const sc = $("scripts");
+  if ((st.scripts || []).length && !sc.children.length) {
+    for (const n of st.scripts) { const b = document.createElement("button"); b.textContent = n; b.addEventListener("click", () => send({ action: "mock_script", name: n })); sc.appendChild(b); }
+  }
+  $("top").classList.toggle("draggable", !!st.mock);
+}
+
+async function send(cmd) {
+  try {
+    const r = await fetch("/api/command", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cmd) });
+    const j = await r.json(), m = $("msg");
+    if (!j.ok) { m.textContent = j.error || "command failed"; m.className = "err"; }
+    else if (cmd.action !== "mock_hand") { m.textContent = ""; m.className = ""; }
+  } catch (e) { $("msg").textContent = "server unreachable"; $("msg").className = "err"; }
+}
+for (const b of document.querySelectorAll("[data-mode]")) b.addEventListener("click", () => send({ action: "mode", mode: b.dataset.mode }));
+$("handsoff").addEventListener("click", () => send({ action: "hands_off" }));
+$("recal").addEventListener("click", () => send({ action: "recalibrate" }));
+$("reset").addEventListener("click", () => send({ action: "reset_scores" }));
+window.addEventListener("keydown", (e) => {
+  if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName) || e.metaKey || e.ctrlKey) return;
+  if (e.key === "h" || e.key === "H") { send({ action: "hands_off" }); e.preventDefault(); }
+});
+
+// ---- visual simulator (mock mode) --------------------------------------------------------
+// Everything drawn comes from the mock robot's state in each frame: the hand from its
+// ProximityHand, the dog's pose from its skill, its displacement from its kinematics.
+const SCENE_CM = 78, NOSE_AT = 0.6, HAND_MAX_CM = 42;  // scene: 47 cm ahead of the nose, 31 behind
+let simPrev = null, simCur = null, simT0 = 0, simT1 = 0, flashUntil = 0, lastDriverTrig = null, camX = 0;
+const lerp = (a, b, u) => a + (b - a) * u;
+function simState(nowMs) {
+  if (!simCur) return null;
+  if (!simPrev) return simCur;
+  const span = Math.max(1, simT1 - simT0), u = Math.max(0, Math.min(1, (nowMs - simT1) / span));
+  const p = simPrev, c = simCur;
+  let ph = c.dog.phase, pp = p.dog.phase; if (ph < pp) ph += 1;
+  return {
+    ...c,
+    dog: { ...c.dog, x_cm: lerp(p.dog.x_cm, c.dog.x_cm, u), phase: lerp(pp, ph, u) % 1 },
+    hand: { ...c.hand, distance: lerp(p.hand.distance, c.hand.distance, u), side: lerp(p.hand.side, c.hand.side, u) },
+  };
+}
+const isDark = () => document.documentElement.dataset.theme === "dark" || (matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light");
+const SKIN = () => isDark() ? "#c99572" : "#e9b892";
+const YELLOW = "#f2c12e", BLACK = "#1b1b1a";
+
+function drawBittleTop(g, sc, pose, phase, lit) {
+  // origin = nose (front of the sensor), +y = backwards (down the screen), units cm
+  const swing = pose === "back" || pose === "walk" || pose === "turn" ? 2.2 : 0;
+  const tuck = pose === "rest";
+  g.save(); g.scale(sc, sc);
+  g.lineJoin = "round"; g.lineCap = "round";
+  // the robot is black and yellow; on a dark page its black parts get a light outline
+  const OUT = isDark() ? css["--ink-3"] : BLACK;
+  const blk = () => { g.fillStyle = BLACK; g.fill(); g.strokeStyle = OUT; g.lineWidth = 0.35; g.stroke(); };
+  // legs (under the body): front pair at y=9, back pair at y=22
+  const legs = [[-6.2, 9, 0], [6.2, 9, 0.5], [-6.2, 22, 0.5], [6.2, 22, 0]];
+  for (const [x, y, off] of legs) {
+    const s = swing * Math.sin(2 * Math.PI * (phase + off));
+    const lw = tuck ? 2.2 : 2.6, ll = tuck ? 3.5 : 7.5, dx = x < 0 ? -1 : 1;
+    g.beginPath(); g.roundRect(x + (dx < 0 ? -lw - 1.2 : 1.2) * 1, y - ll / 2 + s, lw, ll, 1.1); blk();
+    g.beginPath(); g.arc(x + dx * (1.2 + lw / 2), y + s + ll / 2, 1.3, 0, 2 * Math.PI); blk();  // paw
+  }
+  // body
+  g.fillStyle = YELLOW; g.strokeStyle = OUT; g.lineWidth = 0.7;
+  g.beginPath(); g.roundRect(-5.6, 5.5, 11.2, 20.5, 2.6); g.fill(); g.stroke();
+  g.beginPath(); g.roundRect(-2.6, 8.5, 5.2, 14, 1.4); g.fillStyle = BLACK; g.fill();  // battery / spine
+  g.fillStyle = YELLOW; for (let i = 0; i < 3; i++) { g.beginPath(); g.roundRect(-1.6, 10 + i * 4.2, 3.2, 2.4, 0.6); g.fill(); }
+  // tail stub
+  g.beginPath(); g.roundRect(-0.9, 25.6, 1.8, 2.4, 0.8); blk();
+  // head
+  g.fillStyle = YELLOW; g.strokeStyle = OUT; g.lineWidth = 0.7;
+  g.beginPath(); g.roundRect(-4.4, 0.6, 8.8, 6.6, 2.2); g.fill(); g.stroke();
+  g.beginPath(); g.roundRect(-3.4, 0.2, 6.8, 1.6, 0.8); blk();  // face plate
+  // arm: from the back of the head forward, ending in the claw
+  g.beginPath(); g.roundRect(-1.1, -3.2, 2.2, 9.5, 1.1); blk();
+  g.strokeStyle = isDark() ? css["--ink-2"] : BLACK; g.lineWidth = 0.9;
+  g.beginPath(); g.moveTo(-1.0, -3.0); g.quadraticCurveTo(-2.2, -5.2, -0.6, -6.2); g.stroke();
+  g.beginPath(); g.moveTo(1.0, -3.0); g.quadraticCurveTo(2.2, -5.2, 0.6, -6.2); g.stroke();
+  // the bone-shaped proximity sensor across the head
+  g.fillStyle = "#e9e8e4"; g.strokeStyle = BLACK; g.lineWidth = 0.45;  // the sensor is white
+  g.beginPath(); g.roundRect(-3.2, 2.1, 6.4, 1.3, 0.6); g.fill(); g.stroke();
+  for (const [x, p] of [[-3.3, lit[0]], [3.3, lit[1]]]) {
+    g.fillStyle = "#e9e8e4"; g.beginPath(); g.arc(x, 2.75, 1.25, 0, 2 * Math.PI); g.fill(); g.stroke();
+    g.fillStyle = css["--s1"]; g.globalAlpha = 0.25 + 0.75 * p; g.beginPath(); g.arc(x, 2.75, 0.6, 0, 2 * Math.PI); g.fill(); g.globalAlpha = 1;
+  }
+  g.restore();
+}
+
+function drawHandTop(g, x, y, sc, ang) {
+  // a hand seen from above, fingers pointing along ang (radians, 0 = down the screen)
+  g.save(); g.translate(x, y); g.rotate(ang); g.scale(sc, sc);
+  g.fillStyle = SKIN(); g.strokeStyle = css["--ink"]; g.lineWidth = 0.35;
+  for (const [fx, len] of [[-2.7, 5.2], [-0.9, 6], [0.9, 5.7], [2.6, 4.6]]) { g.beginPath(); g.roundRect(fx - 0.8, -1, 1.6, len + 1, 0.8); g.fill(); g.stroke(); }
+  g.beginPath(); g.ellipse(0, -4.5, 4.2, 4.8, 0, 0, 2 * Math.PI); g.fill(); g.stroke();
+  g.save(); g.translate(-3.8, -4); g.rotate(0.9); g.beginPath(); g.roundRect(-0.9, -0.5, 1.8, 4.4, 0.9); g.fill(); g.stroke(); g.restore();
+  g.restore();
+}
+
+function drawScene() {
+  const c = $("scene"); const [g, w, h] = setupCanvas(c);
+  const st = simState(performance.now()); if (!st) return;
+  const near = st.band.near_cm, far = st.band.far_cm;
+  const sc = h / SCENE_CM;  // px per cm
+  camX += (st.dog.x_cm - camX) * 0.06;  // the view follows the dog slowly, so its step back shows
+  const worldY = (xcm) => h * NOSE_AT + (camX - xcm) * sc;  // screen y of world x (+ forward)
+  const ox = w / 2, oy = worldY(st.dog.x_cm);  // the dog's nose
+  // floor grid fixed to the floor: 10 cm lines
+  g.strokeStyle = css["--line"]; g.lineWidth = 1;
+  const top = camX + (h * NOSE_AT) / sc, bottom = camX - (h * (1 - NOSE_AT)) / sc;
+  for (let k = Math.floor(bottom / 10) * 10; k <= top; k += 10) {
+    const y = worldY(k); g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke();
+  }
+  for (let k = -80; k <= 80; k += 10) { const x = ox + k * sc; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
+  // start mark
+  g.strokeStyle = css["--ink-3"]; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(ox - 20 * sc, worldY(0)); g.lineTo(ox + 20 * sc, worldY(0)); g.stroke(); g.setLineDash([]);
+  g.fillStyle = css["--ink-3"]; g.font = "11px system-ui, sans-serif"; g.textAlign = "left"; g.fillText("start", ox + 21 * sc, worldY(0) + 4);
+  // beams: one per channel, from each end of the bone, angled out; band shaded
+  const p = frame ? frame.prox : [0, 0];
+  for (const [i, sx] of [[0, -1], [1, 1]]) {
+    const bx = ox + sx * 3.3 * sc, by = oy + 2.75 * sc, a0 = sx * 0.17, half = 0.2;
+    const ray = (r, a) => [bx + Math.sin(a) * r * sc, by - Math.cos(a) * r * sc];
+    const wedge = (r0, r1) => { g.beginPath(); const [x0, y0] = ray(r0, a0 - half); g.moveTo(x0, y0);
+      for (let k = 0; k <= 12; k++) { const [x, y] = ray(r1, a0 - half + 2 * half * k / 12); g.lineTo(x, y); }
+      for (let k = 12; k >= 0; k--) { const [x, y] = ray(r0, a0 - half + 2 * half * k / 12); g.lineTo(x, y); } g.closePath(); };
+    g.fillStyle = css["--accent-bg"]; wedge(near, far + 2.75); g.fill();                     // graded band
+    g.fillStyle = css["--s1"]; g.globalAlpha = 0.06 + 0.6 * p[i]; wedge(0.8, far + 2.75); g.fill(); g.globalAlpha = 1;
+    g.strokeStyle = css["--line-2"]; g.lineWidth = 1; wedge(0.8, far + 2.75); g.stroke();
+    g.fillStyle = css["--ink-2"]; g.font = "12px system-ui, sans-serif"; g.textAlign = "center";
+    const [lx, ly] = ray(far + 6, a0); g.fillText(sx < 0 ? "left" : "right", lx, ly);
+  }
+  // escape trail arrow
+  if (st.dog.pose === "back") {
+    g.strokeStyle = css["--bad"]; g.lineWidth = 3; g.lineCap = "round";
+    const y0 = oy + 31 * sc; g.beginPath(); g.moveTo(ox, y0); g.lineTo(ox, y0 + 9 * sc); g.stroke();
+    g.beginPath(); g.moveTo(ox - 2.5 * sc, y0 + 6.5 * sc); g.lineTo(ox, y0 + 9.5 * sc); g.lineTo(ox + 2.5 * sc, y0 + 6.5 * sc); g.stroke();
+  }
+  // trigger flash ring
+  const now = performance.now();
+  if (now < flashUntil) {
+    const u = (flashUntil - now) / 700;
+    g.strokeStyle = css[VAR[frame.driver]] || css["--bad"]; g.globalAlpha = u; g.lineWidth = 4;
+    g.beginPath(); g.ellipse(ox, oy + 13 * sc, 14 * sc * (1.3 - 0.3 * u), 20 * sc * (1.3 - 0.3 * u), 0, 0, 2 * Math.PI); g.stroke(); g.globalAlpha = 1;
+  }
+  // the dog
+  g.save(); g.translate(ox, oy); drawBittleTop(g, sc, st.dog.pose, st.dog.phase, p); g.restore();
+  if (st.dog.pose === "rest") { g.fillStyle = css["--ink-2"]; g.textAlign = "center"; g.fillText("resting", ox, oy + 34 * sc); }
+  // the hand: distance from the sensor, side +1 = robot's left = screen left
+  const d = Math.min(st.hand.distance, HAND_MAX_CM), a = 0.62 * st.hand.side;
+  const hx = ox - Math.sin(a) * (d + 4) * sc, hy = oy - Math.cos(a) * (d + 4) * sc;
+  if (st.hand.distance <= HAND_MAX_CM + 2) {
+    drawHandTop(g, hx, hy, sc, -a);  // fingers towards the nose
+    g.fillStyle = css["--ink"]; g.font = "600 13px system-ui, sans-serif"; g.textAlign = "center";
+    g.fillText(`${st.hand.distance.toFixed(0)} cm`, hx + (st.hand.side > 0 ? 10 : -10) * sc, hy - 3 * sc);
+  } else {
+    g.fillStyle = css["--ink-3"]; g.font = "12px system-ui, sans-serif"; g.textAlign = "right";
+    g.fillText("hand away", w - 12, 20);
+  }
+  // what is happening
+  g.textAlign = "left"; g.font = "600 13px system-ui, sans-serif"; g.fillStyle = css["--ink"];
+  const ap = st.approach;
+  g.fillText(ap ? `#${ap.id} ${ap.label}` : (st.paused ? "paused" : "no approach"), 12, 20);
+  if (ap) { g.font = "11px system-ui, sans-serif"; g.fillStyle = ap.threat ? css["--bad"] : css["--ink-2"]; g.fillText(ap.threat ? "THREAT" : "not a threat", 12, 36); }
+  g.textAlign = "left"; g.fillStyle = css["--ink-2"]; g.font = "12px system-ui, sans-serif";
+  g.fillText(`dog: ${st.dog.pose}, ${(-st.dog.x_cm).toFixed(0)} cm behind its start mark`, 12, h - 12);
+}
+
+function drawSide() {
+  const c = $("side"); const [g, w, h] = setupCanvas(c);
+  const st = simState(performance.now()); if (!st) return;
+  const sc = h / 34, ground = h - 12;
+  const noseX = w * 0.62 + (st.dog.x_cm - camX) * sc;
+  g.strokeStyle = css["--line-2"]; g.lineWidth = 1; g.beginPath(); g.moveTo(0, ground); g.lineTo(w, ground); g.stroke();
+  g.fillStyle = css["--ink-3"]; for (let k = -200; k <= 200; k += 10) { const x = w * 0.62 + (k - camX) * sc; g.fillRect(x, ground, 1, 4); }
+  const startX = w * 0.62 + (0 - camX) * sc; g.fillStyle = css["--ink-3"]; g.fillRect(startX - 1, ground - 4, 2, 10);
+  const pose = st.dog.pose, swing = pose === "back" || pose === "walk" ? 2.4 : 0, rest = pose === "rest";
+  const bodyY = ground - (rest ? 6 : 12) * sc;
+  // legs
+  for (const [lx, off] of [[-6, 0], [-18, 0.5]]) {
+    const s = swing * Math.sin(2 * Math.PI * (st.dog.phase + off));
+    g.strokeStyle = isDark() ? "#55554f" : BLACK; g.lineWidth = 2.4 * sc * 0.45; g.lineCap = "round";
+    const hx = noseX + lx * sc, kx = hx + s * sc, fy = ground - 0.5 * sc;
+    g.beginPath(); g.moveTo(hx, bodyY + 2 * sc); g.lineTo(kx + (rest ? 4 : 1.5) * sc, (bodyY + fy) / 2 + 1 * sc); g.lineTo(kx, fy); g.stroke();
+  }
+  g.fillStyle = YELLOW; g.strokeStyle = isDark() ? css["--ink-3"] : BLACK; g.lineWidth = 1;
+  g.beginPath(); g.roundRect(noseX - 26 * sc, bodyY - 3 * sc, 20.5 * sc, 6 * sc, 2 * sc); g.fill(); g.stroke();
+  g.beginPath(); g.roundRect(noseX - 7 * sc, bodyY - 7.5 * sc, 7 * sc, 6.5 * sc, 2 * sc); g.fill(); g.stroke();  // head
+  g.fillStyle = isDark() ? "#55554f" : BLACK; g.fillRect(noseX - 6 * sc, bodyY - 9 * sc, 5 * sc, 1.6 * sc);  // sensor on top
+  g.beginPath(); g.roundRect(noseX - 5 * sc, bodyY - 12.5 * sc, 1.8 * sc, 4 * sc, 0.8 * sc); g.fill();  // arm
+  g.beginPath(); g.roundRect(noseX - 5 * sc, bodyY - 12.8 * sc, 8 * sc, 1.6 * sc, 0.8 * sc); g.fill();
+  // hand at its distance in front
+  const hx = noseX + Math.min(st.hand.distance, 80) * sc;
+  if (hx < w - 4) { g.fillStyle = SKIN(); g.strokeStyle = css["--ink"]; g.beginPath(); g.roundRect(hx, bodyY - 11 * sc, 3 * sc, 9 * sc, 1.4 * sc); g.fill(); g.stroke(); }
+  g.fillStyle = css["--ink-2"]; g.font = "11px system-ui, sans-serif"; g.textAlign = "left";
+  g.fillText("side view", 8, 14);
+}
+
+function renderSim() {
+  const sim = frame.sim; if (!sim) return;
+  // drivers
+  const dv = $("drivers");
+  if (!dv.children.length) {
+    for (const k of KEYS) {
+      const b = document.createElement("button"); b.dataset.driver = k;
+      b.innerHTML = `<i class="sw" style="background:var(${VAR[k]})"></i>${NAMES[k]}`;
+      b.addEventListener("click", () => send({ action: "driver", model: k })); dv.appendChild(b);
+    }
+  }
+  for (const b of dv.children) b.setAttribute("aria-pressed", String(b.dataset.driver === frame.driver));
+  $("driver-note").textContent = frame.mode === "escape" ? `The ${NAMES[frame.driver]} model's escapes move the dog. The others are scored on the same input.` : "Observe mode: nothing moves the dog.";
+  $("rand").setAttribute("aria-pressed", String(sim.random.on));
+  if (document.activeElement !== $("seed")) $("seed").value = sim.random.seed;
+  $("rand-next").textContent = sim.random.on ? (sim.random.next_in != null ? `next in ${sim.random.next_in.toFixed(1)} s` : "running") : "";
+  if (document.activeElement !== $("speed")) { $("speed").value = sim.speed; }
+  $("speed-v").textContent = Number($("speed").value).toFixed(2) + "×";
+  $("pause").setAttribute("aria-pressed", String(sim.paused));
+  $("pause").textContent = sim.paused ? "Resume" : "Pause";
+  $("sim-note").textContent = "What you see is the simulated robot's own state: the hand the sensor model reads, the skill the dog is running, how far it has walked.";
+  // ground truth table
+  const gs = sim.score;
+  $("gt-sum").textContent = `${gs.trials} approaches finished: ${gs.threats} threats, ${gs.non_threats} not threats` + (sim.random.on ? ` · random, seed ${sim.random.seed}` : "");
+  const tb = $("gt");
+  if (!tb.children.length) for (const k of KEYS) { const tr = document.createElement("tr"); tr.dataset.key = k; tr.innerHTML = `<td><span class="name"><i class="sw" style="background:var(${VAR[k]})"></i>${NAMES[k]}</span> <span class="small drv"></span></td><td class="big num c"></td><td class="num f"></td><td class="num r"></td><td class="num s"></td><td class="num d"></td><td class="num sp"></td>`; tb.appendChild(tr); }
+  for (const tr of tb.children) {
+    const k = tr.dataset.key, m = gs.models[k];
+    tr.classList.toggle("driver", k === frame.driver);
+    tr.querySelector(".drv").textContent = k === frame.driver ? "drives the dog" : "";
+    tr.querySelector(".c").textContent = `${m.caught}/${gs.threats}`;
+    tr.querySelector(".f").textContent = `${m.false}/${gs.non_threats}`;
+    tr.querySelector(".r").textContent = m.rt_ms == null ? "—" : m.rt_ms + " ms";
+    tr.querySelector(".s").textContent = m.side_n ? `${m.side_ok}/${m.side_n}` : "—";
+    tr.querySelector(".d").textContent = m.dist_cm == null ? "—" : m.dist_cm.toFixed(1) + " cm";
+    tr.querySelector(".sp").textContent = m.spontaneous;
+  }
+  const tt = $("trials"); tt.replaceChildren();
+  for (const t of sim.trials) {
+    const r = tt.insertRow();
+    r.insertCell().textContent = t.id;
+    const c1 = r.insertCell(); c1.innerHTML = `<span class="badge ${t.threat ? "threat" : "safe"}">${t.threat ? "threat" : "not a threat"}</span> `; c1.appendChild(document.createTextNode(t.label));
+    const c2 = r.insertCell(); c2.style.textAlign = "left"; const ch = document.createElement("div"); ch.className = "chips";
+    for (const k of KEYS) { const f = t.fired[k]; if (!f) continue; const s = document.createElement("span"); s.className = "chip"; s.innerHTML = `<i class="sw" style="background:var(${VAR[k]})"></i>`; s.appendChild(document.createTextNode(`${NAMES[k]} ${f.rt_ms ?? "?"}`)); ch.appendChild(s); }
+    if (!ch.children.length) ch.textContent = "none"; c2.appendChild(ch);
+    r.insertCell().textContent = t.escaped ? "escaped" : "—";
+  }
+}
+
+for (const b of document.querySelectorAll("[data-launch]")) b.addEventListener("click", () => { const [kind, side] = b.dataset.launch.split(","); send({ action: "sim_launch", kind, side: Number(side) }); });
+$("rand").addEventListener("click", () => send({ action: "sim_random", seed: $("seed").value }));
+$("seed").addEventListener("change", () => send({ action: "sim_random", on: frame && frame.sim ? frame.sim.random.on : false, seed: $("seed").value }));
+$("speed").addEventListener("input", () => { $("speed-v").textContent = Number($("speed").value).toFixed(2) + "×"; });
+$("speed").addEventListener("change", () => send({ action: "sim_speed", value: Number($("speed").value) }));
+$("pause").addEventListener("click", () => send({ action: "sim_pause" }));
+$("stophand").addEventListener("click", () => send({ action: "sim_stop" }));
+$("simreset").addEventListener("click", () => { send({ action: "sim_reset" }); });
+// drag the hand in the scene
+let sceneDrag = false, sceneLast = 0;
+function sceneHand(e) {
+  const c = $("scene"), r = c.getBoundingClientRect(), sc = r.height / SCENE_CM;
+  const ox = r.width / 2, oy = r.height * NOSE_AT;
+  const dx = (e.clientX - r.left - ox) / sc, dy = (oy - (e.clientY - r.top)) / sc;
+  const d = Math.max(0, Math.hypot(dx, dy) - 4), a = Math.atan2(-dx, Math.max(dy, 0.1));
+  return { distance: d, side: Math.max(-1, Math.min(1, a / 0.62)) };
+}
+$("scene").addEventListener("pointerdown", (e) => { if (!frame || !frame.sim) return; sceneDrag = true; $("scene").setPointerCapture(e.pointerId); send({ action: "mock_hand", ...sceneHand(e) }); });
+$("scene").addEventListener("pointermove", (e) => { if (!sceneDrag) return; const n = performance.now(); if (n - sceneLast < 40) return; sceneLast = n; send({ action: "mock_hand", ...sceneHand(e) }); });
+$("scene").addEventListener("pointerup", () => { sceneDrag = false; send({ action: "mock_hand", distance: 80, side: 0 }); });
+
+function simOnFrame(f) {
+  if (!f.sim) return;
+  document.body.classList.add("sim");
+  simPrev = simCur; simCur = f.sim; simT0 = simT1; simT1 = performance.now();
+  // flash when the driver model fires
+  const mine = (f.triggers || []).filter((x) => x[1] === f.driver);
+  const last = mine.length ? mine[mine.length - 1][0] : null;
+  if (last != null && last !== lastDriverTrig) {
+    if (lastDriverTrig !== null || f.t - last < 0.5) {
+      flashUntil = performance.now() + 700;
+      for (const id of ["gauge-l", "gauge-r"]) { const el = $(id); el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 600); }
+    }
+    lastDriverTrig = last;
+  }
+}
+
+function onFrame(f) {
+  if (f.trace_full || (frame && f.t < frame.t)) { trace = f.trace.slice(); trigs = f.triggers.slice(); }
+  else {
+    const lastT = trace.length ? trace[trace.length - 1][0] : -1;
+    for (const p of f.trace) if (p[0] > lastT) trace.push(p);
+    const seen = new Set(trigs.map((x) => x[0] + x[1]));
+    for (const x of f.triggers) if (!seen.has(x[0] + x[1])) trigs.push(x);
+  }
+  while (trace.length && trace[0][0] < f.t - TRACE_S - 1) trace.shift();
+  while (trigs.length && trigs[0][0] < f.t - TRACE_S - 1) trigs.shift();
+  frame = f; dirty = true;
+  simOnFrame(f);
+}
+function connect() {
+  const es = new EventSource("/api/stream");
+  es.onmessage = (e) => { try { onFrame(JSON.parse(e.data)); } catch (_) {} };
+  es.onerror = () => { $("conn-dot").className = "dot bad"; $("conn-text").textContent = "dashboard disconnected, retrying…"; };
+}
+function loop() {
+  if (dirty) {
+    dirty = false;
+    try {
+      if (frame) { renderHeader(); renderScore(); renderEvents(); renderActivity(); if (frame.sim) renderSim(); }
+      drawTrace(); if (!(frame && frame.sim)) drawTop();
+    } catch (e) { console.error(e); }
+  }
+  if (frame && frame.sim) { try { drawScene(); drawSide(); } catch (e) { console.error(e); } }  // animate every display frame
+  requestAnimationFrame(loop);
+}
+window.addEventListener("resize", () => { dirty = true; });
+
+const BENCH_KEYS = KEYS;
+// ---- offline benchmark: generic renderer for whatever sections the JSON has -------------
+const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
+const isScalar = (v) => v == null || ["number", "string", "boolean"].includes(typeof v);
+const human = (k) => String(k).replace(/_/g, " ");
+function fmtVal(x) {
+  if (typeof x === "number") {
+    if (Number.isInteger(x) || Math.abs(x) >= 100) return x.toFixed(0);
+    if (Math.abs(x) >= 1) return x.toFixed(2);
+    return x.toPrecision(2);
+  }
+  if (typeof x === "boolean") return x ? "yes" : "no";
+  if (Array.isArray(x)) return x.every(isScalar) ? x.map(fmtVal).join(", ") : `${x.length} items`;
+  if (isObj(x)) return `${Object.keys(x).length} fields`;
+  return x == null ? "—" : String(x);
+}
+function el(tag, text, cls) { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
+// rows: [[label, object]]; scalar fields and flat sub-objects become columns, nested tables
+// (objects of objects) become their own collapsed sub-tables.
+function rowsTable(title, rows, gloss) {
+  const cols = [], seen = new Set(), nested = {}, notes = [];
+  const add = (c) => { if (!seen.has(c)) { seen.add(c); cols.push(c); } };
+  const SEP = " · ";
+  for (const [label, obj] of rows) {
+    for (const [k, v] of Object.entries(obj)) {
+      if (typeof v === "string" && v.length > 40) notes.push([label, k, v]);  // prose, not a cell
+      else if (isScalar(v) || (Array.isArray(v) && v.every(isScalar))) add(k);
+      else if (isObj(v) && Object.values(v).every(isScalar)) for (const sk of Object.keys(v)) add(k + SEP + sk);
+      else if (isObj(v) && Object.values(v).every(isObj)) (nested[k] ||= []).push(...Object.entries(v).map(([sk, sv]) => [rows.length > 1 ? `${label} / ${sk}` : sk, sv]));
+      else add(k);
+    }
+  }
+  const finalCols = cols.filter((c) => !(c in nested));
+  const get = (obj, c) => { const i = c.indexOf(SEP); return i < 0 ? obj[c] : (obj[c.slice(0, i)] || {})[c.slice(i + SEP.length)]; };
+  const head = (c) => { const th = el("th", human(c)); const g = gloss[c.split(SEP)[0]]; if (g) th.title = g; return th; };
+  const wrap = el("div", null, "scroll-x");
+  const t = el("table");
+  const hr = t.createTHead().insertRow();
+  const tb = t.createTBody();
+  if (rows.length <= 12 && finalCols.length > 12 && finalCols.length > rows.length) {
+    // few entities, many measures: one column per entity reads better than a 30-column row
+    hr.appendChild(el("th", ""));
+    for (const [label] of rows) hr.appendChild(el("th", label));
+    for (const c of finalCols) {
+      const tr = tb.insertRow();
+      const td = tr.insertCell(); td.textContent = human(c); const g = gloss[c.split(SEP)[0]]; if (g) td.title = g;
+      for (const [, obj] of rows) tr.insertCell().textContent = fmtVal(get(obj, c));
+    }
+  } else {
+    hr.appendChild(el("th", ""));
+    for (const c of finalCols) hr.appendChild(head(c));
+    for (const [label, obj] of rows) {
+      const tr = tb.insertRow(); const td = tr.insertCell(); td.textContent = label; td.style.fontWeight = 600;
+      for (const c of finalCols) tr.insertCell().textContent = fmtVal(get(obj, c));
+    }
+  }
+  wrap.appendChild(t);
+  const frag = document.createDocumentFragment();
+  frag.appendChild(wrap);
+  for (const [label, k, v] of notes) frag.appendChild(el("p", `${label}, ${human(k)}: ${v}`, "note"));
+  for (const [k, subRows] of Object.entries(nested)) {
+    const det = el("details"); det.appendChild(el("summary", `${human(title)} · ${human(k)} (${subRows.length} rows)`));
+    det.appendChild(rowsTable(k, subRows, gloss)); frag.appendChild(det);
+  }
+  return frag;
+}
+function labelOf(obj, i) {
+  for (const k of ["model", "name", "variant", "id", "label"]) if (isScalar(obj[k]) && obj[k] != null) return String(obj[k]);
+  return "#" + (i + 1);
+}
+function benchSection(key, v, gloss) {
+  const sec = el("div", null, "bench-sec");
+  if (Array.isArray(v) && v.length && v.every(isObj)) {
+    sec.appendChild(el("h3", human(key)));
+    const rows = v.map((o, i) => {
+      const lab = labelOf(o, i), c = { ...o };
+      for (const k of ["model", "name"]) if (c[k] === lab) delete c[k];  // already the row label
+      Object.defineProperty(c, "__label", { value: lab });  // non-enumerable: not a column
+      return [lab, c];
+    });
+    sec.appendChild(rowsTable(key, rows, gloss));
+  } else if (isObj(v) && Object.keys(v).length && Object.values(v).every(isObj)) {
+    sec.appendChild(el("h3", human(key)));
+    sec.appendChild(rowsTable(key, Object.entries(v).map(([k, o]) => { const c = { ...o }; Object.defineProperty(c, "__label", { value: k }); return [k, c]; }), gloss));
+  } else if (isObj(v)) {
+    const det = el("details"); det.appendChild(el("summary", `${human(key)} (${Object.keys(v).length} fields)`));
+    const dl = el("dl", null, "gloss");
+    const flat = (o, pre) => { for (const [k, x] of Object.entries(o)) { if (isObj(x) && Object.keys(x).length) flat(x, pre + k + "."); else { dl.appendChild(el("dt", pre + k)); dl.appendChild(el("dd", fmtVal(x))); } } };
+    flat(v, ""); det.appendChild(dl); sec.appendChild(det);
+  } else {
+    sec.appendChild(el("p", `${human(key)}: ${fmtVal(v)}`, "note"));
+  }
+  return sec;
+}
+function renderBench(b) {
+  const box = $("bench");
+  if (b.error) { box.replaceChildren(el("pre", b.error)); $("bench-card").classList.remove("hidden"); return; }
+  const d = b.data;
+  const nodes = [];
+  if (!isObj(d)) { nodes.push(el("pre", JSON.stringify(d, null, 2))); }
+  else {
+    // a section of plain-text descriptions is a glossary: column tooltips + collapsed list
+    let gloss = {}, glossKey = null;
+    for (const [k, v] of Object.entries(d)) if (isObj(v) && Object.keys(v).length && Object.values(v).every((x) => typeof x === "string")) { gloss = v; glossKey = k; break; }
+    const meta = Object.entries(d).filter(([, v]) => isScalar(v));
+    if (meta.length) nodes.push(el("p", meta.map(([k, v]) => `${human(k)}: ${fmtVal(v)}`).join(" · "), "note"));
+    // tables first (they carry the results), then everything else in file order
+    const entries = Object.entries(d).filter(([k, v]) => !isScalar(v) && k !== glossKey);
+    const tabular = (v) => (Array.isArray(v) && v.length && v.every(isObj)) || (isObj(v) && Object.keys(v).length && Object.values(v).every(isObj));
+    // model tables (rows labelled by a "model" field, or keyed by our model names) come first
+    const byModel = (v) => Array.isArray(v) ? v.some((o) => "model" in o) : Object.keys(v).some((k) => BENCH_KEYS.includes(k));
+    const tabs = entries.filter(([, v]) => tabular(v));
+    for (const [k, v] of [...tabs.filter(([, v]) => byModel(v)), ...tabs.filter(([, v]) => !byModel(v))]) {
+      if (byModel(v)) nodes.push(benchSection(k, v, gloss));
+      else { const det = el("details"); det.appendChild(el("summary", human(k))); det.appendChild(benchSection(k, v, gloss)); nodes.push(det); }
+    }
+    for (const [k, v] of entries.filter(([, v]) => !tabular(v))) nodes.push(benchSection(k, v, gloss));
+    if (glossKey) {
+      const det = el("details"); det.appendChild(el("summary", `${human(glossKey)}: what the columns mean`));
+      const dl = el("dl", null, "gloss");
+      for (const [k, v] of Object.entries(gloss)) { dl.appendChild(el("dt", human(k))); dl.appendChild(el("dd", v)); }
+      det.appendChild(dl); nodes.push(det);
+    }
+  }
+  nodes.push(el("p", "Source: " + b.source, "note"));
+  box.replaceChildren(...nodes);
+  $("bench-card").classList.remove("hidden");
+}
+
+fetch("/api/benchmark").then((r) => r.status === 200 ? r.json() : null).then((b) => { if (b) renderBench(b); }).catch(() => {});
+connect(); loop();
+</script>
+</body>
+</html>

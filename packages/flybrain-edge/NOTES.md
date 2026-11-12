@@ -278,3 +278,56 @@ settles at +44): roughly 10 deg while the link waits for the `kup` echo and anot
 deg during the pause. Over USB the overshoot was 3 to 9 deg. The stop watchdog fired once
 (still moving at 3.3 deg/s 1.5 s after the stand) and one re-send was enough. Not yet re-run
 over USB with the fix.
+
+## Analog reads: the infrared proximity sensor (firmware B10_250330, USB, 2026-11-11)
+
+A Petoi double infrared proximity sensor on the Grove socket labelled 39/36 can be read from the
+host without enabling the firmware's sensor module (which would start its own reactions; enabling
+the camera with `XC~` made the robot do `sit` by itself, so the kit sends no `X` command).
+
+| Fact | Source |
+|---|---|
+| Token `R` (`T_READ`), binary: pairs of type and pin byte, terminated by `~`. Type `a` (`TYPE_ANALOG`) = analogRead, `d` = digitalRead. Pins must stay below 126 (`~`). | `src/OpenCat.h:364-367` |
+| For each pair the firmware prints `=` and the reading, then echoes `R`. | `src/reaction.h:1101-1112, 1579-1581` |
+| Captured: TX `Ra$~` (pin 36) -> RX `=\r\n3381\r\n`, then `R\r\n`. TX `Ra$a'~` (pins 36, 39) -> `=\r\n3376\r\n=\r\n3453\r\n`, `R\r\n`. Four pins in one command also work (`Ra"a#a$a'~`); unconnected pins read about 0. | robot, USB |
+| About 28 reads/s of two pins over USB with nothing else polled; the robot did not move. | robot, USB |
+| No beep for `R` (excluded with the binary joint tokens). | `src/reaction.h:358-361` |
+| **Side effect: the read path is shared with the binary joint tokens.** After it, the token is not restored to `k` (`R` is not in the list at `src/reaction.h:1582-1586`) and `resetCmd()` clears it, so a running gait stops (`skill->perform()` is no longer called). When the previous token was not a skill (or a stale `nonHeadJointQ` is set) it also re-asserts the current joint angles as a posture (`transform` + `convertTargetToPosture`). So: never read analog pins while a gait runs; the demo pauses reads during an escape. | `src/reaction.h:1064-1131`, `src/tools.h:197-209` |
+| BLE: not yet captured. By analogy with the other prints on B10_250330, `=`, the reading and the echo should arrive as separate notifications, possibly glued (`=3381`, `3453R`); the parser accepts all of these. | inferred |
+
+Sensor behaviour: about 3400 (+-50) with nothing in front, about 0 with a hand close; graded only
+over a narrow band, so a hand approach gives 1 to 6 intermediate samples (70 to 250 ms). The two
+channels fall at slightly different times. Which pin is the robot's left is not established
+(`flybrain-bittle probe --analog 36,39 --side-test` checks it).
+
+### Fly escape on the robot (2026-11-11, USB, firmware B10_250330)
+
+- `probe --analog 36,39`: 83.7 reads/s, all complete; resting about 3250-3470.
+- Observe mode: calibrated (left 3373 +- 18, right 3382 +- 13), about 27 samples/s in the app.
+- Escape mode with the first fitted model: 6 escapes in 45 s (`bkF` for 1 s, then `up`), every
+  stand confirmed by its echo, one trigger correctly ignored inside the 3 s minimum interval.
+  The connectome and rewired models only fired when the pin-39 channel dropped; two approaches
+  seen only by pin 36 were missed while both baselines caught them. The owner saw the same: the
+  dog backed away from a hand on its left and not on its right. Cause: the right giant fiber
+  gets 967 LC4+LPLC2 synapses against 634 on the left and one shared threshold was fitted on
+  data with no one-sided approaches. Fixed in the model (a threshold per giant fiber).
+- On this robot the pin-39 half of the sensor was on the robot's left: use `--swap-sides`.
+- A first escape attempt was refused by calibration because a hand was in front of the sensor
+  during the 2 s window ("right channel rests at 116"). Working as designed.
+- Not yet run on the robot: the both-sides fix, escape over BLE, `back-turn`.
+
+### Fly escape on the robot, day 2 (2026-11-12)
+
+- **Daylight blinds the sensor.** Next to a window at midday both channels read about 50-170
+  instead of about 3400, as if something were permanently in front of it; shading it with a hand
+  only raised the reading by about 50. Moved away from the window, the same sensor read
+  3150-3300 at once. Calibration refused to start in the blinded state, as designed. Run this
+  demo away from windows or shield the sensor.
+- **Both-sides fix confirmed** (USB, `--swap-sides`, 90 s): 6 escapes, every stand confirmed,
+  4 for a hand on the robot's left (pin 39 dropping) and 2 on its right (pin 36 dropping), with
+  the reported side matching the channel each time. Two more triggers were refused by the
+  6-per-minute cap. Of 10 trigger events in the log: connectome 8, looming-rate 9, proximity 6,
+  rewired 4, random 0. No ground truth for how many approaches there really were.
+- **Analog reads over BLE work**: about 9.5 samples/s in the app (USB: about 26/s). Escape mode
+  over BLE has not completed a run yet (the only attempt was in the blinded state).
+- The robot advertised as `BittleC2_BLE` today and `BittleC2_SSP` yesterday.

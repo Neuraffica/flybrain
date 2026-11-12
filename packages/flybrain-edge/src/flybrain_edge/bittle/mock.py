@@ -19,6 +19,7 @@ import struct
 import threading
 import time
 from collections.abc import Callable
+from typing import ClassVar
 
 from . import protocol as P
 
@@ -80,6 +81,71 @@ def wrap_deg(a: float) -> float:
     return a - 180.0
 
 
+class ProximityHand:
+    """A hand in front of the simulated Petoi double infrared proximity sensor.
+
+    Calibrated to the real sensor (USB, firmware B10_250330): about 3400 +- 50 with nothing in
+    front, about 0 with a hand close, graded only over a narrow band, and the two channels fall
+    at slightly different moments. ``distance_cm`` is from the sensor face; ``side`` is +1 for
+    the robot's left, -1 right. ``script(t) -> (distance_cm, side)`` overrides the setting.
+    While the dog walks backwards (an escape) the hand ends up further away."""
+
+    REST: ClassVar[dict[str, float]] = {"L": 3400.0, "R": 3440.0}
+    NEAR_CM = 12.0  # reads ~0 closer than this
+    FAR_CM = 20.0  # reads the resting level beyond this
+    SPREAD_CM = 5.0  # how much closer the hand is to the channel on its side
+    NOISE = 25.0
+
+    def __init__(self, rng):
+        self.rng = rng
+        self.distance_cm = 80.0
+        self.side = 0.0
+        self.script = None
+        self.script_t0 = 0.0
+        self.backed_cm = 0.0
+        self.back_speed_cm_s = 15.0
+
+    def set(self, distance_cm: float, side: float = 0.0) -> None:
+        self.script = None
+        self.distance_cm = max(0.0, float(distance_cm))
+        self.side = max(-1.0, min(1.0, float(side)))
+        self.backed_cm = 0.0
+
+    def run_script(self, fn, now: float) -> None:
+        self.script, self.script_t0, self.backed_cm = fn, now, 0.0
+        self.paused_at = None
+
+    paused_at: float | None = None
+
+    def pause(self, now: float) -> None:
+        """Freeze a running script where it is."""
+        if self.paused_at is None:
+            self.paused_at = now
+
+    def resume(self, now: float) -> None:
+        if self.paused_at is not None:
+            self.script_t0 += now - self.paused_at
+            self.paused_at = None
+
+    def state(self, now: float) -> tuple[float, float]:
+        if self.script is not None:
+            t = (self.paused_at if self.paused_at is not None else now) - self.script_t0
+            d, side = self.script(t)
+            self.distance_cm, self.side = float(d), float(side)
+        if self.distance_cm > 40.0:
+            self.backed_cm = 0.0  # hand withdrawn: the next approach is to the dog's new spot
+        return self.distance_cm + self.backed_cm, self.side
+
+    def raw(self, channel: str, now: float) -> int:
+        d, side = self.state(now)
+        sign = 1.0 if channel == "L" else -1.0
+        d_ch = d - self.SPREAD_CM * side * sign
+        frac = min(1.0, max(0.0, (d_ch - self.NEAR_CM) / (self.FAR_CM - self.NEAR_CM)))
+        if frac <= 0.0:
+            return int(abs(self.rng.gauss(0.0, 4.0)))
+        return int(max(0.0, self.REST[channel] * frac + self.rng.gauss(0.0, self.NOISE)))
+
+
 class MockBittle:
     def __init__(
         self,
@@ -127,6 +193,15 @@ class MockBittle:
         # skill and the gait keeps running. Processing is delayed by the window to model a busy
         # firmware loop.
         self.merge_window_s = merge_window_s
+        # Petoi double infrared proximity sensor on the Grove socket labelled 39/36
+        self.hand = ProximityHand(self.rng)
+        self.ir_pins = {36: "L", 39: "R"}  # which pin is the robot's left is not established
+        self.gaits_stopped_by_read = 0
+        # kinematics for a visual simulator: forward displacement since start (cm, negative =
+        # moved back) and the phase of the current gait cycle (0..1)
+        self.dog_x_cm = 0.0
+        self.gait_phase = 0.0
+        self.gait_cycle_s = 0.5
         self.merged_writes: list[bytes] = []  # every merged buffer, for tests
         self._last_rx = -1e9
         self._chunks: list[bytes] = []
@@ -313,6 +388,12 @@ class MockBittle:
                 if now >= due:
                     self._emit(tok)
                     self._pending_echo.remove((due, tok))
+            # escape gaits move the dog away from a hand in front of it
+            if self.period > 1 and self.skill in ("bkF", "bkL", "bkR") and self.powered:
+                self.hand.backed_cm += self.hand.back_speed_cm_s * dt
+                self.dog_x_cm -= self.hand.back_speed_cm_s * dt
+            if self.period > 1 and self.powered:
+                self.gait_phase = (self.gait_phase + dt / self.gait_cycle_s) % 1.0
             # world yaw
             if self.trajectory is not None:
                 self.world_yaw = self.trajectory(t)
@@ -362,6 +443,26 @@ class MockBittle:
             self._flush_ble()  # an IMU line with nothing printed right after it
             _ = t
 
+    @property
+    def pose(self) -> str:
+        """stand | back | turn | walk | rest, from the skill state (what the legs are doing)."""
+        if not self.powered or self.skill == "rest":
+            return "rest"
+        if self.period > 1:
+            if self.skill in ("bkF", "bkL", "bkR"):
+                return "back"
+            if self.skill in ("vtL", "vtR"):
+                return "turn"
+            return "walk"
+        return "stand"
+
+    def analog_read(self, pin: int, now: float | None = None) -> int:
+        now = self.clock() if now is None else now
+        ch = self.ir_pins.get(int(pin))
+        if ch is None:
+            return int(abs(self.rng.gauss(0.0, 3.0)))  # nothing connected reads about 0
+        return self.hand.raw(ch, now)
+
     def imu_yaw_raw(self) -> float:
         # unwrapped, for turning-angle bookkeeping
         return self.world_yaw - self._boot_world_yaw
@@ -396,6 +497,8 @@ class MockBittle:
         self._emit("".join(parts), newline=not self.ble_framing)
 
     def _load(self, name: str, now: float) -> bool:
+        if name == "bk":
+            name = "bkF"  # reaction.h:1472-1473
         base = name
         if name.endswith("R") and name[:-1] + "L" in SKILLS_ARM:
             base = name[:-1] + "L"
@@ -504,6 +607,17 @@ class MockBittle:
             for idx, ang in zip(vals[0::2], vals[1::2]):
                 self._set_joint(idx, ang, smooth=False)
             self.token = ""  # resetCmd(): 'I' is not restored to 'k', the skill loop stops
+        elif token == "R":
+            # R a <pin> ... (src/reaction.h:1064-1131): per pair "=" and the reading. The same
+            # path leaves the token unset, so a gait that was running stops.
+            vals = list(body)
+            for typ, pin in zip(vals[0::2], vals[1::2]):
+                self._emit("=")
+                self._emit(str(self.analog_read(pin, now) if typ == ord("a") else 0))
+            if self.period > 1:
+                self.period = 1
+                self.gaits_stopped_by_read += 1
+            self.token = ""
         elif token == "j":
             self._emit("=")
             self._emit("\t".join(str(i) for i in range(16)) + "\t")

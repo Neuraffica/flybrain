@@ -24,6 +24,8 @@ T_SKILL = "k"  # k<name>; prints the matched table name, echoes 'k'
 T_INDEXED_SIMULTANEOUS_ASC = "i"  # i idx ang idx ang ... '\n'
 T_INDEXED_SIMULTANEOUS_BIN = "I"  # I <int8 idx> <int8 ang> ... '~'
 T_EXTENSION = "X"  # module switch, e.g. XC~ camera on, Xc~ off
+T_READ = "R"  # R a <pin> a <pin> ... ~ : per pin "=" then the reading, then echo 'R'
+TYPE_ANALOG = "a"  # (src/OpenCat.h:364-367, src/reaction.h:1064-1131)
 T_LEGACY_PRINT_GYRO = "v"  # AVR OpenCat / old ESP32 firmware only; "Undefined token!" now
 
 # 'g' sub-options (src/OpenCat.h:315-328, handled in src/reaction.h:501-618)
@@ -116,6 +118,50 @@ def encode_binary(token: str, values: list[int]) -> bytes:
     """
     vals = [max(-128, min(125, int(v))) for v in values]
     return token.encode("ascii") + struct.pack("b" * len(vals), *vals) + b"~"
+
+
+def encode_analog_read(pins: list[int] | tuple[int, ...]) -> bytes:
+    """One 'R' command reading several analog pins, e.g. pins (36, 39) -> b"Ra$a'~".
+
+    The pin goes in as one raw byte, so it must stay below 126 ('~' ends the command). The
+    firmware prints "=" and the reading for each pair (src/reaction.h:1101-1112). Note what the
+    same code path also does (it is shared with the binary joint tokens): after a skill it
+    leaves the token unset, so an 'R' sent while a gait is running stops the gait, and when
+    the previous token was not a skill it re-asserts the current joint angles as a posture."""
+    if not pins:
+        raise ValueError("no pins")
+    out = bytearray(T_READ.encode())
+    for p in pins:
+        if not 0 <= int(p) < 126:
+            raise ValueError(f"pin {p} cannot be sent in an 'R' command")
+        out += TYPE_ANALOG.encode() + bytes([int(p)])
+    return bytes(out + b"~")
+
+
+_INT_RE = re.compile(r"-?\d+")
+
+
+def parse_analog_reply(lines: list[str], n: int) -> list[int] | None:
+    """Readings from the lines received for an 'R' command with ``n`` pins, or None.
+
+    USB: "=", "3381", "=", "3453", "R". BLE may deliver the same prints as separate
+    notifications or glued ("=3381", "3453R"); other prints in between are skipped."""
+    vals: list[int] = []
+    expect = False
+    for raw in lines:
+        for ln in split_glued(raw.strip()):
+            t = ln.strip()
+            if t.startswith("="):
+                rest = t[1:].strip()
+                if _INT_RE.fullmatch(rest):
+                    vals.append(int(rest))
+                    expect = False
+                else:
+                    expect = True
+            elif expect and _INT_RE.fullmatch(t):
+                vals.append(int(t))
+                expect = False
+    return vals[:n] if len(vals) >= n else None
 
 
 def encode_skill(name: str) -> bytes:
@@ -238,6 +284,9 @@ _GLUED_ID_RE = re.compile(
 _VERSION_ECHO_RE = re.compile(r"^([A-Z]\d{2}_\d{6})\?$")
 
 
+_GLUED_NUM_ECHO_RE = re.compile(r"^(=?-?\d+)([A-Za-z?])$")
+
+
 def split_glued(line: str) -> list[str]:
     """Split prints that a BLE notification glued together into the lines USB would show.
 
@@ -249,6 +298,9 @@ def split_glued(line: str) -> list[str]:
     v = _VERSION_ECHO_RE.match(line.strip())
     if v:
         return [v.group(1), "?"]
+    m = _GLUED_NUM_ECHO_RE.match(line.strip())
+    if m:  # a reading with the echo glued on (BLE): "3453R" -> ["3453", "R"]
+        return [m.group(1), m.group(2)]
     m = _GLUED_ID_RE.match(line.strip())
     if not m or not m.group("model").strip():
         return [line]
