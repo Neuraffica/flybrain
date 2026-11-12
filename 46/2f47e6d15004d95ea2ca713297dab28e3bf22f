@@ -1,0 +1,171 @@
+apps/flydeck/src/flydeck/cli.py
+  s_8da33b2ad5b96f::t_ac8d041b6b5078 1-75,77-97,99-121,125-166
+  s_8da33b2ad5b96f::t_f235862fd91a1d 76
+  s_8da33b2ad5b96f::t_65663a0fc0d779 122-124
+  s_8da33b2ad5b96f::t_c22d2c071b58a6 98
+demos/hello-robot/tests/test_hello_robot.py
+  s_8da33b2ad5b96f::t_98ad2b1a88569c 1-28,34-36
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 29-33
+apps/flydeck/tests/test_flydeck_runner.py
+  s_8da33b2ad5b96f::t_8eb5c69452227d 1-119
+apps/flydeck/pyproject.toml
+  s_8da33b2ad5b96f::t_f235862fd91a1d 1-8,10-24
+  s_8da33b2ad5b96f::t_0c127745ee675d 9
+demos/hello-robot/src/hello_robot/static/index.html
+  s_8da33b2ad5b96f::t_4415e353aaeb6f 1-59
+packages/flybrain-demo-api/tests/test_demo_api.py
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 59-66,69-76,83
+  s_8da33b2ad5b96f::t_98ad2b1a88569c 1-9,11-31,40-58,67-68,77-82,84-123
+  s_8da33b2ad5b96f::t_bc750615e74a9e 10,32-39
+apps/flydeck/src/flydeck/runner.py
+  s_8da33b2ad5b96f::t_734248a33f4c9f 1-33,35-307,309-333,335-346
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 34
+  s_8da33b2ad5b96f::t_cb7834df31c7b6 334
+  s_8da33b2ad5b96f::t_c22d2c071b58a6 308
+apps/flydeck/src/flydeck/settings.py
+  s_8da33b2ad5b96f::t_145738200ec8a3 1-55
+apps/flydeck/src/flydeck/scaffold.py
+  s_8da33b2ad5b96f::t_31c9aee8dca468 1-126
+demos/fly-escape/src/fly_escape/flydeck.py
+  s_8da33b2ad5b96f::t_b0517c7413e990 1-64
+apps/flydeck/src/flydeck/static/index.html
+  s_8da33b2ad5b96f::t_853b84187c7733 1-45,47-89,91-141,143-159,161-412,414-436,438,442-484
+  s_8da33b2ad5b96f::t_89c9f3f4161455 46,160,413
+  s_8da33b2ad5b96f::t_13495adad17b67 90
+  s_8da33b2ad5b96f::t_c5d4d61c89e2fc 142
+  s_8da33b2ad5b96f::t_4f858a8cc8d437 437,439-441
+demos/README.md
+  s_8da33b2ad5b96f::t_1d8be759bec359 7-9
+apps/flydeck/tests/test_flydeck_hub.py
+  s_8da33b2ad5b96f::t_baf686ddde1168 113
+  s_8da33b2ad5b96f::t_e2c485b1cc65e7 1-57,59-65,71,75-78,80-112,119,123-153,155-157,161-176
+  s_8da33b2ad5b96f::t_a300c9276e6e19 154
+  s_8da33b2ad5b96f::t_ec6219413552a8 58,79
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 66-70,72-74,114-118,120-122,158-160
+pyproject.toml
+  s_8da33b2ad5b96f::t_f235862fd91a1d 6-15,21,29-31
+README.md
+  s_8da33b2ad5b96f::t_1d8be759bec359 15-26,50-52
+apps/flydeck/guide.html
+  s_8da33b2ad5b96f::t_a070ff6cc04411 1-182,184-220
+  s_8da33b2ad5b96f::t_8e353c23183952 183
+packages/flybrain-demo-api/src/flybrain_demo_api/spec.py
+  s_8da33b2ad5b96f::t_c36ff68de7690e 1-70,74-149,153-161,165-249
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 71-73,150-152,162-164
+apps/flydeck/tests/test_flydeck_scaffold.py
+  s_8da33b2ad5b96f::t_a300c9276e6e19 1-10,17-57,61-68,79,81,83,89-92,102-113
+  s_8da33b2ad5b96f::t_71a0c05c2431a4 72-78,80
+  s_8da33b2ad5b96f::t_1f89b7b6c97715 11-15,82
+  s_8da33b2ad5b96f::t_baf686ddde1168 16
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 58-60,69-71,84-88,93-101
+demos/hello-robot/pyproject.toml
+  s_8da33b2ad5b96f::t_4415e353aaeb6f 1-27
+packages/flybrain-demo-api/pyproject.toml
+  s_8da33b2ad5b96f::t_c36ff68de7690e 1-13
+apps/flydeck/src/flydeck/hub.py
+  s_8da33b2ad5b96f::t_c6a236cf8bf9fd 31,287-307,342-345
+  s_8da33b2ad5b96f::t_1f89b7b6c97715 156
+  s_8da33b2ad5b96f::t_4d2b39508f7b0c 315
+  s_8da33b2ad5b96f::t_8e353c23183952 6,413-419
+  s_8da33b2ad5b96f::t_557c35bda5a099 1-5,7-30,32-114,116-148,150-155,157-222,228-286,308-314,316-341,346-369,371-401,403-412,420-483,485-535
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 115,223-227
+  s_8da33b2ad5b96f::t_3a61493abcb30d 370,402
+  s_8da33b2ad5b96f::t_c22d2c071b58a6 149,484
+apps/flydeck/tests/flydeck_fakes.py
+  s_8da33b2ad5b96f::t_8eb5c69452227d 1-8,10-36,38-43,51-53,57-63
+  s_8da33b2ad5b96f::t_bc750615e74a9e 44-50,54-56
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 9,37
+demos/hello-robot/src/hello_robot/flydeck.py
+  s_8da33b2ad5b96f::t_4415e353aaeb6f 1-13,30-34
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 14-29
+apps/flydeck/src/flydeck/__main__.py
+  s_8da33b2ad5b96f::t_f235862fd91a1d 1-5
+apps/flydeck/tests/test_flydeck_specs.py
+  s_8da33b2ad5b96f::t_9228ebabc46b78 1-41,47-63,67-81
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 42-46,64-66
+apps/flydeck/tests/test_flydeck_registry.py
+  s_8da33b2ad5b96f::t_9228ebabc46b78 1-74
+demos/hello-robot/src/hello_robot/__init__.py
+  s_8da33b2ad5b96f::t_4415e353aaeb6f 1
+demos/fly-compass/src/fly_compass/cli.py
+  s_8da33b2ad5b96f::t_b768b97bce7987 265,267,275,277,282,314
+  s_8da33b2ad5b96f::t_502197c0eb0747 27,125-127,243-249,334,353,414-416,418,430-432,434,442
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 259-260,269-270
+apps/flydeck/src/flydeck/robotcheck.py
+  s_8da33b2ad5b96f::t_911d49d22f0e58 1-55,62-102,108-113
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 56-61,103-107
+packages/flybrain-demo-api/src/flybrain_demo_api/__init__.py
+  s_8da33b2ad5b96f::t_c36ff68de7690e 1-37
+demos/fly-escape/src/fly_escape/cli.py
+  s_8da33b2ad5b96f::t_502197c0eb0747 26,141-143,192-198,270,283,330-339,354-356,358,373,382
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 209-210,329
+  s_8da33b2ad5b96f::t_b768b97bce7987 215,217,219,227,234,259
+demos/hello-robot/src/hello_robot/cli.py
+  s_8da33b2ad5b96f::t_ab3ddbe84c5268 121
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 27-31,35-42,109-117,123-125
+  s_8da33b2ad5b96f::t_8eb5c69452227d 76,168-169
+  s_8da33b2ad5b96f::t_4415e353aaeb6f 1-26,32-34,43-75,77-108,118-120,122,126-167,170-175
+packages/flybrain-demo-api/src/flybrain_demo_api/status.py
+  s_8da33b2ad5b96f::t_c36ff68de7690e 1-54,56-58
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 55
+apps/flydeck/tests/test_flydeck_bundle.py
+  s_8da33b2ad5b96f::t_baf686ddde1168 18,70
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 36-38,60-62,85,91-96,117-121
+  s_8da33b2ad5b96f::t_a300c9276e6e19 1-12,19-35,39-44,46-59,63-69,71-84,86-89,97-99,101-103,105-106,108-115,122-123
+  s_8da33b2ad5b96f::t_1f89b7b6c97715 13-17,45,90,100,104,107,116
+demos/hello-robot/README.md
+  s_8da33b2ad5b96f::t_4551a5ca2f58c9 1-38
+docs/adding-a-demo.md
+  s_8da33b2ad5b96f::t_850f00b68e694f 1-117,119-120,123,125-126,135,137,141-150
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 118,121-122,124,127-134,136,138-140
+apps/flydeck/src/flydeck/icon.py
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 90-94
+  s_8da33b2ad5b96f::t_5ab39653ec4ed8 1-89,95-168
+packages/flybrain-edge/src/flybrain_edge/bittle/robot.py
+  s_8da33b2ad5b96f::t_ff9999f8379007 428-431,437
+  s_8da33b2ad5b96f::t_852f3e017445fc 432-436
+demos/fly-compass/pyproject.toml
+  s_8da33b2ad5b96f::t_9a57a11b03f5c4 7,16-18,27
+packages/flybrain-edge/src/flybrain_edge/bittle/protocol.py
+  s_8da33b2ad5b96f::t_ff9999f8379007 28,314-320
+  s_8da33b2ad5b96f::t_d16a8a116c1355 321-322
+demos/fly-compass/src/fly_compass/flydeck.py
+  s_8da33b2ad5b96f::t_b0517c7413e990 1-61
+apps/flydeck/src/flydeck/registry.py
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 46-51
+  s_8da33b2ad5b96f::t_c88e25efea6976 1-9,11,13-45,52-128,137,139-140,143-175
+  s_8da33b2ad5b96f::t_4d2b39508f7b0c 10,12,129-136,138,141-142
+demos/fly-compass/src/fly_compass/server.py
+  s_8da33b2ad5b96f::t_f8ebddad7963bd 1-2,16-17,19,26-27,30-31,33-34
+demos/fly-escape/pyproject.toml
+  s_8da33b2ad5b96f::t_9a57a11b03f5c4 7,17-19,28
+apps/flydeck/src/flydeck/__init__.py
+  s_8da33b2ad5b96f::t_f235862fd91a1d 1
+apps/flydeck/src/flydeck/bundle.py
+  s_8da33b2ad5b96f::t_ffbd77c4e22b27 1-87,89-97,99-106,108-185,187-199,205-211,214-218,220-231,233
+  s_8da33b2ad5b96f::t_863ca2365cb9b2 200-204
+  s_8da33b2ad5b96f::t_c22d2c071b58a6 186,219,232
+  s_8da33b2ad5b96f::t_1188f562b9c978 88,98,107,212-213
+packages/flybrain-demo-api/src/flybrain_demo_api/web.py
+  s_8da33b2ad5b96f::t_f8ebddad7963bd 1-186
+packages/flybrain-edge/NOTES.md
+  s_8da33b2ad5b96f::t_8038599f1af42a 337-352
+uv.lock
+  s_8da33b2ad5b96f::t_f7dcc5dc4891ee 22,25-26,118,127,139,149,163,166-167,181,184-185,212-216,250-282
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "462f47e6d15004d95ea2ca713297dab28e3bf22f",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
