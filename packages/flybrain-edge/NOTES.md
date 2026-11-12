@@ -163,3 +163,12 @@ Read-only probe only; the robot has not been moved by this code yet.
   By the IMU, left legs took about 2 s and right legs 7 to 8 s for the same 70 deg. Unexplained:
   either the robot really turns left several times faster or the yaw reading is asymmetric.
   Overshoot after `kup` was up to 7 deg.
+- Blindfold experiment on the robot (sweep, 1 cycle, +-35 deg, 25 s pauses, `--blindfold-after 6`):
+  - Standing still at about +49 deg, cue removed for 20 s: connectome bump confidence 0.93,
+    heading error about -32 deg (the bump slid to roughly +17 deg and stayed); rewired control
+    confidence 0.24, error about 134 deg; complementary filter 0 deg.
+  - The blindfolded right turn stalled: three re-issues, then the 40 s timeout at +20 deg (only
+    29 deg turned). Cause unknown (the right turn is the slow direction in every run). The
+    connectome's small error at the end of that leg is a coincidence: its bump did not move.
+  - Standing still again for 25 s: connectome confidence 0.93, error about -12 deg; rewired
+    0.24, about 115 deg.
