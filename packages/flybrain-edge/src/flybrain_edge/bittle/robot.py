@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import queue
 import threading
 import time
 from collections import deque
@@ -31,6 +32,26 @@ log = logging.getLogger(__name__)
 
 class BittleError(RuntimeError):
     pass
+
+
+# Link timing. USB: the firmware reads a command until its terminator or 10 ms of silence.
+# BLE: a GATT write without response returns before the robot has processed it, and while the
+# firmware's loop is busy (a gait frame, a posture transition) a second write is appended to the
+# first, which then fails to parse (src/bleUart.h:46-90). Hence wider spacing over BLE, and after
+# any command whose echo was not seen, a guard interval before the next write.
+USB_MIN_GAP_S = 0.02
+BLE_MIN_GAP_S = 0.05
+USB_UNACKED_GUARD_S = 0.1
+BLE_UNACKED_GUARD_S = 0.5
+
+
+class _Job:
+    __slots__ = ("data", "done", "echo", "result", "timeout")
+
+    def __init__(self, data: bytes, echo: str | None, timeout: float):
+        self.data, self.echo, self.timeout = data, echo, timeout
+        self.result: list[str] | None = None
+        self.done = threading.Event()
 
 
 @dataclass(frozen=True)
@@ -61,7 +82,7 @@ class Bittle:
         yaw_sign: int = +1,
         joint_token: str = "i",
         joint_rate_hz: float = 15.0,
-        min_command_gap_s: float = 0.02,
+        min_command_gap_s: float | None = None,
         joint_limits: dict[int, tuple[float, float]] | None = None,
         on_raw: Callable[[str, float, bytes], None] | None = None,
     ):
@@ -71,7 +92,19 @@ class Bittle:
         self.yaw_sign = 1 if yaw_sign >= 0 else -1
         self.joint_token = joint_token
         self.joint_rate_hz = joint_rate_hz
-        self.min_gap = min_command_gap_s
+        # Link timing (see send()). BLE writes return before the robot has the bytes, and the
+        # firmware appends a write that arrives before its loop consumed the previous command,
+        # so BLE gets a wider spacing and a longer guard after an unconfirmed command.
+        is_ble = getattr(transport, "name", "") == "ble"
+        self.min_gap = (
+            (BLE_MIN_GAP_S if is_ble else USB_MIN_GAP_S)
+            if min_command_gap_s is None
+            else min_command_gap_s
+        )
+        self.unacked_guard_s = BLE_UNACKED_GUARD_S if is_ble else USB_UNACKED_GUARD_S
+        self._guard_until = 0.0
+        self._cmd_q: queue.Queue = queue.Queue()
+        self._cmd_thread: threading.Thread | None = None
         self.limits = dict(P.FIRMWARE_ANGLE_LIMITS)
         self.limits[P.JOINT_HEAD_PAN] = (-P.DEFAULT_PAN_LIMIT_DEG, P.DEFAULT_PAN_LIMIT_DEG)
         if joint_limits:
@@ -118,6 +151,8 @@ class Bittle:
             target=self._joint_loop, name="bittle-joints", daemon=True
         )
         self._streamer.start()
+        self._cmd_thread = threading.Thread(target=self._cmd_loop, name="bittle-cmds", daemon=True)
+        self._cmd_thread.start()
         self.connected = True
         lines = self.send(P.encode_ascii(P.T_QUERY), echo=P.T_QUERY, timeout=2.0)
         if lines is None:
@@ -272,9 +307,14 @@ class Bittle:
         timeout. A timeout is counted and logged, never raised: an unexpected firmware is
         reported by ``probe`` rather than crashing the demo mid-motion."""
         with self._write_lock:
-            gap = self.min_gap - (time.monotonic() - self._last_write)
-            if gap > 0:
-                time.sleep(gap)
+            # Never write while the previous command may still be unread by the firmware: two
+            # commands in one burst merge and one of them is lost (moduleManager.h:405-445 for
+            # USB; bleUart.h:46-90 for BLE, where the merged buffer breaks the FIRST command).
+            # An echo proves the firmware consumed the command; without one, wait a guard time.
+            now = time.monotonic()
+            wait = max(self.min_gap - (now - self._last_write), self._guard_until - now)
+            if wait > 0:
+                time.sleep(wait)
             with self._cv:
                 seq0 = self._line_seq
             now = time.monotonic()
@@ -283,6 +323,7 @@ class Bittle:
             self.stats.commands += 1
             self._last_write = time.monotonic()
             if echo is None:
+                self._guard_until = self._last_write + self.unacked_guard_s
                 return []
             deadline = now + timeout
             with self._cv:
@@ -299,6 +340,7 @@ class Bittle:
                     remaining = deadline - time.monotonic()
                     if remaining <= 0 or not self.connected:
                         self.stats.echo_timeouts += 1
+                        self._guard_until = time.monotonic() + self.unacked_guard_s
                         (log.debug if quiet else log.warning)(
                             "no echo %r for %r within %.1fs", echo, data[:24], timeout
                         )
@@ -311,9 +353,46 @@ class Bittle:
         return None if lines is None else P.parse_joint_table(lines)
 
     def skill(self, name: str, wait: bool = True, timeout: float = 4.0) -> bool:
-        return (
-            self.send(P.encode_skill(name), echo="k" if wait else None, timeout=timeout) is not None
-        )
+        """Run a skill. With wait=False this returns at once, but the command is still sent by
+        the command thread, which waits for the 'k' echo while holding the write lock: no IMU
+        poll or head command can be written in between and merge with it. (A stand at the end
+        of a turn was lost exactly that way over BLE.) Skills run in the order requested."""
+        job = self.submit(P.encode_skill(name), echo="k", timeout=timeout)
+        if not wait:
+            return True
+        job.done.wait(timeout + 5.0)
+        return job.result is not None
+
+    def submit(self, data: bytes, echo: str | None, timeout: float = 4.0) -> _Job:
+        """Queue a command for the command thread; returns a handle (``done``, ``result``)."""
+        job = _Job(data, echo, timeout)
+        if self._cmd_thread is None or not self.connected:
+            job.result = self.send(data, echo=echo, timeout=timeout)
+            job.done.set()
+            return job
+        self._cmd_q.put(job)
+        return job
+
+    def flush_commands(self, timeout: float = 8.0) -> bool:
+        """Wait until every queued command has been sent (and echoed or timed out)."""
+        marker = _Job(b"", None, 0.0)
+        if self._cmd_thread is None:
+            return True
+        self._cmd_q.put(marker)
+        return marker.done.wait(timeout)
+
+    def _cmd_loop(self) -> None:
+        while True:
+            job = self._cmd_q.get()
+            if job is None:
+                return
+            try:
+                if job.data and self.connected:
+                    job.result = self.send(job.data, echo=job.echo, timeout=job.timeout)
+            except Exception as e:  # noqa: BLE001 - one failed command must not stop the queue
+                log.error("command %r failed: %s", job.data[:24], e)
+            finally:
+                job.done.set()
 
     def stand(self, balance: bool = False) -> None:
         """Stand up, then switch the balance reflex off (default) so the legs stay still while
@@ -476,6 +555,7 @@ class Bittle:
         try:
             self.stop_poll_imu()
             self.forget_joint_targets()
+            self.flush_commands()  # a queued stand goes out before the rest
             if self.connected and self.transport.is_open:
                 try:
                     if self.streaming:
@@ -487,7 +567,8 @@ class Bittle:
         finally:
             self._running = False
             self.connected = False
-            for t in (self._streamer, self._reader):
+            self._cmd_q.put(None)
+            for t in (self._streamer, self._reader, self._cmd_thread):
                 if t is not None and t is not threading.current_thread():
                     t.join(timeout=1.0)
             try:

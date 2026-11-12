@@ -78,6 +78,23 @@ for running it by hand (output then goes to two log files). A `--ble` command st
 the helper on macOS prints this advice before touching Bluetooth (`FLYBRAIN_BLE_NO_HINT=1`
 hides it).
 
+## Safety and command timing
+
+The firmware merges two commands that arrive before it has read the first, and one of them is
+lost: over USB the second, over Bluetooth the first (see NOTES.md, "Lost stand at the end of a
+sweep leg"). So `Bittle` never writes a command while the previous one may still be unread:
+
+* every write waits `min_gap` after the last one (USB 20 ms, BLE 50 ms);
+* commands with an echo (`g`, `i`, `?`, skills) hold the write lock until the echo arrives;
+  `skill(name, wait=False)` returns at once but is sent by a command thread that waits for the
+  echo, so a stand cannot be overwritten by the next IMU poll or head command;
+* after a command whose echo was not seen, the next write waits a guard interval (USB 0.1 s,
+  BLE 0.5 s);
+* `close()` sends any queued skills first, then rests the robot.
+
+`MockBittle(merge_window_s=...)` reproduces the merging for tests, with the USB and the BLE
+outcome.
+
 ## Troubleshooting
 
 | Symptom | Likely cause |

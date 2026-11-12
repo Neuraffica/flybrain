@@ -136,7 +136,8 @@ class CompassApp:
 
     def _skill(self, name: str) -> None:
         if self.bittle is not None:
-            # gaits echo at once; do not block the loop waiting for postures
+            # returns at once; the link's command thread sends it and holds the line until
+            # the echo, so nothing written right after can merge with it (and lose it)
             self.bittle.skill(name, wait=False)
 
     # ---- main loop ---------------------------------------------------------------------
@@ -295,6 +296,11 @@ class CompassApp:
                     self.bittle.set_joint(P.JOINT_HEAD_PAN, acts.pan_deg)
                 if acts.skill:
                     self._skill(acts.skill)
+                if acts.rest:
+                    # the stop watchdog gave up: servos off. Queued behind any stand, never
+                    # written on top of another command.
+                    self.bittle.forget_joint_targets()
+                    self.bittle.submit(P.encode_ascii(P.T_REST), echo=P.T_REST, timeout=4.0)
 
             frame = lp.frame(now)
             frame["status"] = self.status(now)

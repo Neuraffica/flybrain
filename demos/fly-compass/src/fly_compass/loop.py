@@ -49,6 +49,21 @@ SWEEP_STALL_MIN_DEG = 3.0  # ... and expect at least this much turn in the comma
 SWEEP_REISSUE_S = 3.0  # never re-issue the turn skill more often than this
 SWEEP_MAX_TIMEOUTS = 3  # consecutive leg timeouts before sweep gives up (falls back to needle)
 
+# Stop watchdog (hold and sweep). Over BLE a stand at the end of a turn was lost and the dog kept
+# turning at 20-25 deg/s through the whole pause; standing drift after compensation is under
+# 1 deg/s and the slowest real turn seen was about 2 deg/s on carpet. After a stand is commanded
+# and STOP_GRACE_S has passed (deceleration, posture transition), a heading still changing faster
+# than STOP_RATE_DPS (measured over STOP_RATE_WINDOW_S) means the gait is still running: the
+# stand is re-sent every STOP_RESEND_S, at most STOP_MAX_RESENDS times; then the robot is put to
+# rest ('d') and the demo drops to observe mode. A new turn never starts before the stop is
+# confirmed.
+STOP_GRACE_S = 1.5  # real overshoot after kup was 3-9 deg; let it settle first
+STOP_RATE_WINDOW_S = 1.0
+STOP_RATE_DPS = 3.0
+STOP_RESEND_S = 1.0
+STOP_MAX_RESENDS = 4
+STOP_SAMPLE_MAX_AGE_S = 0.5  # confirming "stopped" needs a fresh IMU sample
+
 
 def wrap_deg(a: float) -> float:
     a = math.fmod(a + 180.0, 360.0)
@@ -92,6 +107,7 @@ class Actions:
     pan_deg: int | None = None  # head pan command to send (already clamped)
     skill: str | None = None  # skill to start, e.g. "vtL", "vtR", "up"
     notes: list[str] = field(default_factory=list)
+    rest: bool = False  # send 'd' (rest, servos off): the stop watchdog gave up
 
 
 @dataclass
@@ -178,6 +194,14 @@ class CompassLoop:
         # legs: True from issuing a turn gait until "up" has been issued
         self.gait_active = False
         self._stop_requested = False
+        # stop watchdog
+        self.stop_pending = False
+        self.stop_since = 0.0
+        self.stop_last_send = 0.0
+        self.stop_resends = 0  # for the current stop
+        self.stop_resends_total = 0
+        self.stop_failures = 0
+        self._motion_hist: list[tuple[float, float]] = []
         self._init_sweep()
         self.mode = "observe"
         self.set_mode(mode)
@@ -317,6 +341,10 @@ class CompassLoop:
                     self._rate_anchor_t, self._rate_anchor_yaw = s.t, self.yaw_unwrapped
             self.last_sample_t = s.t
             self.n_samples += 1
+            self._motion_hist.append((s.t, self.yaw_unwrapped))
+        cut = (self.last_sample_t or 0.0) - 2 * STOP_RATE_WINDOW_S
+        while self._motion_hist and self._motion_hist[0][0] < cut:
+            self._motion_hist.pop(0)
         if samples and not self.zeroed:
             self.rezero()
 
@@ -395,15 +423,76 @@ class CompassLoop:
             # left a legs mode mid-turn: stand first, start any new leg logic next tick
             self._stop_requested = False
             acts.skill = STAND
+        elif self.stop_pending:
+            self._watch_stop(now, acts)  # no new leg until the last stand has taken effect
         elif self.mode == "hold":
             acts.skill = self._hold(h_drive, now)
         elif self.mode == "sweep":
             acts.skill = self._sweep(now)
         if acts.skill in (TURN_LEFT, TURN_RIGHT):
             self.gait_active = True
+            self.stop_pending = False
         elif acts.skill == STAND:
             self.gait_active = False
+            if not self.stop_pending:
+                self.stop_pending = True
+                self.stop_since = self.stop_last_send = now
+                self.stop_resends = 0
         return acts
+
+    def motion_rate_dps(self, now: float) -> float | None:
+        """Heading rate from the IMU samples of the last STOP_RATE_WINDOW_S (sample times, not
+        tick times: samples pause while the firmware changes posture, and a tick-based history
+        would show the catch-up as motion). None without samples spanning most of the window."""
+        pts = [(t, h) for t, h in self._motion_hist if t >= now - STOP_RATE_WINDOW_S]
+        if len(pts) < 2 or pts[-1][0] - pts[0][0] < 0.6 * STOP_RATE_WINDOW_S:
+            return None
+        (t0, h0), (t1, h1) = pts[0], pts[-1]
+        return (h1 - h0) / (t1 - t0)
+
+    def _watch_stop(self, now: float, acts: Actions) -> None:
+        if now - self.stop_since < STOP_GRACE_S:
+            return
+        fresh = self.last_sample_t is not None and now - self.last_sample_t <= STOP_SAMPLE_MAX_AGE_S
+        rate = self.motion_rate_dps(now)
+        if not fresh or rate is None:
+            return  # cannot tell yet (e.g. the IMU paused during the posture change)
+        if abs(rate) < STOP_RATE_DPS:
+            self.stop_pending = False  # confirmed: standing still
+            return
+        if now - self.stop_last_send < STOP_RESEND_S:
+            return
+        if self.stop_resends < STOP_MAX_RESENDS:
+            self.stop_resends += 1
+            self.stop_resends_total += 1
+            self.stop_last_send = now
+            self.events.append(
+                f"stop not taking effect: still turning at {rate:+.1f} deg/s "
+                f"{now - self.stop_since:.1f} s after the stand; re-sending stand "
+                f"({self.stop_resends}/{STOP_MAX_RESENDS})"
+            )
+            acts.skill = STAND
+            return
+        self.stop_pending = False
+        self.stop_failures += 1
+        self.gait_active = False
+        acts.rest = True
+        self.events.append(
+            f"STOP FAILED: still turning at {rate:+.1f} deg/s after {STOP_MAX_RESENDS} stand "
+            "re-sends; sending rest (servos off) and switching to observe mode"
+        )
+        self.mode = "observe"
+        self.hold_state = "idle"
+        self._init_sweep()
+
+    def stop_status(self, now: float) -> dict[str, Any]:
+        return {
+            "pending": self.stop_pending,
+            "since": round(now - self.stop_since, 1) if self.stop_pending else None,
+            "resends": self.stop_resends,
+            "resends_total": self.stop_resends_total,
+            "failures": self.stop_failures,
+        }
 
     def stop_gait(self) -> str | None:
         """For shutdown: the skill to send now ("up") if a turning gait may be running."""
@@ -467,9 +556,16 @@ class CompassLoop:
         ):
             self.sweep_last_issue = now
             self.sweep_reissues += 1
+            side = "left" if d > 0 else "right"
+            progress = d * (h - h_old)
+            moved = (
+                f"the heading moved {abs(progress):.1f} deg the WRONG way"
+                if progress < 0
+                else f"the heading moved only {progress:.1f} deg towards the target"
+            )
             self.events.append(
-                f"sweep: only {d * (h - h_old):+.1f} deg in {SWEEP_STALL_WINDOW_S:.0f} s, "
-                "re-issuing the turn"
+                f"sweep: turning {side}, but {moved} in the last {SWEEP_STALL_WINDOW_S:.0f} s "
+                f"(expected at least {SWEEP_STALL_MIN_DEG:.0f}); re-issuing the turn"
             )
             return TURN_LEFT if d > 0 else TURN_RIGHT
         return None
@@ -628,6 +724,7 @@ class CompassLoop:
             "hold": {"state": self.hold_state, "allowed": self.allow_hold},
             "sweep": self.sweep_status(now),
             "gait_active": self.gait_active,
+            "stop": self.stop_status(now),
             "cue": self.cue_this_tick,
             "phase": self.phase,
             "blindfold": {
