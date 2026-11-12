@@ -334,3 +334,26 @@ channels fall at slightly different times. Which pin is the robot's left is not 
   trigger events: connectome 4, rewired 3, proximity 3, looming-rate 2, random 0. No approach
   seen only by the right-hand channel occurred in this run, so right-only over BLE is untested.
 - The robot advertised as `BittleC2_BLE` today and `BittleC2_SSP` yesterday.
+
+### Flydeck on the real robot (2026-11-12)
+
+- `uv run flydeck install-app` created `~/Applications/Flydeck.app`; opening it started the hub
+  and a browser tab, with three demo cards.
+- The first two Bluetooth scans hung for 45 s ("no answer within 45 s") while macOS was showing
+  its Bluetooth consent prompt for Flydeck. After the owner allowed it, Scan found the robot
+  (`BittleC2_SSP`, -68 dBm) in about 5 s. So the hub, started in the background by the applet,
+  IS attributed to Flydeck for Bluetooth; the scan just has no way to say "waiting for
+  permission".
+- Check over BLE: Bittle X+Arm, B10_250330, battery 7.66 V. The firmware does answer the
+  voltage query.
+- Hello robot started from the app over BLE: state RUNNING, embedded dashboard live, six head
+  wags counted, battery 7.58 V. Stop returned the app to STOPPED.
+- Fly escape started from the app over BLE (mode escape, swap sides ticked, space confirmed):
+  calibrated (left 3161 +- 13, right 3093 +- 12), state RUNNING with the dashboard embedded, 6
+  escapes in about a minute (3 reported right, 2 left, 1 ahead), every stand confirmed; further
+  triggers were held back by the 6-per-minute cap and the 3 s minimum interval.
+- Quit while that demo was running (the page's quit request, sent directly because the browser
+  automation cannot accept its confirmation dialog): the hub and the demo were gone 2 s later,
+  no process left behind, log ends "flydeck: bye".
+- Not yet tried through the app: fly-compass on the robot, the Dock's Cmd-Q, and Force Quit
+  while a demo runs. Whether the robot lay down on quit was not measured by the host.
