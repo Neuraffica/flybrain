@@ -1,0 +1,23 @@
+demos/fly-compass/README.md
+  s_8da33b2ad5b96f::t_8d433e02e88ceb 241-243,245
+demos/fly-compass/guide.html
+  s_8da33b2ad5b96f::t_cd3dea3e3d27f0 279
+packages/flybrain-edge/NOTES.md
+  s_8da33b2ad5b96f::t_4aa0f5f773efe8 222-233
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b03de926e7bdbdfbad780ff2bf664da3dbf0bb25",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
