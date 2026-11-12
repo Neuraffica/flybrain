@@ -1,0 +1,21 @@
+demos/fly-escape/guide.html
+  s_8da33b2ad5b96f::t_a2a51fcc1ad6b3 254-255
+packages/flybrain-edge/NOTES.md
+  s_8da33b2ad5b96f::t_3ac215061f2b74 331-335
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "18a91a365db9bb7d69e4666d6bc65208be570fcf",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "unknown"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
