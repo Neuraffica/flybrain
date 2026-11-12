@@ -5,5 +5,5 @@ Planned: the OpenCat firmware version to flash, any patches (for example a faste
 ## Modules
 
 - [`fly_escape/`](fly_escape/README.md): draft OpenCatEsp32 extension (letter `E`) that runs the
-  exported FlyWire looming-escape circuit on the BiBoard itself. Not yet compiled for the ESP32
-  or run on a robot.
+  exported FlyWire looming-escape circuit on the BiBoard itself. Compiles for BiBoard V1
+  (esp32 core 2.0.12; +20.2 KB flash, +4.3 KB RAM); not yet flashed or run on a robot.

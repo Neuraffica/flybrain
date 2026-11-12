@@ -85,8 +85,9 @@ Recommendations:
   instructions and it is busy driving servos. Small sensor reflexes are the exception: the
   exported fly-escape circuit (351 neurons, 2,212 synapses) needs about 16 KB of flash, 4 KB
   of RAM and an estimated 0.5 to 2 ms per 35 ms step, and can run as an OpenCat firmware
-  module (see `firmware/bittle/fly_escape/`; not yet compiled for the board or run on a
-  robot). Anything bigger, or anything that needs images, goes on the XIAO or a laptop.
+  module (see `firmware/bittle/fly_escape/`). It compiles into the stock firmware for
+  BiBoard V1, adding 20.2 KB of flash and 4.3 KB of RAM; it has not been flashed or run on
+  a robot, and its run time is an estimate. Anything bigger, or anything that needs images, goes on the XIAO or a laptop.
 - **Default to tier B in the first hour, then move to tier A.** The same Python model that
   drives the dog over USB gets exported to C and flashed on the XIAO.
 - **The XIAO Sense is the eye.** The Petoi camera module cannot give raw frames, so any
