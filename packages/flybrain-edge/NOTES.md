@@ -328,6 +328,9 @@ channels fall at slightly different times. Which pin is the robot's left is not 
   the reported side matching the channel each time. Two more triggers were refused by the
   6-per-minute cap. Of 10 trigger events in the log: connectome 8, looming-rate 9, proximity 6,
   rewired 4, random 0. No ground truth for how many approaches there really were.
-- **Analog reads over BLE work**: about 9.5 samples/s in the app (USB: about 26/s). Escape mode
-  over BLE has not completed a run yet (the only attempt was in the blinded state).
+- **Analog reads over BLE work**: about 9.6 samples/s in the app (USB: about 26/s).
+- **Escape mode over BLE works** (`ble-run`, `--swap-sides`, 90 s, away from the window): 3
+  escapes, every stand confirmed, one trigger refused inside the 3 s minimum interval. Of 4
+  trigger events: connectome 4, rewired 3, proximity 3, looming-rate 2, random 0. No approach
+  seen only by the right-hand channel occurred in this run, so right-only over BLE is untested.
 - The robot advertised as `BittleC2_BLE` today and `BittleC2_SSP` yesterday.
