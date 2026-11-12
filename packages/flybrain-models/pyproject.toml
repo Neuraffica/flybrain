@@ -3,7 +3,10 @@ name = "flybrain-models"
 version = "0.0.1"
 description = "flybrain starter kit: models"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "flybrain-data",
+    "numpy>=2.4.6",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -11,3 +14,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/flybrain_models"]
+
+[tool.uv.sources]
+flybrain-data = { workspace = true }
