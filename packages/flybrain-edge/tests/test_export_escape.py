@@ -20,14 +20,30 @@ def test_render_is_self_contained():
     assert "static inline" in single and '#include "fly_escape.h"' not in single
 
 
-@needs_cc
-def test_c_compiles_warning_free(tmp_path):
-    assert build_harness(tmp_path).exists()
+def test_compact_layout_is_lossless_and_small():
+    from flybrain_edge.export.escape_c_compact import build_compact, cost_compact
+
+    full = build_compact(prune=False)
+    slim = build_compact()
+    assert slim.meta["dropped_neurons"] == ["DNp02", "DNp11", "AMMC-A1"]
+    assert slim.n == 348 and full.n == 351
+    assert int(slim.cnt.max()) <= 255 and len(slim.cls_scale) < 16
+    assert cost_compact(slim)["flash_data_bytes"] < 0.5 * 16068  # the float32 layout
+
+
+LAYOUTS = ["compact", "compact-full", "full"]
 
 
 @needs_cc
-def test_c_matches_python_tick_by_tick():
-    res = compare(sim_every=8)  # both real recordings + 48 simulated episodes
+@pytest.mark.parametrize("layout", LAYOUTS)
+def test_c_compiles_warning_free(tmp_path, layout):
+    assert build_harness(tmp_path, layout=layout).exists()
+
+
+@needs_cc
+@pytest.mark.parametrize("layout", LAYOUTS)
+def test_c_matches_python_tick_by_tick(layout):
+    res = compare(sim_every=8, layout=layout)  # both real recordings + 48 simulated episodes
     for name in ("connectome", "looming_rate_threshold"):
         r = res[name]
         assert r["python_triggers"] > 20

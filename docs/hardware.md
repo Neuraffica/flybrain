@@ -83,11 +83,13 @@ Recommendations:
 
 - **Do not run large models on the BiBoard.** It is a classic ESP32 without vector
   instructions and it is busy driving servos. Small sensor reflexes are the exception: the
-  exported fly-escape circuit (351 neurons, 2,212 synapses) needs about 16 KB of flash, 4 KB
-  of RAM and an estimated 0.5 to 2 ms per 35 ms step, and can run as an OpenCat firmware
-  module (see `firmware/bittle/fly_escape/`). It compiles into the stock firmware for
-  BiBoard V1, adding 20.2 KB of flash and 4.3 KB of RAM; it has not been flashed or run on
-  a robot, and its run time is an estimate. Anything bigger, or anything that needs images, goes on the XIAO or a laptop.
+  exported fly-escape circuit (348 neurons, 2,093 synapse entries) needs about 9 KB of flash,
+  3 KB of RAM and an estimated 0.5 to 2 ms per 35 ms step, and can run as an OpenCat firmware
+  module (see `firmware/bittle/fly_escape/`). The robot's default partition table leaves
+  little room, so the module is built into a slim firmware without the camera module, quick
+  demo and micro:bit client; that build fits with 34 KB to spare. It has been compiled, not
+  flashed or run on a robot, and its run time is an estimate. Anything bigger, or anything
+  that needs images, goes on the XIAO or a laptop.
 - **Default to tier B in the first hour, then move to tier A.** The same Python model that
   drives the dog over USB gets exported to C and flashed on the XIAO.
 - **The XIAO Sense is the eye.** The Petoi camera module cannot give raw frames, so any

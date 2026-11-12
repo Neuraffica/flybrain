@@ -390,22 +390,48 @@ def render(model: ExportedModel) -> tuple[str, str, str]:
     return header, source, single
 
 
+LAYOUTS = ("compact", "compact-full", "full")
+
+
 def export(
-    out_dir: str | Path, params_key: str = "connectome", single_header_only: bool = False
+    out_dir: str | Path,
+    params_key: str = "connectome",
+    single_header_only: bool = False,
+    layout: str = "compact",
 ) -> dict:
     """Write fly_escape.h + fly_escape.c (library) and fly_escape_all.h (single header, all
-    functions static inline, for Arduino sketches); only the latter if single_header_only."""
+    functions static inline, for Arduino sketches); only the latter if single_header_only.
+
+    ``layout``: "compact" (default: uint8 synapse counts, neuron classes, neurons without a
+    path to the readout dropped; see escape_c_compact), "compact-full" (the same without
+    dropping neurons) or "full" (the original float32 CSR layout, always with the looming
+    baseline)."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    model = build_model(params_key)
-    h, c, single = render(model)
+    if layout == "full":
+        model = build_model(params_key)
+        h, c, single = render(model)
+        info = {"n": model.n, "nnz": len(model.val), **cost(model)}
+    elif layout in ("compact", "compact-full"):
+        from .escape_c_compact import build_compact, cost_compact, render_compact
+
+        cm = build_compact(params_key, prune=layout == "compact")
+        h, c, single = render_compact(cm)
+        info = {
+            "n": cm.n,
+            "nnz": len(cm.cnt),
+            "dropped": cm.meta["dropped_neurons"],
+            **cost_compact(cm),
+        }
+    else:
+        raise ValueError(f"layout must be one of {LAYOUTS}")
     files = ["fly_escape_all.h"]
     (out / "fly_escape_all.h").write_text(single)
     if not single_header_only:
         (out / "fly_escape.h").write_text(h)
         (out / "fly_escape.c").write_text(c)
         files = ["fly_escape.h", "fly_escape.c", *files]
-    return {"dir": str(out), "n": model.n, "nnz": len(model.val), "files": files, **cost(model)}
+    return {"dir": str(out), "layout": layout, "files": files, **info}
 
 
 def cost(model: ExportedModel) -> dict:

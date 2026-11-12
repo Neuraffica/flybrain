@@ -23,10 +23,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="write only fly_escape_all.h (for the OpenCatEsp32 module)",
     )
+    ap.add_argument(
+        "--layout",
+        default="compact",
+        choices=["compact", "compact-full", "full"],
+        help="C data layout (default compact; full = original float32 CSR)",
+    )
     args = ap.parse_args(argv)
     from .escape_c import export
 
-    info = export(args.out, args.params, single_header_only=args.single_header)
+    info = export(args.out, args.params, single_header_only=args.single_header, layout=args.layout)
     if args.harness:
         shutil.copy(Path(__file__).with_name("host_harness.c"), args.out / "host_harness.c")
         info["files"].append("host_harness.c")
