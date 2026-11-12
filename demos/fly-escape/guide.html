@@ -251,7 +251,8 @@ uv run fly-escape --mock --open</code></pre>
     <li>Daylight: beside a window at midday the sensor read as if permanently covered and calibration refused to start. Away from the window it read normally at once.</li>
     <li>Calibration also refused to start when a hand was in front of the sensor, as designed.</li>
     <li>On that dog the half of the sensor on pin 39 was on its left, so it needs <code>--swap-sides</code>. This depends on which way round the sensor is strapped on.</li>
-    <li>Not yet tried on the robot: a full escape run over Bluetooth (sensor reads work there, about 10 a second), and backing away with a turn.</li>
+    <li>Over Bluetooth: 3 escapes in 90 s, each one stood up again. The sensor is read about 10 times a second there, against about 26 over USB, so a very fast hand gives the model fewer readings.</li>
+    <li>Not yet tried on the robot: backing away with a turn.</li>
   </ul></div>
 </div>
 
