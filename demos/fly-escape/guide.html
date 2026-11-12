@@ -105,7 +105,7 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line);
     <div class="kicker">Fly Brain &amp; Tiny Machines · demo</div>
     <h1>Fly escape</h1>
     <p class="lede">A fruit fly escapes a looming swatter in a few milliseconds, using a small circuit of neurons that react to things rushing towards it. Here a model of that circuit, wired from the fly connectome, makes a robot dog step back from an approaching hand.</p>
-    <div class="status"><b>Run on a real Bittle X+Arm over USB, with an earlier version of the model.</b> The dog backed away 6 times in 45 seconds and stood up again each time, but only for a hand coming from one side. The model was then fixed for both sides; that fix has not been tried on the robot yet.</div>
+    <div class="status"><b>Run on a real Bittle X+Arm over USB.</b> The dog backs away from a hand on either side and stands up again each time. Keep it away from windows: daylight blinds the sensor.</div>
   </div>
   <svg viewBox="0 0 360 300" role="img" aria-label="A hand growing larger as it approaches the robot's sensor">
     <circle cx="70" cy="150" r="14" fill="var(--accent)" fill-opacity="0.18"/>
@@ -224,6 +224,7 @@ uv run fly-escape --mock --open</code></pre>
 <table style="min-width:480px">
 <thead><tr><th>What you see</th><th style="text-align:left">What to do</th></tr></thead>
 <tbody>
+<tr><td>"Calibration FAILED", both sides rest near 0 to 200</td><td style="text-align:left">Daylight is blinding the sensor. Move the dog away from windows or shade the sensor, then press Recalibrate.</td></tr>
 <tr><td>"calibration FAILED … rests at 0"</td><td style="text-align:left">Sensor unplugged, in the wrong socket, or a hand in front during the first 2 seconds. Check with the probe, then press Recalibrate.</td></tr>
 <tr><td>Escapes on the wrong side</td><td style="text-align:left"><code>--swap-sides</code> (run the side test above)</td></tr>
 <tr><td>Escapes with nobody near</td><td style="text-align:left">Turn on Hands off (<code>H</code>) and watch the False column; sunlight and shiny surfaces disturb infrared sensors.</td></tr>
@@ -245,10 +246,12 @@ uv run fly-escape --mock --open</code></pre>
   <div class="card"><h3>Hardware results</h3><ul>
     <li>Sensor reads: about 80 a second from the probe, about 27 a second in the app, over USB. The dog does not move.</li>
     <li>Observe mode: calibrated and caught hand approaches.</li>
-    <li>Escape mode, earlier model: 6 escapes in 45 s, each one stood up again; 2 approaches seen only by the other half of the sensor were missed.</li>
-    <li>Calibration refused to start when a hand was in front of the sensor, as designed.</li>
+    <li>Escape mode, first model: 6 escapes in 45 s, each one stood up again, but only for a hand on one side.</li>
+    <li>Escape mode, fixed model: 6 escapes in 90 s, 4 from the left and 2 from the right, each one stood up again; 2 more were held back by the limit of 6 a minute.</li>
+    <li>Daylight: beside a window at midday the sensor read as if permanently covered and calibration refused to start. Away from the window it read normally at once.</li>
+    <li>Calibration also refused to start when a hand was in front of the sensor, as designed.</li>
     <li>On that dog the half of the sensor on pin 39 was on its left, so it needs <code>--swap-sides</code>. This depends on which way round the sensor is strapped on.</li>
-    <li>Not yet tried on the robot: the both-sides fix, Bluetooth, and backing away with a turn.</li>
+    <li>Not yet tried on the robot: a full escape run over Bluetooth (sensor reads work there, about 10 a second), and backing away with a turn.</li>
   </ul></div>
 </div>
 

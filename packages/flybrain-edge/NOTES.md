@@ -315,3 +315,19 @@ channels fall at slightly different times. Which pin is the robot's left is not 
 - A first escape attempt was refused by calibration because a hand was in front of the sensor
   during the 2 s window ("right channel rests at 116"). Working as designed.
 - Not yet run on the robot: the both-sides fix, escape over BLE, `back-turn`.
+
+### Fly escape on the robot, day 2 (2026-11-12)
+
+- **Daylight blinds the sensor.** Next to a window at midday both channels read about 50-170
+  instead of about 3400, as if something were permanently in front of it; shading it with a hand
+  only raised the reading by about 50. Moved away from the window, the same sensor read
+  3150-3300 at once. Calibration refused to start in the blinded state, as designed. Run this
+  demo away from windows or shield the sensor.
+- **Both-sides fix confirmed** (USB, `--swap-sides`, 90 s): 6 escapes, every stand confirmed,
+  4 for a hand on the robot's left (pin 39 dropping) and 2 on its right (pin 36 dropping), with
+  the reported side matching the channel each time. Two more triggers were refused by the
+  6-per-minute cap. Of 10 trigger events in the log: connectome 8, looming-rate 9, proximity 6,
+  rewired 4, random 0. No ground truth for how many approaches there really were.
+- **Analog reads over BLE work**: about 9.5 samples/s in the app (USB: about 26/s). Escape mode
+  over BLE has not completed a run yet (the only attempt was in the blinded state).
+- The robot advertised as `BittleC2_BLE` today and `BittleC2_SSP` yesterday.
