@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import os
 import queue
 import threading
 import time
@@ -28,6 +29,26 @@ from . import protocol as P
 from .transport import Transport, TransportError
 
 log = logging.getLogger(__name__)
+
+
+IDENTIFY_TRIES = 4  # '?' attempts (2 s each) over Bluetooth before giving up on the model
+BLE_RECONNECT_PAUSE_S = 4.0  # between dropping a silent Bluetooth link and connecting again
+BLE_RECONNECT_TRIES = 3
+TRACE_ENV = "FLYBRAIN_BITTLE_TRACE"
+
+
+def _trace_hook() -> Callable[[str, float, bytes], None] | None:
+    """With FLYBRAIN_BITTLE_TRACE=<file>: append every chunk sent and received, with times."""
+    path = os.environ.get(TRACE_ENV)
+    if not path:
+        return None
+    t0 = time.monotonic()
+
+    def hook(direction: str, t: float, data: bytes) -> None:
+        with open(path, "a") as f:
+            f.write(f"{time.strftime('%H:%M:%S')} {t - t0:8.2f} {direction} {bytes(data)!r}\n")
+
+    return hook
 
 
 class BittleError(RuntimeError):
@@ -117,7 +138,7 @@ class Bittle:
         self.limits[P.JOINT_HEAD_PAN] = (-P.DEFAULT_PAN_LIMIT_DEG, P.DEFAULT_PAN_LIMIT_DEG)
         if joint_limits:
             self.limits.update(joint_limits)
-        self.on_raw = on_raw
+        self.on_raw = on_raw or _trace_hook()
 
         self.model: str | None = None
         self.version: str | None = None
@@ -158,17 +179,40 @@ class Bittle:
         """Open the transport, wait out the boot banner, identify the firmware."""
         self.transport.open()
         self._wait_boot(boot_timeout, quiet_s)
-        self._running = True
-        self._reader = threading.Thread(target=self._read_loop, name="bittle-reader", daemon=True)
-        self._reader.start()
-        self._streamer = threading.Thread(
-            target=self._joint_loop, name="bittle-joints", daemon=True
-        )
-        self._streamer.start()
-        self._cmd_thread = threading.Thread(target=self._cmd_loop, name="bittle-cmds", daemon=True)
-        self._cmd_thread.start()
-        self.connected = True
-        lines = self.send(P.encode_ascii(P.T_QUERY), echo=P.T_QUERY, timeout=2.0)
+        ble = getattr(self.transport, "name", "") == "ble"
+        self._start_io()
+        lines = self._identify(IDENTIFY_TRIES if ble else 1)
+        if lines is None and ble:
+            # Seen once on a real robot (B10_251121, macOS): a Bluetooth link on which the robot
+            # sent no greeting and answered nothing; its firmware had stopped (silent on USB
+            # too, until reset). A robot that is only busy answers within _identify's tries.
+            # Set FLYBRAIN_BITTLE_TRACE=<file> to record what a link carries.
+            log.warning(
+                "connected over Bluetooth but the robot does not answer (greeting %s); "
+                "reconnecting",
+                "seen" if "Petoi" in self.boot_text else "not seen",
+            )
+            self._stop_io()
+            self.transport.close()
+            error: TransportError | None = None
+            for attempt in range(1, BLE_RECONNECT_TRIES + 1):
+                time.sleep(BLE_RECONNECT_PAUSE_S)
+                try:
+                    self.transport.open()
+                except TransportError as e:  # not advertising again yet
+                    error = e
+                    log.warning("reconnect %d of %d: %s", attempt, BLE_RECONNECT_TRIES, e)
+                    continue
+                error = None
+                self._wait_boot(boot_timeout, quiet_s)
+                self._start_io()
+                lines = self._identify(IDENTIFY_TRIES)
+                if lines is not None or attempt == BLE_RECONNECT_TRIES:
+                    break
+                self._stop_io()
+                self.transport.close()
+            if error is not None:
+                raise error
         if lines is None:
             log.warning("no echo for '?': firmware may be busy or not OpenCat")
         else:
@@ -179,6 +223,43 @@ class Bittle:
             log.warning(
                 "firmware reports %r, not 'Bittle X+Arm': arm joint 1 limits differ", self.model
             )
+
+    def _identify(self, tries: int) -> list[str] | None:
+        """Ask '?' until the robot answers with its model. Returns the reply lines, the bare
+        echo if that is all it ever sent, or None when it never answered.
+
+        A robot that is busy with a skill answers late and with the echo alone. Measured on
+        B10_251121 over Bluetooth: about one connection in five the robot plays its "hi" skill
+        right after the greeting and answers nothing for 3 s."""
+        last = None
+        for _ in range(tries):
+            lines = self.send(P.encode_ascii(P.T_QUERY), echo=P.T_QUERY, timeout=2.0)
+            if lines is not None:
+                last = lines
+                if P.parse_identify(lines)[0]:
+                    break
+        return last
+
+    def _start_io(self) -> None:
+        self._running = True
+        self._reader = threading.Thread(target=self._read_loop, name="bittle-reader", daemon=True)
+        self._reader.start()
+        self._streamer = threading.Thread(
+            target=self._joint_loop, name="bittle-joints", daemon=True
+        )
+        self._streamer.start()
+        self._cmd_thread = threading.Thread(target=self._cmd_loop, name="bittle-cmds", daemon=True)
+        self._cmd_thread.start()
+        self.connected = True
+
+    def _stop_io(self) -> None:
+        self._running = False
+        self.connected = False
+        self._cmd_q.put(None)
+        for t in (self._streamer, self._reader, self._cmd_thread):
+            if t is not None and t is not threading.current_thread():
+                t.join(timeout=1.0)
+        self._cmd_q = queue.Queue()
 
     def _wait_boot(self, max_s: float, quiet_s: float) -> None:
         buf = bytearray()

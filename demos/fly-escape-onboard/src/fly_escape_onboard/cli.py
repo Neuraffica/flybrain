@@ -248,7 +248,12 @@ def main(argv: list[str] | None = None) -> int:
     onboard = OnboardEscape(bot)
     present = onboard.query()
     problem = None
-    if present is None:
+    if present is None and bot.model is None:
+        problem = (
+            "the robot is connected but answers nothing, not even who it is. This is the link, "
+            "not the firmware: press Start again"
+        )
+    elif present is None:
         problem = (
             "no fly escape module answered. Either this firmware has none, or it has an older "
             f"build that does not report over Bluetooth. Build and flash it: {README}"
