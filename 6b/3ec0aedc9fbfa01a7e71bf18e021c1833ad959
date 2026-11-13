@@ -1,0 +1,76 @@
+packages/flybrain-demo-api/src/flybrain_demo_api/paths.py
+  s_8da33b2ad5b96f::t_30a3dfd6c60f74 1-24
+demos/fly-escape/src/fly_escape/static/index.html
+  s_8da33b2ad5b96f::t_fba8d9a00bb121 71-74,159,168,487-491,515-525,527,530-531,543
+  s_8da33b2ad5b96f::t_6b4d30875044b2 70,526
+  s_8da33b2ad5b96f::t_288e9e06ed5a96 497,528-529
+demos/fly-escape/src/fly_escape/flydeck.py
+  s_8da33b2ad5b96f::t_5eb8d98dd08f84 8,46-55,58-60
+demos/fly-escape/src/fly_escape/app.py
+  s_8da33b2ad5b96f::t_fba8d9a00bb121 428
+  s_8da33b2ad5b96f::t_ea6aec544eadaf 18,208-212,385
+  s_8da33b2ad5b96f::t_e86cdc81c2f8e3 20,115,166-168,170-171,203-207,213-216,218-221,226,228-229,232-236,360-362,365-369
+  s_8da33b2ad5b96f::t_288e9e06ed5a96 222,227
+  s_8da33b2ad5b96f::t_5c417dd23650c6 217,223-225
+  s_8da33b2ad5b96f::t_140613f3d7a938 230-231
+apps/flydeck/tests/conftest.py
+  s_8da33b2ad5b96f::t_da1cf7a9ac47d6 1-7
+apps/flydeck/tests/test_flydeck_specs.py
+  s_8da33b2ad5b96f::t_5eb8d98dd08f84 14,38,84-110
+apps/flydeck/src/flydeck/settings.py
+  s_8da33b2ad5b96f::t_e9f07ab5f167a1 4,14
+demos/fly-escape/src/fly_escape/calibration.py
+  s_8da33b2ad5b96f::t_e99be4b5324115 79,83-93
+  s_8da33b2ad5b96f::t_b258fd23085b8f 94
+demos/fly-escape/tests/test_escape_sides.py
+  s_8da33b2ad5b96f::t_2ca17b9c71f1c5 10,15,173,193-194
+  s_8da33b2ad5b96f::t_fc196209c96307 1-9,11-14,16-172,174-192,195-236
+packages/flybrain-edge/src/flybrain_edge/bittle/protocol.py
+  s_8da33b2ad5b96f::t_72e6286c001af0 62
+  s_8da33b2ad5b96f::t_6b26f7725f54c4 63-70
+  s_8da33b2ad5b96f::t_2821735d0cb067 71
+packages/flybrain-edge/src/flybrain_edge/bittle/transport.py
+  s_8da33b2ad5b96f::t_6b26f7725f54c4 220-223,230-233,242-244
+packages/flybrain-demo-api/src/flybrain_demo_api/__init__.py
+  s_8da33b2ad5b96f::t_e9f07ab5f167a1 20,38
+demos/fly-escape/README.md
+  s_8da33b2ad5b96f::t_a6c26da774f4d0 30,183
+  s_8da33b2ad5b96f::t_cdebd4be3c6587 31-49
+packages/flybrain-edge/tests/test_bittle_transport.py
+  s_8da33b2ad5b96f::t_6b26f7725f54c4 64-83
+  s_8da33b2ad5b96f::t_72e6286c001af0 84
+demos/fly-escape/src/fly_escape/loop.py
+  s_8da33b2ad5b96f::t_e99be4b5324115 79-80,89-90,161-164,293-298
+  s_8da33b2ad5b96f::t_e8cfb7416ceeac 24,92-93,130-141,156-160,165-176
+demos/fly-escape/guide.html
+  s_8da33b2ad5b96f::t_a6c26da774f4d0 206-207,229-230,254
+demos/fly-escape/tests/conftest.py
+  s_8da33b2ad5b96f::t_da1cf7a9ac47d6 1-7
+demos/fly-escape/src/fly_escape/scripts.py
+  s_8da33b2ad5b96f::t_ea6aec544eadaf 40-44
+demos/fly-escape/src/fly_escape/sides.py
+  s_8da33b2ad5b96f::t_7e8aafcb872cf9 106,108
+  s_8da33b2ad5b96f::t_d0d0fa5c3bc51c 1-104,107,109-199
+  s_8da33b2ad5b96f::t_6a83239071e7cb 105
+demos/fly-escape/src/fly_escape/cli.py
+  s_8da33b2ad5b96f::t_d832e8227597c1 92-100,102-115,117-118,215-221,248-249,267,322-323,333-336,340,365,372-373,376,402,406-407
+  s_8da33b2ad5b96f::t_140613f3d7a938 37
+packages/flybrain-edge/README.md
+  s_8da33b2ad5b96f::t_4321beb81ae5a8 74-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6b3ec0aedc9fbfa01a7e71bf18e021c1833ad959",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
