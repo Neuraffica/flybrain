@@ -1,7 +1,9 @@
 # fly_escape: the looming-escape circuit on the Bittle's own board
 
 > **Status (2026-11-12): a slim build for the robot's real partition layout compiles, with
-> 34,432 bytes free in `app0`. Compile-only: not flashed, not run on a robot.**
+> 34,432 bytes free in `app0`. That slim build is compile-only. On a second robot (B10_251121,
+> larger partitions) the full firmware plus this module was flashed and runs: see "Second
+> robot".**
 > OpenCatEsp32 `c481e47` (the robot's firmware B10_250330), Bittle X+Arm on BiBoard V1, esp32
 > core 2.0.12, **default 4 MB partition scheme** (the robot's), with this module and three stock
 > features left out: the camera/vision module, the quick demo and the micro:bit BLE client
@@ -102,9 +104,72 @@ Bluetooth, IMU, every skill, `R`, `X`, `P`, calibration storage):
 
 The module letters stay in the `X` list; selecting a removed one does nothing.
 
+## Second robot: Bittle X on B10_251121 (full build, nothing left out)
+
+A second robot (Bittle X with the head, no arm; ESP32-U4WDH v3.1, 4 MB; firmware B10_251121)
+was backed up and checked on 2026-11-12. It ships with the **Minimal SPIFFS** layout, so the
+slim switches are not needed there. This build was flashed and run on that robot (next
+subsection).
+
+| | first robot (B10_250330) | second robot (B10_251121) |
+|---|---|---|
+| partition table | default: app0/app1 1,310,720 B | min_spiffs: app0 0x10000, app1 0x1f0000, 1,966,080 B each; spiffs 0x3d0000/128 KB |
+| stock app image in the backup | 1,305,680 B | 1,764,992 B |
+| otadata | sequence 1 -> app0 | sequence 1 -> app0 |
+| app1 | not a valid image | blank (all 0xFF) |
+
+Sources: OpenCatEsp32 `32a1fcb` (2025-11-21, the commit that sets `DATE "251121"`; the only
+later commit with that date, `b2e5818`, changes web-block files only). Sketch switches as
+committed: `BITTLE`, `BiBoard_V1_0`, `ROBOT_ARM` off. Same esp32 core 2.0.12.
+
+```bash
+git checkout 32a1fcb
+python3 <flybrain>/firmware/bittle/fly_escape/apply_to_opencat.py . --keep-all
+arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs --build-path build/fly_escape .
+```
+
+| build (`32a1fcb`, min_spiffs) | program flash | static RAM | app image (.bin) | free in `app0` |
+|---|---|---|---|---|
+| stock | 1,760,089 | 70,620 | 1,765,840 | 200,240 |
+| **stock + fly_escape (all features kept)** | **1,771,477** | **73,476** | **1,777,232** | **188,848** |
+
+Checked against the backup: the build's partition table and bootloader are byte-identical to
+the robot's. The stock rebuild is 848 bytes larger than the app in the robot and not
+byte-identical to it, so Petoi's build differs slightly from this one (library versions or
+build settings; not investigated). The app offset is the same as on the first robot, so the
+flash and restore commands below apply with `0x1e0000` as the app0 length when extracting the
+stock app, and the banner to expect is `B10_251121`.
+
+### Flashed and run on the second robot (2026-11-12)
+
+The build above was written to the robot's unused `app1` slot and booted from there; the stock
+app in `app0` was not touched. From the owner's Mac, with macOS's built-in CH343 driver:
+
+1. Full 4 MB backup, verified (`read-flash`, `verify-flash`).
+2. `write-flash 0x1f0000 <fly_escape app .bin>` with esptool 5.6.0 patched to small blocks
+   (`ESP_RAM_BLOCK` 0x100 and the stub's `FLASH_WRITE_SIZE` 0x400, at 115200 baud): 1,777,232
+   bytes in 109 s, hash verified, then `verify-flash` matched. With the default block sizes the
+   same link fails.
+3. Boot selector: one 4 KB sector at 0xf000 holding an otadata entry with sequence 2 (bytes
+   `02 00 00 00`, 24 x `ff`, CRC `74 37 f6 55`, rest `ff`), so the boot loader picks `app1`.
+   Entry 0 at 0xe000 (sequence 1) stays.
+4. Result: boots to `Ready!` as `B10_251121` with `Module count: 12` and `E` in the module
+   list; the saved servo zero positions and IMU offsets are still used.
+5. `XE` over USB serial: `flyEscape baseline L 3595.30 R 3579.58`, then triggers followed by
+   `bkF` and `up`. The owner confirmed the robot backed away when a hand approached and only
+   then.
+
+**Back to stock:** write the original sector back (`write-flash 0xf000` with 4096 bytes of the
+backup from offset 0xf000); the stock app is still in `app0`.
+
+Not measured: run time per step on the board, behaviour on battery without the cable, false
+alarm rate over a longer session. This robot's sensor needs no side swap (pin 36 is its left);
+the first robot's does, and the module has no swap switch yet.
+
 ## Adding it to OpenCatEsp32
 
-`apply_to_opencat.py` does all of this (checked against OpenCatEsp32 `c481e47` and `f5aba6b`):
+`apply_to_opencat.py` does all of this (checked against OpenCatEsp32 `c481e47`, `32a1fcb` and
+`f5aba6b`):
 
 ```bash
 git clone https://github.com/PetoiCamp/OpenCatEsp32 && cd OpenCatEsp32 && git checkout c481e47
