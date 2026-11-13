@@ -17,6 +17,7 @@ resolution-markers = [
 members = [
     "fly-compass",
     "fly-escape",
+    "fly-escape-onboard",
     "flybrain",
     "flybrain-data",
     "flybrain-demo-api",
@@ -153,12 +154,30 @@ requires-dist = [
 ]
 
 [[package]]
+name = "fly-escape-onboard"
+version = "0.0.1"
+source = { editable = "demos/fly-escape-onboard" }
+dependencies = [
+    { name = "flybrain-demo-api" },
+    { name = "flybrain-edge" },
+    { name = "flybrain-models" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "flybrain-demo-api", editable = "packages/flybrain-demo-api" },
+    { name = "flybrain-edge", editable = "packages/flybrain-edge" },
+    { name = "flybrain-models", editable = "packages/flybrain-models" },
+]
+
+[[package]]
 name = "flybrain"
 version = "0.0.1"
 source = { virtual = "." }
 dependencies = [
     { name = "fly-compass" },
     { name = "fly-escape" },
+    { name = "fly-escape-onboard" },
     { name = "flybrain-data" },
     { name = "flybrain-demo-api" },
     { name = "flybrain-edge" },
@@ -177,6 +196,7 @@ dev = [
 requires-dist = [
     { name = "fly-compass", editable = "demos/fly-compass" },
     { name = "fly-escape", editable = "demos/fly-escape" },
+    { name = "fly-escape-onboard", editable = "demos/fly-escape-onboard" },
     { name = "flybrain-data", editable = "packages/flybrain-data" },
     { name = "flybrain-demo-api", editable = "packages/flybrain-demo-api" },
     { name = "flybrain-edge", editable = "packages/flybrain-edge" },

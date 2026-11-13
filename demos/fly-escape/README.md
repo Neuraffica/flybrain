@@ -172,7 +172,13 @@ fast as possible and prints the scores.
 * Hard limits on top of the model: one escape per 3 s, six per minute.
 * Ctrl-C or SIGTERM (only the first one interrupts) or any error: a running gait is stopped with
   `kup`, then `d` rests the robot. A "low power" message from the firmware is shown at start.
-* No `X` module command is ever sent (switching modules on made the robot do skills by itself).
+* Two brains must not fight. At start the demo sends `X?` (stock firmware has it and changes
+  nothing). Only if the robot runs the on-board escape module
+  ([firmware/bittle/fly_escape](../../firmware/bittle/fly_escape/README.md)) and it is on, `Xe`
+  switches it off for the run (logged); at exit the robot rests and `XE` switches it back on,
+  which stands the robot up again. No other `X` module command is sent (switching modules on
+  made the robot do skills by itself). Over Bluetooth only the current module build can be
+  seen: an older build that prints to USB only is not detected there.
 
 ## Troubleshooting
 

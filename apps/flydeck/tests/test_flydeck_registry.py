@@ -69,6 +69,6 @@ def test_declared_but_not_installed_demo_is_a_card(tmp_path):
 def test_the_real_demos_are_registered():
     root = registry.find_root()
     entries = {e.id: e for e in registry.discover(root)}
-    for demo in ("fly-compass", "fly-escape", "hello-robot"):
+    for demo in ("fly-compass", "fly-escape", "fly-escape-onboard", "hello-robot"):
         assert entries[demo].ok, entries[demo].error
         assert entries[demo].guide_path() is not None, demo

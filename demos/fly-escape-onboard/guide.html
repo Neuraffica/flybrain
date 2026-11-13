@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fly escape on the robot</title>
+<style>
+:root {
+  --paper: #f6f2ea; --card: #fffdf8; --ink: #1f1b16; --muted: #6b6257; --line: #e2d9ca;
+  --accent: #b8402a; --accent-soft: #f3ddd4; --code: #efe8db;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #15130f; --card: #1d1a15; --ink: #ece6da; --muted: #a0968a; --line: #322d25;
+    --accent: #e8735a; --accent-soft: #3a211b; --code: #26221b;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #15130f; --card: #1d1a15; --ink: #ece6da; --muted: #a0968a; --line: #322d25;
+  --accent: #e8735a; --accent-soft: #3a211b; --code: #26221b;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.6 var(--sans); }
+main { max-width: 820px; margin: 0 auto; padding: 56px 16px 96px; }
+h1, h2 { font-family: var(--serif); font-weight: 600; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); letter-spacing: -0.02em; margin: 12px 0 16px; }
+h2 { font-size: clamp(1.4rem, 3.5vw, 1.8rem); margin: 48px 0 10px; }
+p { margin: 0 0 14px; }
+a { color: var(--accent); }
+.kicker { font: 600 0.78rem/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: 1.2rem; color: var(--muted); }
+.flow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: stretch; margin: 20px 0; }
+.box { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.box.robot { border-color: var(--accent); background: var(--accent-soft); }
+.box small { display: block; color: var(--muted); font-size: 0.9rem; line-height: 1.45; margin-top: 4px; }
+.arrow { align-self: center; color: var(--muted); font-size: 0.85rem; text-align: center; }
+.arrow span { display: block; font-size: 1.4rem; color: var(--accent); }
+@media (max-width: 640px) { .flow { grid-template-columns: 1fr; } .arrow span { transform: rotate(90deg); } }
+ol { padding-left: 1.3em; } li { margin-bottom: 8px; }
+code { font: 0.9em var(--mono); background: var(--code); padding: 1px 5px; border-radius: 4px; }
+pre { background: var(--code); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font: 0.88rem/1.5 var(--mono); }
+</style>
+</head>
+<body>
+<main>
+  <span class="kicker">Demo · the brain runs on the device</span>
+  <h1>Fly escape, on the robot</h1>
+  <p class="lede">The same fruit-fly looming-escape circuit as the Fly escape demo, but it runs on the Bittle's own
+    ESP32. The robot sees a hand coming, decides and walks back by itself. Flydeck only listens.</p>
+
+  <div class="flow">
+    <div class="box robot"><b>On the robot</b><small>IR sensor → 348-neuron circuit every 35 ms → back away and stand.
+      Nothing leaves the board to make the decision.</small></div>
+    <div class="arrow"><span>→</span>5 lines a second</div>
+    <div class="box"><b>On the laptop</b><small>Switches the module on or off and draws what the robot reports:
+      the sensor, the giant fibres, every decision.</small></div>
+  </div>
+
+  <h2>Before you start</h2>
+  <p>The robot needs firmware with the <code>fly_escape</code> module. Stock Petoi firmware does not have it; the demo
+    says so and stops. How to build and flash it: <code>firmware/bittle/fly_escape/README.md</code>.</p>
+
+  <h2>What happens</h2>
+  <ol>
+    <li>Flydeck connects and asks the robot which modules it has (<code>X?</code>).</li>
+    <li>If the module is off, it is switched on (<code>XE</code>): the robot stands and measures the sensor's resting
+      level. Keep hands away for a second. It now backs away from a fast-approaching hand, so give it a metre behind.</li>
+    <li>Flydeck asks for telemetry (<code>XEP</code>) and draws it. A red mark is a decision the robot made.</li>
+    <li>At Stop, telemetry goes off. The module keeps running unless you unticked
+      <b>Leave the module running</b>. The laptop never sends a motion command.</li>
+  </ol>
+  <p>Try it: start the demo, then pull the USB cable or close Flydeck. The robot keeps escaping.</p>
+
+  <h2>Without a robot</h2>
+  <pre>uv run fly-escape-onboard --mock --open</pre>
+  <p>The simulator runs the same model as the board and sends a hand every 8 s: from the left, the right, ahead,
+    then one that only hovers (no escape).</p>
+</main>
+</body>
+</html>

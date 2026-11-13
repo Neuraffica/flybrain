@@ -11,6 +11,7 @@ dependencies = [
     "flydeck",
     "fly-compass",
     "fly-escape",
+    "fly-escape-onboard",
     "hello-robot",
 ]
 
@@ -26,6 +27,7 @@ flybrain-models = { workspace = true }
 flybrain-edge = { workspace = true }
 fly-compass = { workspace = true }
 fly-escape = { workspace = true }
+fly-escape-onboard = { workspace = true }
 flybrain-demo-api = { workspace = true }
 flydeck = { workspace = true }
 hello-robot = { workspace = true }

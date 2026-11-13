@@ -12,6 +12,7 @@ from typing import Any
 from fly_compass.server import FrameHub
 from flybrain_edge.bittle import Bittle, MockBittle
 from flybrain_edge.bittle import protocol as P
+from flybrain_edge.bittle.onboard import OnboardEscape
 
 from .escape import STAND_TIMEOUT_S, EscapeConfig, EscapeController
 from .loop import EscapeLoop
@@ -113,6 +114,7 @@ class EscapeApp:
         self._logged_escapes = 0
         self.sim = None  # Simulator in mock mode (fly_escape.sim)
         self.calibrate_sides = False  # run the side check once the resting level is measured
+        self.onboard_paused: OnboardEscape | None = None  # the robot's own module, switched off
 
     # ---- events / commands ---------------------------------------------------------
     def _event(self, text: str) -> None:
@@ -272,10 +274,29 @@ class EscapeApp:
         return {"ok": False, "error": f"unknown action {action!r}"}
 
     # ---- robot ---------------------------------------------------------------------
+    def pause_onboard_escape(self) -> None:
+        """Two brains must not fight: if the robot runs the fly escape module on its own board
+        (firmware/bittle/fly_escape), switch it off until shutdown. Sends only "X?" (stock
+        firmware has it and changes nothing) unless the module is there and on."""
+        on = OnboardEscape(self.bittle)
+        on.query()
+        if on.enabled:
+            if on.set_enabled(False):
+                self.onboard_paused = on
+                self._event(
+                    "the robot's own fly escape module (XE) was running: switched off for this "
+                    "run, switched back on at exit"
+                )
+            else:
+                self._event("the robot's own fly escape module is running and did not switch off")
+        elif on.present is None and self.bittle.transport.name == "ble":
+            log.info("on-board escape module: not reported over Bluetooth (older or no module)")
+
     def start_robot(self) -> None:
         b = self.bittle
         if b is None:
             return
+        self.pause_onboard_escape()
         b.stand(balance=False)
         if b.low_power:
             self._event(
@@ -472,6 +493,15 @@ class EscapeApp:
                 self.bittle.flush_commands()
             except Exception as e:  # noqa: BLE001 - still rest the robot below
                 log.error("stand before rest failed: %s", e)
-            self.bittle.close()  # rests the robot
+            if self.onboard_paused is not None and self.bittle.connected:
+                # rest first, then the module stands the robot up again and measures its
+                # resting level in the posture it will work in
+                self.bittle.stop_poll_analog()
+                self.bittle.rest()
+                if self.onboard_paused.set_enabled(True):
+                    self._event("the robot's own fly escape module is running again")
+                self.bittle.close(rest=False)
+            else:
+                self.bittle.close()  # rests the robot
         if self.session is not None:
             self.session.close()

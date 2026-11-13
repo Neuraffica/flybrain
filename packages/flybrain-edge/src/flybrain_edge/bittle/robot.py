@@ -137,6 +137,7 @@ class Bittle:
         self._analog_paused = threading.Event()
         self._analog_gate = threading.Lock()
         self._sample_listeners: list[Callable[[ImuSample], None]] = []
+        self._rx_listeners: list[Callable[[bytes, float], None]] = []
         self._splitter = P.LineSplitter()
         self._cv = threading.Condition()
         self._line_seq = 0
@@ -244,6 +245,11 @@ class Bittle:
                 continue
             now = time.monotonic()
             self._raw("rx", now, data)
+            for cb in list(self._rx_listeners):
+                try:
+                    cb(data, now)
+                except Exception:  # a listener must not kill the link
+                    log.exception("rx listener failed")
             self.handle_bytes(data, now)
 
     def handle_bytes(self, data: bytes, now: float | None = None) -> None:
@@ -597,6 +603,11 @@ class Bittle:
     def add_sample_listener(self, cb: Callable[[ImuSample], None]) -> None:
         self._sample_listeners.append(cb)
 
+    def add_rx_listener(self, cb: Callable[[bytes, float], None]) -> None:
+        """``cb(data, t)`` gets every chunk of robot output as received, before it is split into
+        lines (for messages that must be read across chunk and line boundaries)."""
+        self._rx_listeners.append(cb)
+
     # ---- joints -----------------------------------------------------------------------
     def clamp(self, index: int, deg: float) -> int:
         return round(P.clamp_joint(index, deg, self.limits))
@@ -638,8 +649,9 @@ class Bittle:
             self._joint_sent.clear()
 
     # ---- shutdown -----------------------------------------------------------------------
-    def close(self) -> None:
-        """Stop streaming and leave the robot resting, whatever state it was in."""
+    def close(self, rest: bool = True) -> None:
+        """Stop streaming and leave the robot resting, whatever state it was in. ``rest=False``
+        only for programs that never move the robot themselves (it then stays as it is)."""
         try:
             self.stop_poll_imu()
             self.stop_poll_analog()
@@ -650,7 +662,8 @@ class Bittle:
                     if self.streaming:
                         self.stream_imu(False)
                 finally:
-                    self.rest()
+                    if rest:
+                        self.rest()
         except Exception as e:  # noqa: BLE001 - cleanup must not mask the original error
             log.error("error while resting the robot: %s", e)
         finally:

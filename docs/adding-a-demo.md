@@ -34,7 +34,9 @@ The robot is a real machine on a table or floor, often next to people. Every dem
 1. **Always rest on exit.** Whatever happens (Stop, Ctrl-C, an error, a lost link), the robot
    ends lying down. `Bittle.close()` does this; call it in a `finally:` block. The first
    SIGINT (Flydeck's Stop, or Ctrl-C) only asks your loop to finish; ignore later signals so
-   they cannot interrupt the rest command. The template shows both.
+   they cannot interrupt the rest command. The template shows both. (The one exception is a
+   demo that never moves the robot itself, such as `fly-escape-onboard`, where the robot's own
+   firmware does the moving: it calls `close(rest=False)` and leaves the robot as it is.)
 2. **Never write on top of an unconfirmed command.** The firmware merges two commands that
    arrive together and loses one (over USB the second, over Bluetooth the first), so a "stop"
    can vanish. Send everything through `Bittle` (`send`, `skill`, `set_joint`, `stand`), which

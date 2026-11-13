@@ -1,0 +1,28 @@
+[project]
+name = "fly-escape-onboard"
+version = "0.0.1"
+description = "flybrain demo: the fly looming-escape circuit runs on the Bittle's own board; the laptop listens"
+requires-python = ">=3.11"
+dependencies = [
+    "flybrain-demo-api",
+    "flybrain-edge",
+    "flybrain-models",
+]
+
+[project.scripts]
+fly-escape-onboard = "fly_escape_onboard.cli:main"
+
+[project.entry-points."flybrain.demos"]
+fly-escape-onboard = "fly_escape_onboard.flydeck:SPEC"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fly_escape_onboard"]
+
+[tool.uv.sources]
+flybrain-demo-api = { workspace = true }
+flybrain-edge = { workspace = true }
+flybrain-models = { workspace = true }

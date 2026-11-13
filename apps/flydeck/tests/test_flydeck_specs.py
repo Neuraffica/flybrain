@@ -12,17 +12,21 @@ from fly_escape import flydeck as escape_deck
 from fly_escape.escape import ACTIONS
 from fly_escape.models import MODEL_KEYS as ESCAPE_MODELS
 from fly_escape.sides import SIDE_SETTINGS
+from fly_escape_onboard import cli as onboard_cli
+from fly_escape_onboard import flydeck as onboard_deck
 from hello_robot import cli as hello_cli
 from hello_robot import flydeck as hello_deck
 
 PARSERS = {
     "fly-compass": compass_cli.build_parser,
     "fly-escape": escape_cli.build_parser,
+    "fly-escape-onboard": onboard_cli.build_parser,
     "hello-robot": hello_cli.build_parser,
 }
 SPECS = {
     "fly-compass": compass_deck.SPEC,
     "fly-escape": escape_deck.SPEC,
+    "fly-escape-onboard": onboard_deck.SPEC,
     "hello-robot": hello_deck.SPEC,
 }
 
