@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fly escape on the robot</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f4f4f2; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --ink-3: #85847f;
+  --line: #e3e2de; --line-2: #cfcec9; --accent-bg: #eceae6;
+  --s1: #2a78d6; --s2: #eb6834; --good: #2f7d32; --warn: #b26a00; --bad: #c62828; --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #121211; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #8f8e86;
+    --line: #2c2c2a; --line-2: #3d3d3a; --accent-bg: #252523;
+    --s1: #3987e5; --s2: #d95926; --good: #66bb6a; --warn: #e0a030; --bad: #ef6b6b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #121211; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #8f8e86;
+  --line: #2c2c2a; --line-2: #3d3d3a; --accent-bg: #252523;
+  --s1: #3987e5; --s2: #d95926; --good: #66bb6a; --warn: #e0a030; --bad: #ef6b6b;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--page); color: var(--ink);
+  font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased; }
+.num { font-variant-numeric: tabular-nums; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 16px 24px;
+  border-bottom: 1px solid var(--line); background: var(--surface); }
+.brand h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+.brand p { margin: 2px 0 0; color: var(--ink-2); font-size: 13px; }
+.spacer { flex: 1; }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+  background: var(--accent-bg); font-size: 13px; color: var(--ink-2); max-width: 100%; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.dot.ok { background: var(--good); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
+button { font: inherit; font-size: 14px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+button:hover { background: var(--accent-bg); }
+button:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+main { display: grid; gap: 16px; padding: 16px 24px 24px; grid-template-columns: repeat(12, minmax(0, 1fr));
+  max-width: 1500px; margin: 0 auto; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; min-width: 0; }
+.card h2 { font-size: 13px; font-weight: 600; margin: 0 0 10px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; }
+.span-4 { grid-column: span 4; } .span-8 { grid-column: span 8; } .span-12 { grid-column: span 12; }
+@media (max-width: 1100px) { .span-4, .span-8 { grid-column: span 12; } }
+@media (max-width: 600px) { header, main, footer { padding-left: 16px; padding-right: 16px; } .spacer { display: none; } }
+.brain { grid-column: span 12; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px;
+  border-radius: var(--radius); padding: 14px 18px; border: 1px solid var(--ink); background: var(--ink); color: var(--surface); }
+.brain .state { font-size: 22px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+.brain .facts { font-size: 16px; font-weight: 600; }
+.brain .explain { flex: 1 1 380px; font-size: 14px; opacity: .85; }
+.brain.off { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.brain.off .explain { color: var(--ink-2); opacity: 1; }
+.brain.escaping { background: var(--bad); border-color: var(--bad); }
+canvas { display: block; width: 100%; }
+#trace { height: 320px; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend .l1 { width: 16px; height: 0; border-top: 2px solid var(--ink); }
+.legend .l2 { width: 16px; height: 0; border-top: 2px dashed var(--ink-2); }
+.legend .tk { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 9px solid var(--bad); }
+.gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.gauge .k { font-size: 12px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; }
+.gauge .v { font-size: 26px; font-weight: 650; }
+.gauge .track { position: relative; height: 10px; background: var(--accent-bg); border-radius: 5px; margin-top: 6px; }
+.gauge .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--s1); width: 0; }
+.gauge .thr { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); left: 66.6%; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 14px 0 0; font-size: 14px; }
+dt { color: var(--ink-2); } dd { margin: 0; font-variant-numeric: tabular-nums; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: right; font-weight: 600; color: var(--ink-2); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; padding: 6px; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; }
+td { text-align: right; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+.note { color: var(--ink-2); font-size: 13px; margin: 10px 0 0; }
+.small { font-size: 12px; color: var(--ink-3); }
+#msg { font-size: 13px; color: var(--bad); min-height: 18px; margin-top: 8px; }
+pre { white-space: pre-wrap; font-size: 12px; color: var(--ink-2); margin: 0; }
+footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--ink-3); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><h1>Fly escape, on the robot</h1><p>The fruit-fly looming-escape circuit runs on the Bittle's own board; this page only listens</p></div>
+  <span class="pill"><span class="dot" id="conn-dot"></span><span id="conn-text">connecting…</span></span>
+  <div class="spacer"></div>
+  <button id="toggle" disabled>Switch module on</button>
+</header>
+<main>
+  <section class="brain off" id="brain" aria-live="polite">
+    <span class="state" id="b-state">Connecting</span>
+    <span class="facts num" id="b-facts"></span>
+    <span class="explain" id="b-explain"></span>
+  </section>
+
+  <section class="card span-8">
+    <h2>What the robot's sensor sees, last 30 s</h2>
+    <div class="legend">
+      <span><i class="l1"></i>Left channel</span><span><i class="l2"></i>Right channel</span>
+      <span><i class="tk"></i>The robot decided to escape</span>
+    </div>
+    <canvas id="trace" aria-label="Proximity of both sensor channels over time, as the robot reports it, with its escape decisions"></canvas>
+    <p class="note">Five readings a second, sent by the robot (it steps the circuit 28 times a second; one extra reading comes with every decision). Gaps: the robot was walking back and does not read its sensor meanwhile.</p>
+  </section>
+
+  <section class="card span-4">
+    <h2>Giant fibres, on the robot</h2>
+    <div class="gauges">
+      <div class="gauge"><div class="k">Left</div><div class="v num" id="gf-l">—</div><div class="track"><i class="fill" id="gf-l-fill"></i><i class="thr"></i></div></div>
+      <div class="gauge"><div class="k">Right</div><div class="v num" id="gf-r">—</div><div class="track"><i class="fill" id="gf-r-fill"></i><i class="thr"></i></div></div>
+    </div>
+    <p class="note">Each giant fibre's activity as a fraction of its own threshold (the dark line, at 1). When either crosses it, the robot backs away.</p>
+    <dl>
+      <dt>Module</dt><dd id="mod">—</dd>
+      <dt>Resting level</dt><dd id="base">—</dd>
+      <dt>Escapes decided</dt><dd id="esc">0</dd>
+      <dt>Firmware</dt><dd id="fw">—</dd>
+    </dl>
+    <div id="msg" role="status"></div>
+  </section>
+
+  <section class="card span-8">
+    <h2>Decisions</h2>
+    <table><thead><tr><th>#</th><th>Time</th><th>Threat side</th><th>Drive</th></tr></thead><tbody id="trig"></tbody></table>
+  </section>
+
+  <section class="card span-4">
+    <h2>Log</h2>
+    <pre id="events"></pre>
+  </section>
+</main>
+<footer>
+  The robot's ESP32 reads the double IR sensor, steps the 348-neuron circuit every 35 ms and queues a backward walk and a
+  stand on a trigger, all on the board. The laptop switches the module on or off and listens to the lines it prints
+  ("@FE …;"); it sends no motion command. Unplug the laptop and the robot keeps escaping.
+</footer>
+<script>
+"use strict";
+const TRACE_S = 30;
+let frame = null, dirty = true, css = {};
+const $ = (id) => document.getElementById(id);
+function readCss() {
+  const s = getComputedStyle(document.documentElement);
+  for (const v of ["--ink", "--ink-2", "--line", "--line-2", "--bad"]) css[v] = s.getPropertyValue(v).trim();
+  dirty = true;
+}
+readCss();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readCss);
+const sideName = (s) => s > 0 ? "left" : s < 0 ? "right" : "ahead";
+
+function setupCanvas(c) {
+  const r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const w = Math.max(10, Math.round(r.width)), h = Math.max(10, Math.round(r.height));
+  if (c.width !== w * dpr || c.height !== h * dpr) { c.width = w * dpr; c.height = h * dpr; }
+  const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  return [g, w, h];
+}
+
+function drawTrace() {
+  const [g, w, h] = setupCanvas($("trace"));
+  const G = { l: 64, r: w - 8, t: 10, b: h - 40 };
+  const tNow = frame ? frame.t : 0, t0 = tNow - TRACE_S;
+  const X = (t) => G.l + (t - t0) / TRACE_S * (G.r - G.l), Y = (v) => G.t + (1 - v) * (G.b - G.t);
+  g.font = "12px system-ui, sans-serif"; g.fillStyle = css["--ink-2"]; g.textAlign = "right"; g.textBaseline = "middle";
+  for (const v of [0, 0.5, 1]) {
+    g.strokeStyle = v === 0 ? css["--line-2"] : css["--line"]; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(G.l, Y(v)); g.lineTo(G.r, Y(v)); g.stroke();
+    g.fillText(v === 1 ? "close" : v === 0 ? "nothing" : "0.5", G.l - 6, Y(v));
+  }
+  const trace = frame ? frame.trace : [];
+  g.save(); g.beginPath(); g.rect(G.l, G.t - 2, G.r - G.l, G.b - G.t + 4); g.clip();
+  for (const [idx, color, dash] of [[1, css["--ink"], []], [2, css["--ink-2"], [6, 4]]]) {
+    g.strokeStyle = color; g.lineWidth = 2; g.setLineDash(dash); g.beginPath();
+    let lastT = null;
+    for (const p of trace) {
+      if (p[0] < t0) continue;
+      const x = X(p[0]), y = Y(p[idx]);
+      if (lastT == null || p[0] - lastT > 0.6) g.moveTo(x, y); else g.lineTo(x, y);  // gaps stay gaps
+      lastT = p[0];
+    }
+    g.stroke();
+  }
+  g.setLineDash([]); g.restore();
+  for (const [t, side] of frame ? frame.triggers : []) {
+    if (t < t0) continue;
+    const x = X(t);
+    g.strokeStyle = css["--bad"]; g.globalAlpha = 0.5; g.beginPath(); g.moveTo(x, G.t); g.lineTo(x, G.b); g.stroke(); g.globalAlpha = 1;
+    g.fillStyle = css["--bad"]; g.beginPath(); g.moveTo(x, G.b + 2); g.lineTo(x + 5, G.b + 11); g.lineTo(x - 5, G.b + 11); g.closePath(); g.fill();
+    g.textAlign = "center"; g.textBaseline = "top"; g.fillText(sideName(side), x, G.b + 12);
+  }
+  g.textAlign = "center"; g.textBaseline = "top"; g.fillStyle = css["--ink-2"];
+  for (let s = 0; s <= TRACE_S; s += 5) g.fillText(s === 0 ? "now" : "−" + s + " s", X(tNow - s), h - 14);
+}
+
+function gauge(id, v) {
+  $(id).textContent = v == null ? "—" : v.toFixed(2);
+  $(id + "-fill").style.width = v == null ? "0" : Math.min(100, v / 1.5 * 100) + "%";
+}
+
+function render() {
+  const f = frame, m = f.module || {};
+  let cls = "ok", text = f.link;
+  if (!f.connected) { cls = "bad"; text = "disconnected"; }
+  if (f.low_power) { cls = "bad"; text += " · LOW POWER: robot will not move"; }
+  $("conn-dot").className = "dot " + cls; $("conn-text").textContent = text;
+  const b = $("brain");
+  b.classList.toggle("off", !m.enabled);
+  b.classList.toggle("escaping", !!(m.enabled && f.escaping));
+  if (!f.connected) { $("b-state").textContent = "Link lost"; $("b-facts").textContent = ""; $("b-explain").textContent = "The module may still be running on the robot; this page no longer hears it."; }
+  else if (!m.enabled) { $("b-state").textContent = "Module off"; $("b-facts").textContent = ""; $("b-explain").textContent = "The circuit is on the robot but switched off. Switch it on: the robot stands up and measures the resting level (keep hands away)."; }
+  else if (f.escaping) { $("b-state").textContent = "Escaping"; $("b-facts").textContent = "decided on the robot"; $("b-explain").textContent = "The robot's own board saw the looming hand and is walking back. The laptop did not send anything."; }
+  else { $("b-state").textContent = "The brain is on the robot"; $("b-facts").textContent = `${f.escapes} escape${f.escapes === 1 ? "" : "s"}`; $("b-explain").textContent = "The robot's ESP32 runs the fly circuit every 35 ms and decides by itself; this laptop only listens."; }
+  const tg = $("toggle");
+  tg.textContent = m.enabled ? "Switch module off" : "Switch module on";
+  tg.disabled = !f.connected || m.enabled == null || (!m.enabled && !f.allow_enable);
+  tg.title = !m.enabled && !f.allow_enable ? "Moves the legs: start with --i-have-space" : "";
+  const gf = m.enabled && m.telemetry ? f.gf : null;
+  gauge("gf-l", gf ? gf[0] : null); gauge("gf-r", gf ? gf[1] : null);
+  $("mod").textContent = m.enabled == null ? "unknown" : (m.enabled ? "on" : "off") + (m.telemetry ? ", sending telemetry" : "");
+  $("base").textContent = f.baseline ? `left ${f.baseline[0].toFixed(0)}, right ${f.baseline[1].toFixed(0)}` : "—";
+  $("esc").textContent = f.escapes;
+  $("fw").textContent = f.firmware || "?";
+  const tb = $("trig"); tb.replaceChildren();
+  if (!f.triggers.length) { const r = tb.insertRow(), c = r.insertCell(); c.colSpan = 4; c.className = "small"; c.textContent = "No escapes yet. Bring a hand quickly towards the sensor."; }
+  f.triggers.slice().reverse().forEach(([t, side, drive], i) => {
+    const r = tb.insertRow();
+    r.insertCell().textContent = f.escapes - i;
+    r.insertCell().textContent = t.toFixed(1) + " s";
+    r.insertCell().textContent = sideName(side);
+    r.insertCell().textContent = drive.toFixed(2);
+  });
+  $("events").textContent = f.events.join("\n");
+}
+
+$("toggle").addEventListener("click", async () => {
+  const on = !(frame && frame.module.enabled);
+  try {
+    const r = await fetch("/api/command", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: on ? "enable" : "disable" }) });
+    const j = await r.json(); $("msg").textContent = j.ok ? "" : j.error || "command failed";
+  } catch (e) { $("msg").textContent = "server unreachable"; }
+});
+const es = new EventSource("/api/stream");
+es.onmessage = (e) => { try { frame = JSON.parse(e.data); dirty = true; } catch (_) {} };
+es.onerror = () => { $("conn-dot").className = "dot bad"; $("conn-text").textContent = "dashboard disconnected, retrying…"; };
+function loop() {
+  if (dirty) { dirty = false; try { if (frame) render(); drawTrace(); } catch (e) { console.error(e); } }
+  requestAnimationFrame(loop);
+}
+window.addEventListener("resize", () => { dirty = true; });
+loop();
+</script>
+</body>
+</html>

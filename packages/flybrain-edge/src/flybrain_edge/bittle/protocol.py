@@ -59,6 +59,16 @@ BLE_NAME_PREFIX = "Bittle"  # genBleID(): "Bittle" + 2 random hex digits, user-r
 BLE_WRITE_CHUNK = 20  # ardSerial.py slices at 20 bytes (fits the default 23-byte ATT MTU)
 BLE_NOTIFY_CHUNK = 10  # firmware notifies in 10-byte pieces (src/io.h:24-28)
 
+
+def ble_stem(name: str) -> str:
+    """The robot's name without the _BLE / _SSP suffix ("BittleA7_SSP" -> "BittleA7"). The same
+    robot is seen under either suffix (macOS caches the name), so this is what identifies it."""
+    for suffix in BLE_NAME_SUFFIXES:
+        if name.upper().endswith(suffix):
+            return name[: -len(suffix)]
+    return name
+
+
 # --- joints for Bittle X + Arm (ROBOT_ARM build) ---------------------------------------------
 # Index map: OpenCat index 0 = head pan (the arm's base rotates with it), 1 = arm lift (the
 # "head tilt" slot), 2 = claw/pincer (the "tail" slot; src/OpenCat.h:128, docs robot-arm page
@@ -292,8 +302,13 @@ def split_glued(line: str) -> list[str]:
     """Split prints that a BLE notification glued together into the lines USB would show.
 
     Today this is the identify reply "Bittle X+ArmB10_250330?" -> ["Bittle X+Arm",
-    "B10_250330", "?"]. (IMU text glued to an echo, "ICM: ...\tg", is split by parse_imu.)
-    Lines that do not match are returned unchanged."""
+    "B10_250330", "?"], and on-board fly escape messages glued to a neighbour
+    ("@FE on tel=0;X" -> ["@FE on tel=0;", "X"]). (IMU text glued to an echo, "ICM: ...\tg",
+    is split by parse_imu.) Lines that do not match are returned unchanged."""
+    if FE_PREFIX in line:
+        parts = [p for p in FE_SPLIT_RE.split(line) if p.strip()]
+        if len(parts) > 1:
+            return [q for p in parts for q in ([p] if p.startswith(FE_PREFIX) else split_glued(p))]
     # Seen live over BLE: the version arrives as its own 10-byte notification ("B10_250330"),
     # which the framer joins to the next print, the "?" echo -> "B10_250330?".
     v = _VERSION_ECHO_RE.match(line.strip())
@@ -352,6 +367,97 @@ def parse_joint_table(lines: list[str]) -> dict[int, int] | None:
             if len(idx) == len(ang):
                 return dict(zip(idx, ang, strict=True))
             return None
+    return None
+
+
+# --- the fly escape module on the robot (firmware/bittle/fly_escape, extension letter E) -----
+# Not in stock firmware. Every message is one print to all ports, "@FE <what>;" (README there):
+#   @FE on tel=0;   @FE off;   @FE base L=3595 R=3580;   @FE trig side=-1 drive=1.05;
+#   @FE done;       @FE t 3590 3580 0.06 0.01;   (raw L, raw R, giant fibre L, R / threshold)
+# The ';' ends a message even where Bluetooth drops or moves the newline, so the reader below
+# works on the raw text stream, across notification boundaries and glued neighbours.
+FE_PREFIX = "@FE"
+FE_MESSAGE_RE = re.compile(r"@FE ([^;@]{0,60});")
+FE_SPLIT_RE = re.compile(r"(@FE [^;@]{0,60};)")
+EXTENSION_FLY_ESCAPE = "E"
+# module list printed by "X?" (USB only, src/moduleManager.h showModuleStatus): letters, then 0/1
+_MODULE_LETTERS_RE = re.compile(r"^(?:[A-Z],\s*)+$")
+_MODULE_FLAGS_RE = re.compile(r"^(?:[01],\s*)+$")
+
+
+@dataclass(frozen=True)
+class OnboardEscapeMsg:
+    """One message of the on-board module. ``kind``: "status" (enabled, telemetry), "base"
+    (left, right = resting levels), "trig" (side, drive), "done", or "t" (left, right = raw
+    readings, gf_left, gf_right = giant-fibre activity as a fraction of its threshold)."""
+
+    kind: str
+    enabled: bool | None = None
+    telemetry: bool | None = None
+    left: float | None = None
+    right: float | None = None
+    side: int | None = None
+    drive: float | None = None
+    gf_left: float | None = None
+    gf_right: float | None = None
+
+
+def parse_onboard_escape(body: str) -> OnboardEscapeMsg | None:
+    """The part between "@FE " and ";" -> a message, or None if it is not one we know."""
+    w = body.split()
+    if not w:
+        return None
+    kv = dict(x.split("=", 1) for x in w[1:] if "=" in x)
+    try:
+        if w[0] == "on":
+            return OnboardEscapeMsg("status", enabled=True, telemetry=kv.get("tel") == "1")
+        if w[0] == "off":
+            return OnboardEscapeMsg("status", enabled=False, telemetry=False)
+        if w[0] == "base":
+            return OnboardEscapeMsg("base", left=float(kv["L"]), right=float(kv["R"]))
+        if w[0] == "trig":
+            return OnboardEscapeMsg("trig", side=int(kv["side"]), drive=float(kv["drive"]))
+        if w[0] == "done":
+            return OnboardEscapeMsg("done")
+        if w[0] == "t" and len(w) == 5:
+            a, b, c, d = (float(x) for x in w[1:])
+            return OnboardEscapeMsg("t", left=a, right=b, gf_left=c, gf_right=d)
+    except (KeyError, ValueError):
+        return None
+    return None
+
+
+class OnboardEscapeReader:
+    """Pull "@FE ...;" messages out of the robot's output, fed in any pieces (USB reads, BLE
+    notifications cut every 10 bytes, newlines missing or inserted, other prints glued on)."""
+
+    def __init__(self) -> None:
+        self._buf = ""
+
+    def feed(self, text: str) -> list[OnboardEscapeMsg]:
+        buf = self._buf + text
+        out, end = [], 0
+        for m in FE_MESSAGE_RE.finditer(buf):
+            msg = parse_onboard_escape(" ".join(m.group(1).split()))
+            if msg is not None:
+                out.append(msg)
+            end = m.end()
+        tail = buf[end:]
+        at = tail.rfind("@")
+        # keep only a possible start of a message ("@", "@F", "@FE t 35"); drop the rest
+        self._buf = tail[at:] if at >= 0 and len(tail) - at <= 64 else ""
+        return out
+
+
+def parse_module_list(lines: list[str]) -> dict[str, bool] | None:
+    """{letter: active} from an "X?" reply ("S,\\tA,\\t...", then "0,\\t1,\\t..."), or None.
+    The firmware prints this list to USB only, so over Bluetooth there is none."""
+    for i, ln in enumerate(lines[:-1]):
+        if _MODULE_LETTERS_RE.match(ln.strip()) and _MODULE_FLAGS_RE.match(lines[i + 1].strip()):
+            letters = re.findall(r"[A-Z]", ln)
+            flags = re.findall(r"[01]", lines[i + 1])
+            if len(letters) == len(flags):
+                return {k: v == "1" for k, v in zip(letters, flags, strict=True)}
     return None
 
 

@@ -12,11 +12,13 @@ from typing import Any
 from fly_compass.server import FrameHub
 from flybrain_edge.bittle import Bittle, MockBittle
 from flybrain_edge.bittle import protocol as P
+from flybrain_edge.bittle.onboard import OnboardEscape
 
 from .escape import STAND_TIMEOUT_S, EscapeConfig, EscapeController
 from .loop import EscapeLoop
-from .scripts import SCRIPTS
+from .scripts import SCRIPTS, side_check_hand
 from .session import ReplaySource, SessionLog
+from .sides import HOW, save_result
 
 log = logging.getLogger(__name__)
 
@@ -111,6 +113,8 @@ class EscapeApp:
         self._last_frame_t: float | None = None
         self._logged_escapes = 0
         self.sim = None  # Simulator in mock mode (fly_escape.sim)
+        self.calibrate_sides = False  # run the side check once the resting level is measured
+        self.onboard_paused: OnboardEscape | None = None  # the robot's own module, switched off
 
     # ---- events / commands ---------------------------------------------------------
     def _event(self, text: str) -> None:
@@ -161,7 +165,12 @@ class EscapeApp:
             on = cmd.get("on")
             lp.set_hands_off(not lp.hands_off if on is None else bool(on), now)
             return {"ok": True, "on": lp.hands_off}
+        if action == "calibrate_sides":
+            err = self.start_side_check(now)
+            return {"ok": err is None, **({"error": err} if err else {})}
         if action == "recalibrate":
+            if lp.side_check.active:
+                return {"ok": False, "error": "wait until the side check has finished"}
             if self.escape.busy:
                 return {"ok": False, "error": "wait until the escape has finished"}
             if self.mode == "escape":
@@ -192,6 +201,40 @@ class EscapeApp:
             self.mock.hand.set(min(max(d, 0.0), 200.0), side)
             return {"ok": True}
         return {"ok": False, "error": f"unknown action {action!r}"}
+
+    def start_side_check(self, now: float) -> str | None:
+        if self.replay is not None:
+            return "a replay has no robot to check"
+        if self.escape.busy:
+            return "wait until the escape has finished"
+        err = self.loop.start_side_check(now)
+        if err is None and self.mock is not None:
+            # the simulator plays the person: a hand at the robot's left, then away
+            self.mock.hand.run_script(side_check_hand, self.mock.clock())
+        return err
+
+    def _side_check_finished(self) -> None:
+        lp = self.loop
+        left = lp.side_check.left
+        if left is None:  # the reason was already reported; the setting stays as it was
+            self.warn_if_uncalibrated()
+            return
+        pin = self.pins[left]
+        err = save_result(lp.robot, pin, self.pins) if lp.robot else "no robot name to store under"
+        lp.side_check.message = (
+            f"sides calibrated: pin {pin} is the robot's left "
+            f"({'swapped' if left else 'normal'}); "
+            + (f"NOT SAVED: {err}" if err else f"saved for {lp.robot}")
+        )
+        self._event(lp.side_check.message)
+
+    def warn_if_uncalibrated(self) -> None:
+        # (the simulator is wired the normal way round; its dashboard still says "default")
+        if self.loop.sides_source == "default" and self.bittle is not None and self.mock is None:
+            self._event(
+                f"SIDES NOT CALIBRATED for {self.loop.robot or 'this robot'}: assuming pin "
+                f"{self.pins[0]} is the robot's left. To check, {HOW}."
+            )
 
     def _sim_command(self, action: str, cmd: dict[str, Any]) -> dict[str, Any]:
         sim = self.sim
@@ -231,10 +274,29 @@ class EscapeApp:
         return {"ok": False, "error": f"unknown action {action!r}"}
 
     # ---- robot ---------------------------------------------------------------------
+    def pause_onboard_escape(self) -> None:
+        """Two brains must not fight: if the robot runs the fly escape module on its own board
+        (firmware/bittle/fly_escape), switch it off until shutdown. Sends only "X?" (stock
+        firmware has it and changes nothing) unless the module is there and on."""
+        on = OnboardEscape(self.bittle)
+        on.query()
+        if on.enabled:
+            if on.set_enabled(False):
+                self.onboard_paused = on
+                self._event(
+                    "the robot's own fly escape module (XE) was running: switched off for this "
+                    "run, switched back on at exit"
+                )
+            else:
+                self._event("the robot's own fly escape module is running and did not switch off")
+        elif on.present is None and self.bittle.transport.name == "ble":
+            log.info("on-board escape module: not reported over Bluetooth (older or no module)")
+
     def start_robot(self) -> None:
         b = self.bittle
         if b is None:
             return
+        self.pause_onboard_escape()
         b.stand(balance=False)
         if b.low_power:
             self._event(
@@ -316,8 +378,16 @@ class EscapeApp:
                         self.session.trigger(tr.t, tr.model, tr.side, lp.hands_off)
                     if self.sim is not None:
                         self.sim.on_trigger(tr.model, tr.t, tr.side)
+            if lp.side_check_finished:
+                lp.side_check_finished = False
+                self._side_check_finished()
             if lp.cal.done and not was_done:
                 self._event(lp.cal.message)
+                if self.calibrate_sides:
+                    self.calibrate_sides = False
+                    err = self.start_side_check(now)
+                    if err:
+                        self._event(f"side check not started: {err}")
                 if lp.cal.ok and self.requested_mode == "escape":
                     err = self.set_mode("escape", now)
                     if err:
@@ -333,7 +403,7 @@ class EscapeApp:
             started = tr is not None and self.mode == "escape" and self.escape.trigger(now, tr.side)
             if started and self.sim is not None:
                 self.sim.on_escape(tr.t)
-            if self.sim is not None and lp.cal.done:
+            if self.sim is not None and lp.cal.done and not lp.side_check.active:
                 self.sim.update(self.sim.clock(), robot_idle=not self.escape.busy)
             if self.escape.update(now) == "observe":
                 self.mode = "observe"
@@ -376,6 +446,7 @@ class EscapeApp:
         self._frames += 1
         self._last_frame_t = now
         frame["mode"] = self.mode
+        frame["pins"] = list(self.pins)
         frame["allow_moves"] = self.allow_moves
         frame["escape"] = self.escape.status(now)
         if self.escape.history:
@@ -422,6 +493,15 @@ class EscapeApp:
                 self.bittle.flush_commands()
             except Exception as e:  # noqa: BLE001 - still rest the robot below
                 log.error("stand before rest failed: %s", e)
-            self.bittle.close()  # rests the robot
+            if self.onboard_paused is not None and self.bittle.connected:
+                # rest first, then the module stands the robot up again and measures its
+                # resting level in the posture it will work in
+                self.bittle.stop_poll_analog()
+                self.bittle.rest()
+                if self.onboard_paused.set_enabled(True):
+                    self._event("the robot's own fly escape module is running again")
+                self.bittle.close(rest=False)
+            else:
+                self.bittle.close()  # rests the robot
         if self.session is not None:
             self.session.close()

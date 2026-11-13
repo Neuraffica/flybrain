@@ -21,6 +21,7 @@ from typing import Any
 
 from .calibration import Calibration
 from .models import CIRCUITS, MODEL_KEYS, activity_of, n_neurons_of
+from .sides import SideCheck
 
 EVENT_WINDOW_S = 1.0  # triggers of different models this close belong to one event
 TRACE_S = 12.0  # how much sample history frames carry for the dashboard trace
@@ -75,6 +76,8 @@ class EscapeLoop:
         raw_to_proximity,
         driver: str = "connectome",
         swap_sides: bool = False,
+        sides_source: str = "flag",
+        robot: str = "",
     ):
         missing = [k for k in MODEL_KEYS if k not in models]
         if missing:
@@ -83,7 +86,11 @@ class EscapeLoop:
         self.raw_to_proximity = raw_to_proximity
         self.driver = driver if driver in models else "connectome"
         self.swap_sides = swap_sides
+        self.sides_source = sides_source  # "calibrated", "flag" or "default" (see sides.resolve)
+        self.robot = robot  # the key the side check result is stored under
         self.cal = Calibration()
+        self.side_check = SideCheck()  # which pin is the left; models pause while it runs
+        self.side_check_finished = False  # set when it ends; the app stores the result
         self.scores = {k: ModelScore() for k in MODEL_KEYS}
         self.events: deque[Event] = deque(maxlen=200)
         self._event_id = 0
@@ -120,6 +127,18 @@ class EscapeLoop:
         self.cal.start(now)
         self.messages.append("calibrating: keep hands away from the sensor for 2 s")
 
+    def start_side_check(self, now: float) -> str | None:
+        if not self.cal.done:
+            return "wait until the resting level is measured"
+        if not self.cal.ok:
+            return "measure the resting level first (Recalibrate): " + self.cal.message
+        if self.side_check.active:
+            return "the side check is already running"
+        b = self.cal.baseline
+        self.side_check.start(now, (b[1], b[0]) if self.swap_sides else b)  # in --pins order
+        self.messages.append(self.side_check.message)
+        return None
+
     def reset_scores(self) -> None:
         self.scores = {k: ModelScore() for k in MODEL_KEYS}
         self.events.clear()
@@ -134,6 +153,27 @@ class EscapeLoop:
         raw_l, raw_r = (raw_b, raw_a) if self.swap_sides else (raw_a, raw_b)
         self.raw = (int(raw_l), int(raw_r))
         self.n_samples += 1
+        if self.side_check.active:
+            # no model runs: nothing triggers, nothing is scored, the robot stays put
+            phase = self.side_check.phase
+            if self.side_check.add(t, raw_a, raw_b):
+                if self.side_check.left is not None:
+                    swap = self.side_check.left == 1
+                    if swap != self.swap_sides:
+                        self.cal.swap_sides()
+                    self.swap_sides, self.sides_source = swap, "calibrated"
+                self.side_check_finished = True
+                for m in self.models.values():
+                    m.reset()
+            elif self.side_check.phase != phase:
+                self.messages.append(self.side_check.message)
+            p_l = float(self.raw_to_proximity(self.raw[0], baseline=self.cal.baseline[0]))
+            p_r = float(self.raw_to_proximity(self.raw[1], baseline=self.cal.baseline[1]))
+            self.prox = (p_l, p_r)
+            self.last_t = t
+            self.trace.append((t, p_l, p_r, *self.raw))
+            self._trim(t)
+            return []
         if not self.cal.done:
             if self.cal.add(t, raw_l, raw_r):
                 self.messages.append(self.cal.message)
@@ -250,6 +290,12 @@ class EscapeLoop:
             "t": round(now - o, 3),
             "driver": self.driver,
             "swap_sides": self.swap_sides,
+            "sides": {
+                "swap": self.swap_sides,
+                "source": self.sides_source,
+                "robot": self.robot,
+                "check": self.side_check.status(now),
+            },
             "samples": self.n_samples,
             "raw": list(self.raw),
             "prox": [round(self.prox[0], 4), round(self.prox[1], 4)],

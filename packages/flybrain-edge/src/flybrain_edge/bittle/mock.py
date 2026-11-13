@@ -70,6 +70,14 @@ SKILLS_ARM = {  # name -> period (1 = posture, >1 = gait), from InstinctBittleES
     "pee": -5,
     "pick": -5,
 }
+# Sensor modules of OpenCatEsp32 32a1fcb (src/OpenCat.h moduleList), as "X?" lists them. Voice
+# (A) is on by default on a Bittle X. The fly escape module (firmware/bittle/fly_escape) adds E.
+MODULES = "SATLDIBUGCQ"
+MODULE_NAMES = {"C": "Camera", "E": "Fly_Escape"}
+FE_STEP_S = 0.035  # flyEscape.h: FLY_ESCAPE_STEP_MS
+FE_TEL_S = 0.2  # FLY_ESCAPE_TEL_MS
+FE_MIN_INTERVAL_S = 3.0  # FLY_ESCAPE_MIN_INTERVAL_MS
+FE_BACK_S = 1.0  # FLY_ESCAPE_BACK_MS
 REST_ANGLES = [0, 60, 0, 0, -3, -3, 3, 3, 75, 75, 75, 75, -55, -55, -55, -55]
 UP_ANGLES = [0, 0, 0, 0, 0, 0, 0, 0, 25, 25, 20, 20, 50, 50, 50, 50]
 
@@ -161,6 +169,8 @@ class MockBittle:
         ble_notifications: bool = False,
         merge_window_s: float | None = None,
         chatter_per_s: float = 0.0,
+        fly_escape: bool = False,
+        ble_chunk: int = 0,
         seed: int | None = 0,
         clock: Callable[[], float] = time.monotonic,
         tick_s: float = 0.005,
@@ -185,6 +195,9 @@ class MockBittle:
         # notification per print, no newlines at all, an IMU line glued to the echo that follows
         # it, the identify reply glued into "Bittle X+ArmB10_250330?". Read with read_chunks().
         self.ble_notifications = ble_notifications
+        # BLE as in OpenCatEsp32 32a1fcb (src/io.h printToAllPorts): every print to all ports
+        # gets "\r\n" and is notified in pieces of ble_chunk (10) bytes. 0: as B10_250330.
+        self.ble_chunk = ble_chunk
         # Test hook for the firmware's command merging: a write that arrives within
         # merge_window_s of the previous one, before that one was processed, is appended to
         # it. Over USB the merged buffer loses the SECOND command (read_serial truncates at the
@@ -238,6 +251,20 @@ class MockBittle:
         self.manual_head = False
         self.camera_on = False
         self.powered = False
+        # firmware built with the fly escape module (firmware/bittle/fly_escape): "XE" runs the
+        # real escape model on the simulated sensor, as flyEscape.h does on the board
+        self.fly_escape = fly_escape
+        self.modules = dict.fromkeys(MODULES + ("E" if fly_escape else ""), False)
+        self.modules["A"] = True
+        self.fe_telemetry = False
+        self.fe_triggers = 0
+        self._fe_model = None
+        self._fe_base = (3400.0, 3400.0)
+        self._fe_calibrated = False
+        self._fe_sum = [0.0, 0.0, 0]
+        self._fe_last_step = self._fe_last_tel = 0.0
+        self._fe_last_escape = -1e9
+        self._fe_phase: tuple[str, float] | None = None  # ("back" | "up", until)
         self.turning_target: float | None = None
         # bookkeeping for tests
         self.commands: list[str] = []
@@ -348,7 +375,16 @@ class MockBittle:
             out, self._chunks = self._chunks, []
             return out
 
-    def _emit(self, text: str, newline: bool = True) -> None:
+    def _emit(self, text: str, newline: bool = True, usb_only: bool = False) -> None:
+        """One print. ``usb_only``: the firmware's PT()/PTL(), which never reach Bluetooth."""
+        if self.ble_notifications and usb_only:
+            return
+        if self.ble_notifications and self.ble_chunk:
+            data = (text + ("\r\n" if newline else "")).encode("latin-1")
+            for i in range(0, len(data), self.ble_chunk):
+                self._chunks.append(data[i : i + self.ble_chunk])
+            self._out_cv.notify_all()
+            return
         if self.ble_notifications:
             if not newline:  # IMU text: may get the next print glued on
                 self._flush_ble()
@@ -438,6 +474,8 @@ class MockBittle:
             # continuous IMU print (rate-limited exactly like print6Axis)
             if self.print_continuous and self.update_gyro and self.powered:
                 self._print6axis(now)
+            if self.modules.get("E") and self.powered:
+                self._fe_poll(now)
             if self.chatter_per_s and self.rng.random() < self.chatter_per_s * dt:
                 self._emit(self.rng.choice(CHATTER))
             self._flush_ble()  # an IMU line with nothing printed right after it
@@ -624,10 +662,7 @@ class MockBittle:
             sep = ",\t" if self.ble_notifications else "\t"  # B10_250330 over BLE: "0,\t60,\t"
             self._emit(sep.join(str(round(a)) for a in self.angles) + sep)
         elif token == "X":
-            if text.startswith("C"):
-                self.camera_on = True
-            elif text.startswith("c"):
-                self.camera_on = False
+            self._extension(text, now)
         elif token == "P":
             self._emit("Voltage: 8.10 V")
         elif token in ("b", "B"):
@@ -641,6 +676,119 @@ class MockBittle:
             self._pending_echo.append((now + defer_echo, echo))
         else:
             self._emit(echo)
+
+    # ---- sensor modules ('X', src/moduleManager.h reconfigureTheActiveModule) ----------
+    def _extension(self, text: str, now: float) -> None:
+        code = text[:1]
+        if code == "?":
+            self._module_status()
+            return
+        changed = False
+        for k, on in self.modules.items():
+            # "X<k>" switches the others off (not voice, backtouch), "X<lower k>" only k,
+            # a bare "X" all of them
+            if on and (k == code.upper() if code.islower() else not code or k not in code + "AB"):
+                self._emit("- disable\t" + MODULE_NAMES.get(k, k), usb_only=True)
+                self.modules[k], changed = False, True
+                if k == "E":  # flyEscapeStop()
+                    self.fe_telemetry, self._fe_phase = False, None
+        enabled = code.isupper() and not self.modules.get(code, True)
+        if enabled:
+            self._emit("+  enable\t" + MODULE_NAMES.get(code, code), usb_only=True)
+            self.modules[code] = changed = True
+        if changed:
+            self._module_status()
+        if enabled and code == "E":
+            self._load("up", now)  # initModule: loadBySkillName("up"), then flyEscapeSetup()
+            self._fe_setup(now)
+        self.camera_on = self.modules["C"]
+        if code == "E" and self.modules["E"]:  # flyEscapeOptions(): "XEP" / "XEp"
+            said = False
+            for c in text[1:]:
+                if c in "Pp":
+                    self.fe_telemetry, said = c == "P", True
+            if said:
+                self._fe_status()
+
+    def _module_status(self) -> None:
+        self._emit(",\t".join(self.modules) + ",\t", usb_only=True)
+        self._emit(",\t".join(str(int(v)) for v in self.modules.values()) + ",\t", usb_only=True)
+        if self.fly_escape:
+            self._fe_status()
+
+    def _fe_status(self) -> None:
+        on = self.modules["E"]
+        self._emit(f"@FE on tel={int(self.fe_telemetry)};" if on else "@FE off;")
+        self._fe_calibrated &= on
+        if self._fe_calibrated:  # as the board: the levels follow the status once measured
+            self._emit(f"@FE base L={round(self._fe_base[0])} R={round(self._fe_base[1])};")
+
+    def _fe_setup(self, now: float) -> None:
+        from flybrain_models.escape import EscapeCircuit  # the model the board runs (exported)
+
+        if self._fe_model is None:
+            self._fe_model = EscapeCircuit.from_pack("escape", variant="connectome")
+        self._fe_model.reset()
+        n = 64
+        self._fe_base = tuple(sum(self.analog_read(p, now) for _ in range(n)) / n for p in (36, 39))
+        self._fe_calibrated = True
+        self._emit(f"@FE base L={round(self._fe_base[0])} R={round(self._fe_base[1])};")
+        self._fe_sum = [0.0, 0.0, 0]
+        self._fe_last_step = now
+        self._fe_last_escape = now - FE_MIN_INTERVAL_S
+        self.fe_telemetry = False
+        self._fe_phase = None
+
+    def _fe_poll(self, now: float) -> None:
+        """read_flyEscape(): runs only while the firmware is idle and its task queue empty."""
+        from flybrain_models.escape import raw_to_proximity
+
+        if self._fe_phase is not None:  # the queued "bk" (1 s), then "up"
+            phase, until = self._fe_phase
+            if now < until:
+                return
+            if phase == "back":
+                self._load("up", now)
+                self._emit("k")
+                self._fe_phase = ("up", self._busy_until)
+                return
+            self._fe_phase = None
+            self._emit("@FE done;")
+        if now < self._busy_until or self._inbox:
+            return
+        s = self._fe_sum
+        s[0] += self.analog_read(36, now)
+        s[1] += self.analog_read(39, now)
+        s[2] += 1
+        elapsed = now - self._fe_last_step
+        if elapsed < FE_STEP_S:
+            return
+        raw_l, raw_r = s[0] / s[2], s[1] / s[2]
+        self._fe_sum = [0.0, 0.0, 0]
+        self._fe_last_step = now
+        m = self._fe_model
+        if elapsed > 0.5:  # after a long pause the board restarts the dynamics
+            m.reset()
+            elapsed = FE_STEP_S
+        out = m.step(
+            raw_to_proximity(raw_l, self._fe_base[0]),
+            raw_to_proximity(raw_r, self._fe_base[1]),
+            elapsed,
+        )
+        if self.fe_telemetry and (now - self._fe_last_tel >= FE_TEL_S or out.trigger):
+            self._fe_last_tel = now
+            th_l, th_r = getattr(m, "gf_thresholds", (out.threshold, out.threshold))
+            self._emit(
+                f"@FE t {round(raw_l)} {round(raw_r)} {out.gf_left / th_l:.2f} "
+                f"{out.gf_right / th_r:.2f};"
+            )
+        if out.trigger and now - self._fe_last_escape >= FE_MIN_INTERVAL_S:
+            self._fe_last_escape = now
+            self.fe_triggers += 1
+            self._emit(f"@FE trig side={out.side} drive={out.drive:.2f};")
+            self._load("bk", now)  # tQueue: "bk" for 1 s, then "up"
+            self._emit("k")
+            self._fe_phase = ("back", now + FE_BACK_S)
 
     def _set_joint(self, idx: int, ang: float, smooth: bool) -> None:
         if not 0 <= idx < 16:

@@ -11,17 +11,22 @@ from fly_escape import cli as escape_cli
 from fly_escape import flydeck as escape_deck
 from fly_escape.escape import ACTIONS
 from fly_escape.models import MODEL_KEYS as ESCAPE_MODELS
+from fly_escape.sides import SIDE_SETTINGS
+from fly_escape_onboard import cli as onboard_cli
+from fly_escape_onboard import flydeck as onboard_deck
 from hello_robot import cli as hello_cli
 from hello_robot import flydeck as hello_deck
 
 PARSERS = {
     "fly-compass": compass_cli.build_parser,
     "fly-escape": escape_cli.build_parser,
+    "fly-escape-onboard": onboard_cli.build_parser,
     "hello-robot": hello_cli.build_parser,
 }
 SPECS = {
     "fly-compass": compass_deck.SPEC,
     "fly-escape": escape_deck.SPEC,
+    "fly-escape-onboard": onboard_deck.SPEC,
     "hello-robot": hello_deck.SPEC,
 }
 
@@ -34,6 +39,7 @@ def test_choices_match_the_programs():
     assert escape_deck.MODES == escape_app.MODES
     assert escape_deck.DRIVERS == ESCAPE_MODELS
     assert escape_deck.ACTIONS == ACTIONS
+    assert escape_deck.SIDES == SIDE_SETTINGS
 
 
 @pytest.mark.parametrize("demo", sorted(SPECS))
@@ -79,3 +85,30 @@ def test_mock_only_options_are_not_passed_to_a_real_robot():
     assert "--mock-random" not in e.argv("usb", {"mock_random": True}, 1, "/dev/x", True)
     c = SPECS["fly-compass"]
     assert "--mock-script" not in c.argv("ble", {}, 1, "B")
+
+
+def test_escape_side_options_reach_the_cli():
+    e = SPECS["fly-escape"]
+    parse = escape_cli.build_parser().parse_args
+    a = parse(e.argv("ble", {}, 1, "BittleA7_BLE", True))
+    assert a.sides == "auto" and not a.calibrate_sides
+    a = parse(e.argv("usb", {"sides": "swapped", "calibrate_sides": True}, 1, "/dev/x", True))
+    assert a.sides == "swapped" and a.calibrate_sides
+    assert parse(e.argv("mock", {"sides": "normal"}, 1)).sides == "normal"
+
+
+def test_old_saved_swap_sides_option_does_not_break_a_start(tmp_path):
+    """Flydeck remembered {"swap_sides": true} from the old checkbox: it is ignored (auto)."""
+    from flydeck import registry
+    from flydeck.hub import Hub
+    from flydeck.settings import Settings
+
+    st = Settings(tmp_path / "flydeck.json")
+    old = {"mode": "observe", "driver": "connectome", "escape_action": "back", "swap_sides": True}
+    st.set_demo_options("fly-escape", old)
+    entry = registry.DemoEntry(id="fly-escape", spec=SPECS["fly-escape"], source="test")
+    hub = Hub(root=tmp_path, settings=st, entries=[entry])
+    saved = hub.state()["demos"][0]["saved"]
+    r = hub.preview("fly-escape", saved, simulator=False)
+    assert r["ok"], r
+    assert "--sides auto" in r["command"] and "swap" not in r["command"]

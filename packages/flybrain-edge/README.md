@@ -71,7 +71,9 @@ verdict says CHECK, paste the whole output into an issue.
 
 `--ble` connects to the first device that advertises the Nordic UART service, or else to one
 named `Bittle*_BLE` or `Bittle*_SSP` (a real Bittle X+Arm advertised `BittleC2_SSP`);
-`--ble NAME` picks by part of the name. Firmware B10_250330 sends every print as its own
+`--ble NAME` picks by part of the name. A full name finds the same robot under the other suffix
+too (`--ble BittleA7_BLE` connects to `BittleA7_SSP`; macOS shows either), preferring the exact
+name, and never a robot with another stem. Firmware B10_250330 sends every print as its own
 notification with no newlines and glues some together (`Bittle X+ArmB10_250330?`,
 `ICM: ...\tg`); the link handles both that and the newer `\r\n` framing. Details and the
 captured traffic: NOTES.md, section "Bluetooth LE on a real Bittle X+Arm".

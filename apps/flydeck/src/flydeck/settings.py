@@ -1,23 +1,17 @@
 """What Flydeck remembers between runs: the last robot and each demo's last settings.
 
 Stored as JSON in ~/Library/Application Support/flybrain/flydeck.json (FLYDECK_HOME overrides
-the folder, e.g. for tests). Nothing here leaves the Mac.
+the folder, e.g. for tests; see flybrain_demo_api.user_dir). Nothing here leaves the Mac.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import threading
 from pathlib import Path
 from typing import Any
 
-
-def home() -> Path:
-    env = os.environ.get("FLYDECK_HOME")
-    if env:
-        return Path(env).expanduser()
-    return Path.home() / "Library" / "Application Support" / "flybrain"
+from flybrain_demo_api import user_dir as home
 
 
 class Settings:

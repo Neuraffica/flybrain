@@ -87,8 +87,11 @@ Recommendations:
   3 KB of RAM and an estimated 0.5 to 2 ms per 35 ms step, and can run as an OpenCat firmware
   module (see `firmware/bittle/fly_escape/`). The robot's default partition table leaves
   little room, so the module is built into a slim firmware without the camera module, quick
-  demo and micro:bit client; that build fits with 34 KB to spare. It has been compiled, not
-  flashed or run on a robot, and its run time is an estimate. Anything bigger, or anything
+  demo and micro:bit client; that build fits with 34 KB to spare. A second unit (firmware
+  B10_251121) ships with the larger Minimal SPIFFS layout, where the module fits in the full
+  firmware with 189 KB to spare. That second build was flashed and runs on the robot: it
+  backs away from a hand with no laptop in the loop. The slim build is compile-only, and the
+  run time per step is still an estimate. Anything bigger, or anything
   that needs images, goes on the XIAO or a laptop.
 - **Default to tier B in the first hour, then move to tier A.** The same Python model that
   drives the dog over USB gets exported to C and flashed on the XIAO.

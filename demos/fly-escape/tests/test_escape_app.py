@@ -198,3 +198,34 @@ def test_cli_mock_run_with_fakes(monkeypatch, tmp_path, capsys):
     out = capsys.readouterr().out
     assert code == 0, out
     assert "calibrated" in out and "ESCAPE: bkF" in out
+
+
+def test_pauses_the_robots_own_escape_module_and_restores_it(tmp_path):
+    """Two brains must not fight: an on-board module that is on is off for the run, then on."""
+    mock = MockBittle(fly_escape=True)
+    bot = Bittle(MockTransport(mock))
+    bot.connect(boot_timeout=3.0, quiet_s=0.3)
+    bot.send(b"XE~", echo="X", timeout=3.0)  # the owner left the module running
+    models, r2p = fake_models()
+    app = EscapeApp(EscapeLoop(models, r2p), FrameHub(), bittle=bot, mock=mock, mode="observe")
+    try:
+        app.start_robot()
+        assert not mock.modules["E"]
+        assert any("switched off for this run" in m for m in app.messages)
+        app.run(duration=1.0)
+    finally:
+        app.shutdown()
+    xs = [c for c in mock.commands if c.startswith(("X", "d"))]
+    assert xs == ["XE", "X?", "Xe", "d", "XE"]  # rest first, then the module stands it up
+    assert mock.modules["E"]
+
+
+def test_stock_firmware_only_gets_the_module_query(tmp_path):
+    mock, _bot, app = mock_app(tmp_path, mode="observe", allow=False, log=False)
+    try:
+        app.start_robot()
+        app.run(duration=0.5)
+    finally:
+        app.shutdown()
+    assert [c for c in mock.commands if c.startswith("X")] == ["X?"]
+    assert app.onboard_paused is None and mock.commands[-1] == "d"

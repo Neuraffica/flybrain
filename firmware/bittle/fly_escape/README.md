@@ -1,7 +1,9 @@
 # fly_escape: the looming-escape circuit on the Bittle's own board
 
 > **Status (2026-11-12): a slim build for the robot's real partition layout compiles, with
-> 34,432 bytes free in `app0`. Compile-only: not flashed, not run on a robot.**
+> 34,432 bytes free in `app0`. That slim build is compile-only. On a second robot (B10_251121,
+> larger partitions) the full firmware plus this module was flashed and runs: see "Second
+> robot".**
 > OpenCatEsp32 `c481e47` (the robot's firmware B10_250330), Bittle X+Arm on BiBoard V1, esp32
 > core 2.0.12, **default 4 MB partition scheme** (the robot's), with this module and three stock
 > features left out: the camera/vision module, the quick demo and the micro:bit BLE client
@@ -102,9 +104,146 @@ Bluetooth, IMU, every skill, `R`, `X`, `P`, calibration storage):
 
 The module letters stay in the `X` list; selecting a removed one does nothing.
 
+## Second robot: Bittle X on B10_251121 (full build, nothing left out)
+
+A second robot (Bittle X with the head, no arm; ESP32-U4WDH v3.1, 4 MB; firmware B10_251121)
+was backed up and checked on 2026-11-12. It ships with the **Minimal SPIFFS** layout, so the
+slim switches are not needed there. This build was flashed and run on that robot (next
+subsection).
+
+| | first robot (B10_250330) | second robot (B10_251121) |
+|---|---|---|
+| partition table | default: app0/app1 1,310,720 B | min_spiffs: app0 0x10000, app1 0x1f0000, 1,966,080 B each; spiffs 0x3d0000/128 KB |
+| stock app image in the backup | 1,305,680 B | 1,764,992 B |
+| otadata | sequence 1 -> app0 | sequence 1 -> app0 |
+| app1 | not a valid image | blank (all 0xFF) |
+
+Sources: OpenCatEsp32 `32a1fcb` (2025-11-21, the commit that sets `DATE "251121"`; the only
+later commit with that date, `b2e5818`, changes web-block files only). Sketch switches as
+committed: `BITTLE`, `BiBoard_V1_0`, `ROBOT_ARM` off. Same esp32 core 2.0.12.
+
+```bash
+git checkout 32a1fcb
+python3 <flybrain>/firmware/bittle/fly_escape/apply_to_opencat.py . --keep-all
+arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs --build-path build/fly_escape .
+```
+
+| build (`32a1fcb`, min_spiffs) | program flash | static RAM | app image (.bin) | free in `app0` |
+|---|---|---|---|---|
+| stock | 1,760,089 | 70,620 | 1,765,840 | 200,240 |
+| **stock + fly_escape (all features kept)** | **1,771,477** | **73,476** | **1,777,232** | **188,848** |
+
+Checked against the backup: the build's partition table and bootloader are byte-identical to
+the robot's. The stock rebuild is 848 bytes larger than the app in the robot and not
+byte-identical to it, so Petoi's build differs slightly from this one (library versions or
+build settings; not investigated). The app offset is the same as on the first robot, so the
+flash and restore commands below apply with `0x1e0000` as the app0 length when extracting the
+stock app, and the banner to expect is `B10_251121`.
+
+### Flashed and run on the second robot (2026-11-12)
+
+The build above was written to the robot's unused `app1` slot and booted from there; the stock
+app in `app0` was not touched. From the owner's Mac, with macOS's built-in CH343 driver:
+
+1. Full 4 MB backup, verified (`read-flash`, `verify-flash`).
+2. `write-flash 0x1f0000 <fly_escape app .bin>` with esptool 5.6.0 patched to small blocks
+   (`ESP_RAM_BLOCK` 0x100 and the stub's `FLASH_WRITE_SIZE` 0x400, at 115200 baud): 1,777,232
+   bytes in 109 s, hash verified, then `verify-flash` matched. With the default block sizes the
+   same link fails.
+3. Boot selector: one 4 KB sector at 0xf000 holding an otadata entry with sequence 2 (bytes
+   `02 00 00 00`, 24 x `ff`, CRC `74 37 f6 55`, rest `ff`), so the boot loader picks `app1`.
+   Entry 0 at 0xe000 (sequence 1) stays.
+4. Result: boots to `Ready!` as `B10_251121` with `Module count: 12` and `E` in the module
+   list; the saved servo zero positions and IMU offsets are still used.
+5. `XE` over USB serial: `flyEscape baseline L 3595.30 R 3579.58`, then triggers followed by
+   `bkF` and `up`. The owner confirmed the robot backed away when a hand approached and only
+   then.
+
+**Back to stock:** write the original sector back (`write-flash 0xf000` with 4096 bytes of the
+backup from offset 0xf000); the stock app is still in `app0`.
+
+Not measured: run time per step on the board, behaviour on battery without the cable, false
+alarm rate over a longer session. This robot's sensor needs no side swap (pin 36 is its left);
+the first robot's does, and the module has no swap switch yet.
+
+## Messages, telemetry and Flydeck (2026-11-12)
+
+The module prints through the firmware's `printToAllPorts()` (`src/io.h`), so its messages reach
+USB, Bluetooth LE, classic Bluetooth and the Grove serial port alike, one line each, always
+`@FE <what>;`. The `;` ends a message even where Bluetooth drops or moves the newline, and `@FE`
+appears in no other firmware output, so a reader can pick messages out of a fragmented or glued
+stream (`flybrain_edge.bittle.protocol.OnboardEscapeReader`).
+
+| Message | When |
+|---|---|
+| `@FE on tel=0;` / `@FE off;` | after the module list of every `X?`, and after every module change (`XE`, `Xe`, `X`, `XC`...); `tel=1`: telemetry on |
+| `@FE base L=3595 R=3580;` | resting levels (ADC counts, rounded): when measured at activation, and again after every `@FE on` status, so a listener that connects later learns them |
+| `@FE trig side=-1 drive=1.05;` | trigger; the escape is queued now (side +1 left, -1 right, 0 ahead; drive >= 1) |
+| `@FE done;` | the queued walk and stand are over and the module reads its sensor again |
+| `@FE t 3590 3580 0.06 0.01;` | telemetry: raw left, raw right (averages over the 35 ms step), giant-fibre activity left, right as a fraction of that side's threshold (1 = trigger level) |
+
+**Telemetry is off by default** and switches itself off whenever the module is enabled or
+disabled, so other Bluetooth clients (Petoi's app) see nothing new unless someone asks.
+`XEP` turns it on, `XEp` off, the same pattern as the camera's `XCP` / `XCp`: the firmware
+first handles `XE...` as "enable E" (a no-op when it is on; like any `X<letter>` it also
+switches other sensor modules off), then passes the command to the module. Do not send `XEp`
+to a module that is off: it would switch it on. `Xe` (off) is enough, telemetry stops with it.
+
+Rate: one line every 200 ms (5/s), plus one at each trigger so the trace shows the approach,
+which lasts only 70-250 ms. A line is about 28 bytes (3 Bluetooth notifications of 10 bytes),
+about 150 B/s. Over Bluetooth the laptop measured about 10 short request/reply lines a second
+for the analog polling demo (`packages/flybrain-edge/NOTES.md`); 5 unsolicited lines a second
+stay well inside that, leave room for the module's own messages and command echoes, and match
+the firmware's own IMU print limit (200 ms).
+
+Why the 35 ms step is not stalled by printing (read from the sources at `32a1fcb` and the esp32
+core 2.0.12): `printToAllPorts()` notifies Bluetooth LE only while a client is connected
+(`deviceConnected`), in 10-byte pieces; `BLECharacteristic::notify()` does not wait for a
+confirmation (only indications do) and returns at once, without even queueing when the client
+has notifications off. USB is `Serial.print()` into the UART: a 30-byte line fits its 128-byte
+hardware FIFO, about 2.6 ms of wire time at 115200 baud, written while the next step is 35 ms
+away. Classic Bluetooth (`SerialBT`) is written only while an SPP client is connected. With
+telemetry off and no trigger the module prints nothing at all.
+
+Two hooks in stock files make this work (both added by `apply_to_opencat.py`): one line at the
+end of the module list in `showModuleStatus()` (`src/moduleManager.h`), and a `case
+EXTENSION_FLY_ESCAPE` next to the camera's in the `X` command (`src/reaction.h`). Cost against
+the previous module build (`32a1fcb`, min_spiffs): +580 bytes of program flash, +8 bytes of
+static RAM.
+
+| build (`32a1fcb`, min_spiffs) | program flash | static RAM | app image (.bin) | free in `app0` |
+|---|---|---|---|---|
+| stock | 1,760,089 | 70,620 | 1,765,840 | 200,240 |
+| stock + fly_escape with messages and telemetry | 1,772,057 | 73,484 | 1,777,808 | 188,272 |
+
+Laptop side: `flybrain_edge.bittle.onboard.OnboardEscape` (query, switch, telemetry), the Flydeck
+demo [`demos/fly-escape-onboard`](../../../demos/fly-escape-onboard/README.md), and the laptop
+demo `fly-escape`, which switches an active on-board module off while it runs and back on at
+exit.
+
+**Checked on the robot (Bittle X, B10_251121, this build in `app1`, 2026-11-12):**
+
+- USB: `X?` answers with the list, `@FE on tel=0;` and the resting levels; `XEP` gives 5
+  telemetry lines a second, `XEp` stops them.
+- Bluetooth: telemetry arrives in clean 10-byte pieces about every 210 ms. The Flydeck demo
+  showed the live trace and three escapes decided on the robot (left, right, left; drive 1.42,
+  1.10, 2.97), each followed by `@FE done;` about 1.2 s later; the owner saw the robot back
+  away each time.
+- The laptop `fly-escape` demo switched the running module off at start and back on at exit.
+
+Seen on the robot and not fixed:
+
+- A Bluetooth client connecting makes the firmware rest the robot. The module measured its
+  resting levels standing, so lying down the sensor sees the floor and the trace sits at about
+  0.1 instead of 0. It did not cause triggers.
+- Opening the USB serial port resets the board (and drops a Bluetooth client).
+
+Still not measured: run time per step, a long session, classic Bluetooth clients.
+
 ## Adding it to OpenCatEsp32
 
-`apply_to_opencat.py` does all of this (checked against OpenCatEsp32 `c481e47` and `f5aba6b`):
+`apply_to_opencat.py` does all of this (checked against OpenCatEsp32 `c481e47`, `32a1fcb` and
+`f5aba6b`):
 
 ```bash
 git clone https://github.com/PetoiCamp/OpenCatEsp32 && cd OpenCatEsp32 && git checkout c481e47
@@ -168,7 +307,16 @@ By hand:
    #endif
    ```
 
-   in `read_serial()` next to the other module polls (`read_doubleTouch()` etc.):
+   at the end of the module list in `showModuleStatus()`, after
+   `printListWithoutString(moduleActivatedQ, moduleCount);`:
+
+   ```c
+   #ifdef FLY_ESCAPE
+     flyEscapeStatus(moduleActivatedQ[indexOfModule(EXTENSION_FLY_ESCAPE)]);
+   #endif
+   ```
+
+   in `readSignal()` next to the other module polls (`read_doubleTouch()` etc.):
 
    ```c
    #ifdef FLY_ESCAPE
@@ -177,7 +325,21 @@ By hand:
    #endif
    ```
 
-5. Enable on the robot with the serial command `XE`; `Xe` disables it; `X?` shows module status.
+5. `src/reaction.h`, in the `X` command, first case after `switch (newCmd[0]) {` ("deal with
+   the following command"):
+
+   ```c
+   #ifdef FLY_ESCAPE
+               case EXTENSION_FLY_ESCAPE:
+                 {
+                   flyEscapeOptions(newCmd, moduleActivatedQ[indexOfModule(EXTENSION_FLY_ESCAPE)]);
+                   break;
+                 }
+   #endif
+   ```
+
+6. Enable on the robot with the serial command `XE`; `Xe` disables it; `X?` shows module status;
+   `XEP` / `XEp` switch the telemetry line on / off.
    The module state is saved, so it will be active again after a reboot until disabled.
 
 ## Build (as verified, compile only)

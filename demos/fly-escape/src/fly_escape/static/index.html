@@ -67,6 +67,11 @@ main { display: grid; gap: 16px; padding: 16px 24px 24px; grid-template-columns:
 .bar.active { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 .bar.active .explain { color: var(--surface); opacity: .85; }
 .bar.problem { border-color: var(--bad); }
+.sidesline { grid-column: span 12; font-size: 14px;
+  border-radius: var(--radius); padding: 10px 18px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); }
+.sidesline b { color: var(--ink); }
+.sidesline.warn { border-color: var(--warn); }
+.sidesline.warn b { color: var(--warn); }
 canvas { display: block; width: 100%; }
 #trace { height: 360px; }
 #top { aspect-ratio: 1 / 1; max-height: 340px; margin: 0 auto; touch-action: none; }
@@ -151,6 +156,7 @@ footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--i
   </div>
   <button id="handsoff" aria-pressed="false" title="Mark that no hand is near: any trigger now counts as a false alarm (key H)">Hands off <span class="small">H</span></button>
   <button id="recal" title="Measure the resting level again (keep hands away for 2 s)">Recalibrate</button>
+  <button id="sidecal" title="Find which half of the sensor is the robot's left: you hold a hand at its left when asked. Remembered for this robot.">Calibrate sides</button>
   <button id="reset" title="Clear trigger counts and events">Reset scores</button>
 </header>
 <main>
@@ -159,6 +165,7 @@ footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--i
     <span class="facts num" id="bar-facts"></span>
     <span class="explain" id="bar-explain"></span>
   </section>
+  <section class="sidesline" id="sides-line" aria-live="polite"></section>
 
 
   <section class="card span-8 sim-only" aria-labelledby="h-sim">
@@ -477,11 +484,17 @@ function renderHeader() {
     if (b.dataset.mode === "escape") { b.disabled = !frame.allow_moves || !cal.ok; b.title = !frame.allow_moves ? "Moves the legs: start with --i-have-space" : !cal.ok ? "Not calibrated" : "The driver model's trigger makes the robot back away"; }
   }
   $("handsoff").setAttribute("aria-pressed", String(frame.hands_off));
+  const sd = frame.sides || {}, chk = sd.check || {}, checking = chk.phase === "hand" || chk.phase === "release";
+  const replay = st.link === "replay";
+  $("sidecal").disabled = replay || !cal.ok || checking;
+  $("sidecal").classList.toggle("hidden", replay);
+  renderSides(sd, checking);
   const bar = $("bar");
   bar.classList.toggle("active", esc.state === "acting" || esc.state === "standing");
   bar.classList.toggle("problem", (cal.done && !cal.ok) || esc.state === "failed");
   if (!cal.done) { $("bar-state").textContent = "Calibrating"; $("bar-facts").textContent = ""; $("bar-explain").textContent = "Keep hands away from the sensor for 2 seconds while its resting level is measured."; }
   else if (!cal.ok) { $("bar-state").textContent = "Not calibrated"; $("bar-facts").textContent = ""; $("bar-explain").textContent = cal.message + ". Escape mode is off; fix it and press Recalibrate."; }
+  else if (checking) { $("bar-state").textContent = "Side check"; $("bar-facts").textContent = chk.phase === "hand" ? `${Math.ceil(chk.seconds_left)} s left` : "take the hand away"; const m = chk.message.replace(/^side check: /, ""); $("bar-explain").textContent = m[0].toUpperCase() + m.slice(1) + ". The robot does not move and nothing is scored meanwhile."; }
   else if (esc.state === "acting") { $("bar-state").textContent = "Escaping"; $("bar-facts").textContent = `${esc.last.skill}, threat ${sideName(esc.last.side)}`; $("bar-explain").textContent = "Backing away; the sensor is not read until the dog stands again."; }
   else if (esc.state === "standing") { $("bar-state").textContent = "Standing up"; $("bar-facts").textContent = ""; $("bar-explain").textContent = "Waiting for the robot to confirm the stand."; }
   else if (esc.state === "failed") { $("bar-state").textContent = "Stand failed"; $("bar-facts").textContent = ""; $("bar-explain").textContent = "The robot did not confirm standing; it was rested and the demo is in observe mode."; }
@@ -499,6 +512,23 @@ function renderHeader() {
   $("top").classList.toggle("draggable", !!st.mock);
 }
 
+const SOURCE = { calibrated: "calibrated for this robot", flag: "set when started", default: "not calibrated" };
+function renderSides(sd, checking) {
+  const box = $("sides-line"), pins = frame.pins || [36, 39];
+  const left = sd.swap ? pins[1] : pins[0], right = sd.swap ? pins[0] : pins[1];
+  const who = sd.robot ? ` (${sd.robot})` : "";
+  const warn = sd.source === "default" && !frame.status.mock && frame.status.link !== "replay";
+  box.classList.toggle("warn", warn && !checking);
+  box.innerHTML = "";
+  const b = el("b", warn ? "Sides not calibrated" + who : `Left = pin ${left}, right = pin ${right}`);
+  const rest = warn
+    ? `: assuming pin ${left} is the robot's left. Press Calibrate sides and hold a hand at the robot's left when asked; the answer is remembered for this robot.`
+    : ` · ${SOURCE[sd.source] || sd.source}${who}`;
+  box.append(b, document.createTextNode(rest));
+  const last = (sd.check || {}).message || "";
+  if (!checking && last) box.append(el("div", "Last side check: " + last.replace(/^side check /, ""), "small"));
+}
+
 async function send(cmd) {
   try {
     const r = await fetch("/api/command", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cmd) });
@@ -510,6 +540,7 @@ async function send(cmd) {
 for (const b of document.querySelectorAll("[data-mode]")) b.addEventListener("click", () => send({ action: "mode", mode: b.dataset.mode }));
 $("handsoff").addEventListener("click", () => send({ action: "hands_off" }));
 $("recal").addEventListener("click", () => send({ action: "recalibrate" }));
+$("sidecal").addEventListener("click", () => send({ action: "calibrate_sides" }));
 $("reset").addEventListener("click", () => send({ action: "reset_scores" }));
 window.addEventListener("keydown", (e) => {
   if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName) || e.metaKey || e.ctrlKey) return;

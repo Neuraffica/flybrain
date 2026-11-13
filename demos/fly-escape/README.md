@@ -27,10 +27,26 @@ uv run flybrain-bittle ble-run -- uv run fly-escape --ble  # Bluetooth on macOS
 
 Dashboard: http://127.0.0.1:8766/ (`--http-port`).
 
-Useful flags: `--driver connectome|rewired|random|prox|looming`, `--pins 36,39` (left first),
-`--swap-sides`, `--escape-action back|back-turn`, `--action-seconds 1.0`, `--min-interval 3`,
-`--max-per-minute 6`, `--imu` (also poll the IMU; off by default to keep the sensor rate up),
-`--analog-rate 40`, `--duration S`, `--no-dashboard`, `--no-log`, `--benchmark FILE.json`.
+Useful flags: `--driver connectome|rewired|random|prox|looming`, `--pins 36,39`,
+`--calibrate-sides`, `--sides auto|normal|swapped`, `--escape-action back|back-turn`,
+`--action-seconds 1.0`, `--min-interval 3`, `--max-per-minute 6`, `--imu` (also poll the IMU; off
+by default to keep the sensor rate up), `--analog-rate 40`, `--duration S`, `--no-dashboard`,
+`--no-log`, `--benchmark FILE.json`.
+
+### Which pin is the robot's left
+
+It depends on which way round the sensor is strapped on, so it differs between robots. Run the
+side check once per robot: `--calibrate-sides`, the **Calibrate sides** button in the dashboard,
+or "Calibrate sides at start" in Flydeck. After the resting level, hold a hand about 10 cm from
+the robot's left side of the sensor until it says "got it", then take it away. It decides when
+one pin drops to half its resting level or lower while reading at least 30 % (of resting level)
+higher than the other, for 0.3 s and 3 readings; after 15 s without that it gives up and changes
+nothing. The robot does not move and no trigger is scored meanwhile. The answer is stored per
+robot (by its Bluetooth name without `_BLE` / `_SSP`, which the USB boot banner also prints) in
+`fly-escape-sides.json` next to Flydeck's settings (`~/Library/Application Support/flybrain/`;
+`FLY_ESCAPE_SIDES` overrides the file). `--sides auto` (default) uses it; without one the first
+pin is taken as the left and the log and dashboard say "Sides not calibrated". `--swap-sides`
+(`--sides swapped`) and `--no-swap-sides` (`--sides normal`) force it for one run.
 
 ## The simulator (`--mock`)
 
@@ -156,7 +172,13 @@ fast as possible and prints the scores.
 * Hard limits on top of the model: one escape per 3 s, six per minute.
 * Ctrl-C or SIGTERM (only the first one interrupts) or any error: a running gait is stopped with
   `kup`, then `d` rests the robot. A "low power" message from the firmware is shown at start.
-* No `X` module command is ever sent (switching modules on made the robot do skills by itself).
+* Two brains must not fight. At start the demo sends `X?` (stock firmware has it and changes
+  nothing). Only if the robot runs the on-board escape module
+  ([firmware/bittle/fly_escape](../../firmware/bittle/fly_escape/README.md)) and it is on, `Xe`
+  switches it off for the run (logged); at exit the robot rests and `XE` switches it back on,
+  which stands the robot up again. No other `X` module command is sent (switching modules on
+  made the robot do skills by itself). Over Bluetooth only the current module build can be
+  seen: an older build that prints to USB only is not detected there.
 
 ## Troubleshooting
 
@@ -164,7 +186,7 @@ fast as possible and prints the scores.
 |---|---|
 | `escape models are not available` | `uv sync`; the model lives in `packages/flybrain-models` |
 | "calibration FAILED … rests at 0" | Sensor unplugged or in the wrong socket (must be 39/36), or a hand in front at start; check with `flybrain-bittle probe --analog 36,39` and press Recalibrate |
-| Escapes on the wrong side | `--swap-sides`; check with `flybrain-bittle probe --analog 36,39 --side-test` |
+| Escapes on the wrong side, or "Sides not calibrated" | Press **Calibrate sides** in the dashboard (or start with `--calibrate-sides`) and hold a hand at the robot's left when asked; force one run with `--swap-sides` / `--no-swap-sides` |
 | Escape mode button greyed out | Start with `--i-have-space`, and wait for calibration |
 | Few sensor readings per second | Other polling on the line (`--imu`), or Bluetooth |
 

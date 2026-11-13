@@ -8,8 +8,9 @@ Edits the copy in place (work on a copy of the checkout):
 * copies ``src/flyEscape.h`` and ``src/fly_escape_all.h`` into ``<sketch>/src/``;
 * adds ``EXTENSION_FLY_ESCAPE 'E'`` and one entry to ``moduleList``, ``moduleNames`` and every
   ``moduleActivatedQ`` list in ``src/OpenCat.h``;
-* adds the include, the ``initModule``/``stopModule`` cases and the poll to
-  ``src/moduleManager.h``, and ``#define FLY_ESCAPE`` to ``OpenCatEsp32.ino``;
+* adds the include, the ``initModule``/``stopModule`` cases, the poll and the status line in
+  ``showModuleStatus()`` to ``src/moduleManager.h``, the ``XEP``/``XEp`` telemetry switch to
+  the ``X`` command in ``src/reaction.h``, and ``#define FLY_ESCAPE`` to ``OpenCatEsp32.ino``;
 * unless ``--keep-all``: comments out the slim-build switches (README, "Slim build").
 
 Checked against OpenCatEsp32 ``c481e47`` (the robot's B10_250330) and ``f5aba6b`` (main).
@@ -96,7 +97,35 @@ def apply(sketch: Path, slim: bool = True) -> None:
         mm,
     ).start()
     mm = mm[:j] + poll + mm[j:]
+    # the module's "@FE on/off;" line after the module list (X?, and after every X change)
+    mm, k = re.subn(
+        r"(void showModuleStatus\(\) \{\n[^}]*?printListWithoutString\(moduleActivatedQ, moduleCount\);\n)",
+        r"\1#ifdef FLY_ESCAPE\n  flyEscapeStatus(moduleActivatedQ[indexOfModule(EXTENSION_FLY_ESCAPE)]);\n"
+        r"#endif\n",
+        mm,
+        count=1,
+    )
+    if k != 1:
+        raise SystemExit("moduleManager.h: showModuleStatus() did not match the expected layout")
     (src / "moduleManager.h").write_text(mm)
+
+    # "XEP" / "XEp": telemetry on / off, handled where the camera handles "XCP" / "XCp"
+    rh = (src / "reaction.h").read_text()
+    option_case = (
+        "#ifdef FLY_ESCAPE\n            case EXTENSION_FLY_ESCAPE:\n              {\n"
+        "                flyEscapeOptions(newCmd, "
+        "moduleActivatedQ[indexOfModule(EXTENSION_FLY_ESCAPE)]);\n"
+        "                break;\n              }\n#endif\n"
+    )
+    rh, k = re.subn(
+        r"(// deal with the following command\n\s*switch \(newCmd\[0\]\) \{\n)",
+        lambda m: m.group(1) + option_case,
+        rh,
+        count=1,
+    )
+    if k != 1:
+        raise SystemExit("reaction.h: the X command switch did not match the expected layout")
+    (src / "reaction.h").write_text(rh)
     print(f"applied fly_escape to {sketch}")
 
 
