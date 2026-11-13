@@ -1,0 +1,32 @@
+packages/flybrain-edge/tests/test_bittle_reconnect.py
+  s_8da33b2ad5b96f::t_34e80d5354168c 2-6,8-15,17,20-25,28-38,44-54,56,58,61-73,75-78,80-83,87,114,116-122,124-126
+  s_8da33b2ad5b96f::t_440e061029d983 59-60
+  s_8da33b2ad5b96f::t_2b28051ceb0562 1,7,16,18,26-27,55,57,74,79,84-86,88-113,115
+  s_8da33b2ad5b96f::t_ad54313c592ae2 19,39-43,127-140
+  s_8da33b2ad5b96f::t_d5ac03d82d5b07 123
+demos/fly-escape-onboard/src/fly_escape_onboard/cli.py
+  s_8da33b2ad5b96f::t_d5ac03d82d5b07 251-256
+packages/flybrain-edge/src/flybrain_edge/bittle/robot.py
+  s_8da33b2ad5b96f::t_2b28051ceb0562 35-36,192,197-215
+  s_8da33b2ad5b96f::t_6aad8614b9dbf7 182,184-185,227
+  s_8da33b2ad5b96f::t_440e061029d983 183,193,195,236-237,242-262
+  s_8da33b2ad5b96f::t_474c71158e0f63 19,37-53,141,190-191,194,196,235
+  s_8da33b2ad5b96f::t_c77b25ff111303 34,186-189,228-234,238-241
+  s_8da33b2ad5b96f::t_5844b2b3775e7c 263
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "777cd80f125b805d3e21b41b484f672151d2959c",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
