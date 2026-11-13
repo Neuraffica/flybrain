@@ -34,6 +34,7 @@ from .loop import EscapeLoop
 from .models import MODEL_KEYS, ModelMissing, load_models
 from .scripts import SCRIPTS
 from .session import ReplaySource, SessionLog, load_samples
+from .sides import SIDE_SETTINGS, resolve, robot_identity
 from .sim import Simulator
 
 BENCHMARK_CANDIDATES = [("flybrain_models", "escape_benchmark.json")]
@@ -88,11 +89,33 @@ def build_parser() -> argparse.ArgumentParser:
         default=",".join(map(str, DEFAULT_PINS)),
         help="the two analog pins of the sensor, left first (default 36,39)",
     )
-    ap.add_argument(
+    sides = ap.add_mutually_exclusive_group()
+    sides.add_argument(
+        "--sides",
+        choices=SIDE_SETTINGS,
+        default="auto",
+        help="which pin is the robot's left. auto (default): what --calibrate-sides found for "
+        "this robot, else the first pin; normal: the first pin; swapped: the second pin",
+    )
+    sides.add_argument(
         "--swap-sides",
+        dest="sides",
+        action="store_const",
+        const="swapped",
+        help="same as --sides swapped: the second pin is the robot's left",
+    )
+    sides.add_argument(
+        "--no-swap-sides",
+        dest="sides",
+        action="store_const",
+        const="normal",
+        help="same as --sides normal: the first pin is the robot's left",
+    )
+    ap.add_argument(
+        "--calibrate-sides",
         action="store_true",
-        help="the second pin is the robot's left (check with flybrain-bittle probe "
-        "--analog 36,39 --side-test)",
+        help="after the resting level, ask for a hand on the robot's left to find which pin is "
+        "the left, and remember it for this robot (also a dashboard button)",
     )
     ap.add_argument(
         "--escape-action",
@@ -189,6 +212,13 @@ def print_summary(summary: dict, driver: str) -> None:
         )
 
 
+_SOURCES = {
+    "calibrated": "calibrated for this robot",
+    "flag": "set by flag",
+    "default": "default, not calibrated",
+}
+
+
 def _fail(code: int, message: str) -> int:
     """Print why the demo cannot run, tell Flydeck (when it started us), return the exit code."""
     print(message, file=sys.stderr)
@@ -215,6 +245,8 @@ def main(argv: list[str] | None = None) -> int:
         return _fail(2, "fly-escape: a replay cannot move a robot; use --mode observe")
     if (a.mock_script or a.mock_random is not None) and not a.mock:
         return _fail(2, "fly-escape: --mock-script and --mock-random need --mock")
+    if a.replay and a.calibrate_sides:
+        return _fail(2, "fly-escape: --calibrate-sides needs a robot (or --mock), not a replay")
     if a.mock_script and a.mock_random is not None:
         return _fail(2, "fly-escape: choose --mock-script or --mock-random, not both")
     if a.mock_random == -1:
@@ -232,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
         models, raw_to_proximity = load_models(seed=a.seed)
     except ModelMissing as e:
         return _fail(3, f"fly-escape: {e}")
-    loop = EscapeLoop(models, raw_to_proximity, driver=a.driver, swap_sides=a.swap_sides)
+    loop = EscapeLoop(models, raw_to_proximity, driver=a.driver)
     cfg = EscapeConfig(
         action=a.escape_action,
         action_s=a.action_seconds,
@@ -287,6 +319,8 @@ def main(argv: list[str] | None = None) -> int:
                 pass
             return 4
         label = f"{label}: {transport.description}"
+        loop.robot = "simulator" if a.mock else robot_identity(transport, bittle.boot_text)
+    loop.swap_sides, loop.sides_source = resolve(a.sides, loop.robot, pins)
 
     session = None
     if not a.no_log and replay is None:
@@ -296,11 +330,14 @@ def main(argv: list[str] | None = None) -> int:
                 "argv": sys.argv,
                 "source": label,
                 "pins": pins,
-                "swap_sides": a.swap_sides,
+                "swap_sides": loop.swap_sides,
+                "sides": a.sides,
+                "sides_source": loop.sides_source,
+                "robot": loop.robot,
                 "firmware": bittle and " ".join(x for x in (bittle.model, bittle.version) if x),
                 "escape": vars(cfg),
                 "note": "raw_a / raw_b are the readings of --pins in order; left is raw_a unless "
-                "swap_sides",
+                "swap_sides (as at the start; a side check during the run can change it)",
             },
         )
 
@@ -325,15 +362,18 @@ def main(argv: list[str] | None = None) -> int:
     if mock is not None:
         app.sim = Simulator(mock, seed=a.mock_random, speed=a.sim_speed)
     app.imu = a.imu
+    app.calibrate_sides = a.calibrate_sides
     app.analog_rate_hz = a.analog_rate
 
     def _on_event(ev: str) -> None:
         print(f"fly-escape: {ev}", flush=True)
         if ev.startswith("calibrating"):
             status.state("calibrating", "keep hands away from the sensor")
+        elif ev.startswith("side check:"):
+            status.state("calibrating", ev.removeprefix("side check: "))
         elif ev.startswith(("calibration FAILED", "ESCAPE MODE REFUSED", "THE ROBOT WILL NOT")):
             status.state("attention", ev)
-        elif ev.startswith("calibrat"):
+        elif ev.startswith(("calibrat", "sides calibrated", "side check FAILED")):
             status.state("running", ev)
 
     app.on_event = _on_event
@@ -359,10 +399,12 @@ def main(argv: list[str] | None = None) -> int:
             webbrowser.open(server.url)
     print(
         f"fly-escape: {label} | mode {mode} (after calibration) | driver {loop.driver} | "
-        f"pins {pins}{' swapped' if a.swap_sides else ''}"
+        f"left pin {pins[1] if loop.swap_sides else pins[0]} ({_SOURCES[loop.sides_source]})"
         + (f" | logging to {session.dir}" if session else ""),
         flush=True,
     )
+    if not a.calibrate_sides:
+        app.warn_if_uncalibrated()
     if a.mock_random is not None:
         print(f"fly-escape: random approaches, seed {a.mock_random}", flush=True)
     if mock is not None and a.mock_script:

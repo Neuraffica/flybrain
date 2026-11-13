@@ -61,3 +61,24 @@ def test_ble_candidates_prefer_uart_service_then_name():
     assert [d for _, d in ranked] == ["dev-uart", "dev-strong-name", "dev-weak-name"]
     only = BleTransport.rank_candidates(adverts, "c2")
     assert [d for _, d in only] == ["dev-weak-name"]
+
+
+def test_ble_full_name_matches_the_other_suffix_of_the_same_robot():
+    # the same robot advertises BittleA7_BLE one day and BittleA7_SSP the next (macOS caching)
+    assert BleTransport.name_matches("BittleA7_SSP", "BittleA7_BLE")
+    assert BleTransport.name_matches("bittlea7_ble", "BittleA7_SSP")
+    assert BleTransport.name_matches("BittleA7_BLE", "BittleA7_BLE")
+    # never a different robot, even one whose name contains the stem
+    assert not BleTransport.name_matches("BittleC2_SSP", "BittleA7_BLE")
+    assert not BleTransport.name_matches("BittleA70_BLE", "BittleA7_BLE")
+    assert not BleTransport.name_matches("XBittleA7_SSP", "BittleA7_BLE")
+    # a partial name still matches by substring
+    assert BleTransport.name_matches("BittleA7_SSP", "A7")
+    adverts = [
+        ("dev-ssp", "BittleA7_SSP", [], -40),
+        ("dev-ble", "BittleA7_BLE", [], -80),
+        ("dev-other", "BittleC2_BLE", [], -30),
+    ]
+    ranked = BleTransport.rank_candidates(adverts, "BittleA7_BLE")
+    assert [d for _, d in ranked] == ["dev-ble", "dev-ssp"]  # the exact name first
+    assert [d for _, d in BleTransport.rank_candidates(adverts[:1], "BittleA7_BLE")] == ["dev-ssp"]

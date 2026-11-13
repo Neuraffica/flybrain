@@ -5,6 +5,7 @@ from flybrain_demo_api import DemoSpec, Option
 MODES = ("observe", "escape")  # = app.MODES (a test keeps these equal)
 DRIVERS = ("connectome", "rewired", "random", "prox", "looming")  # = models.MODEL_KEYS
 ACTIONS = ("back", "back-turn")  # = escape.ACTIONS
+SIDES = ("auto", "normal", "swapped")  # = sides.SIDE_SETTINGS
 
 SPEC = DemoSpec(
     id="fly-escape",
@@ -42,11 +43,21 @@ SPEC = DemoSpec(
             help="back: walk straight back. back-turn: walk back turning away from the hand.",
         ),
         Option(
-            "swap_sides",
+            "sides",
+            "choice",
+            "auto",
+            label="Which sensor side is the robot's left",
+            choices=SIDES,
+            help="auto: what the side check found for this robot (sides are not swapped until "
+            "it has run once). normal / swapped: force it.",
+        ),
+        Option(
+            "calibrate_sides",
             "bool",
             False,
-            label="Sensor wired the other way round",
-            help="tick if a hand on the robot's left lights up the right side in the dashboard.",
+            label="Calibrate sides at start",
+            help="after the resting level, hold a hand at the robot's left when asked; the "
+            "answer is remembered for this robot. Also a button in the dashboard.",
         ),
         Option(
             "mock_random",

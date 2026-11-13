@@ -217,15 +217,20 @@ class BleTransport(Transport):
         if not adv_name:
             return False
         if want:
+            if P.ble_stem(want) != want:
+                # a full name such as "BittleA7_BLE": the same robot may advertise "BittleA7_SSP"
+                # instead, so compare the stems, exactly (never a different robot's name)
+                return P.ble_stem(adv_name).lower() == P.ble_stem(want).lower()
             return want.lower() in adv_name.lower()
         return adv_name.startswith(P.BLE_NAME_PREFIX) and adv_name.endswith(P.BLE_NAME_SUFFIXES)
 
     @classmethod
     def rank_candidates(cls, adverts, want: str | None) -> list[tuple[str | None, object]]:
         """adverts: iterable of (device, name, service_uuids, rssi). Returns [(name, device)],
-        best first. With a name given, only names containing it. Without one, devices that
-        advertise the Nordic UART service come first (any name), then names Bittle*_BLE /
-        Bittle*_SSP; stronger signal first within each group."""
+        best first. With a name given, only names containing it (a full name ending in _BLE or
+        _SSP also matches the same name with the other suffix; the exact name comes first).
+        Without one, devices that advertise the Nordic UART service come first (any name), then
+        names Bittle*_BLE / Bittle*_SSP; stronger signal first within each group."""
         ranked = []
         for dev, nm, uuids, rssi in adverts:
             has_uart = P.BLE_SERVICE_UUID in [u.lower() for u in (uuids or [])]
@@ -234,7 +239,9 @@ class BleTransport(Transport):
                     continue
             elif not (has_uart or cls.name_matches(nm, None)):
                 continue
-            ranked.append((0 if has_uart else 1, -(rssi if rssi is not None else -999), nm, dev))
+            exact = bool(want) and (nm or "").lower() == want.lower()
+            group = (0 if exact else 1, 0 if has_uart else 1)
+            ranked.append((group, -(rssi if rssi is not None else -999), nm, dev))
         ranked.sort(key=lambda r: (r[0], r[1]))
         return [(nm, dev) for _, _, nm, dev in ranked]
 

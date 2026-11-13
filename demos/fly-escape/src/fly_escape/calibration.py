@@ -76,12 +76,21 @@ class Calibration:
                 problems.append(f"{name} channel is noisy (sd {sd:.0f}): a hand moving nearby?")
         self.ok = not problems
         if self.ok:
-            self.message = (
-                f"calibrated: left {self.baseline[0]:.0f} +- {self.noise[0]:.0f}, "
-                f"right {self.baseline[1]:.0f} +- {self.noise[1]:.0f}"
-            )
+            self._ok_message()
         else:
             self.message = "calibration FAILED: " + "; ".join(problems)
+
+    def _ok_message(self) -> None:
+        self.message = (
+            f"calibrated: left {self.baseline[0]:.0f} +- {self.noise[0]:.0f}, "
+            f"right {self.baseline[1]:.0f} +- {self.noise[1]:.0f}"
+        )
+
+    def swap_sides(self) -> None:
+        """The side check found the pins the other way round: left and right trade places."""
+        self.baseline, self.noise = self.baseline[::-1], self.noise[::-1]
+        if self.done and self.ok:
+            self._ok_message()
 
     def status(self) -> dict:
         return {

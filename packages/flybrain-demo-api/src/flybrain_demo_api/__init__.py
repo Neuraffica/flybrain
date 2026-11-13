@@ -17,6 +17,7 @@ This package has no dependencies, so a demo can use it without pulling in Flydec
 """
 
 from . import status
+from .paths import user_dir
 from .spec import (
     EXIT_CODES,
     TRANSPORTS,
@@ -34,4 +35,5 @@ __all__ = [
     "SpecError",
     "default_argv",
     "status",
+    "user_dir",
 ]

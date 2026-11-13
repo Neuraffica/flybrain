@@ -37,6 +37,11 @@ def retreat(t: float) -> tuple[float, float]:
     return _ramp(t, 1.0, 2.5, 5.0, 60.0), 0.0
 
 
+def side_check_hand(t: float) -> tuple[float, float]:
+    """The simulator's answer to the side check: a hand held at the robot's left, then away."""
+    return (15.0, 1.0) if 1.0 <= t < 3.0 else (AWAY_CM, 0.0)
+
+
 SCRIPTS = {
     "slow": approach(3.0),
     "fast": approach(0.4),

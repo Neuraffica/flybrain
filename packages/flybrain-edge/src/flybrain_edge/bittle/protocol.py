@@ -59,6 +59,16 @@ BLE_NAME_PREFIX = "Bittle"  # genBleID(): "Bittle" + 2 random hex digits, user-r
 BLE_WRITE_CHUNK = 20  # ardSerial.py slices at 20 bytes (fits the default 23-byte ATT MTU)
 BLE_NOTIFY_CHUNK = 10  # firmware notifies in 10-byte pieces (src/io.h:24-28)
 
+
+def ble_stem(name: str) -> str:
+    """The robot's name without the _BLE / _SSP suffix ("BittleA7_SSP" -> "BittleA7"). The same
+    robot is seen under either suffix (macOS caches the name), so this is what identifies it."""
+    for suffix in BLE_NAME_SUFFIXES:
+        if name.upper().endswith(suffix):
+            return name[: -len(suffix)]
+    return name
+
+
 # --- joints for Bittle X + Arm (ROBOT_ARM build) ---------------------------------------------
 # Index map: OpenCat index 0 = head pan (the arm's base rotates with it), 1 = arm lift (the
 # "head tilt" slot), 2 = claw/pincer (the "tail" slot; src/OpenCat.h:128, docs robot-arm page

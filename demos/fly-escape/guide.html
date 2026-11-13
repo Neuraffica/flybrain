@@ -203,8 +203,8 @@ uv run fly-escape --mock --open</code></pre>
     <pre><code>uv run flybrain-bittle probe --analog 36,39 --seconds 5</code></pre>
     <p>Prints both channels about 25 times a second and a minimum and maximum for each second. With nothing in front you want about 3400 on both; move a hand in and both should fall towards 0. If one stays near 0, the cable or the socket is wrong.</p></li>
   <li><h3>Find which side is which <span class="tag still">no movement</span></h3>
-    <pre><code>uv run flybrain-bittle probe --analog 36,39 --seconds 5 --side-test</code></pre>
-    <p>Cover only the robot's <b>left</b> side of the sensor when asked. The probe says which pin that was. If it tells you to, add <code>--swap-sides</code> to every command below.</p></li>
+    <pre><code>uv run fly-escape --calibrate-sides</code></pre>
+    <p>Once per robot. After the 2 seconds hands-off, hold a hand about 10 cm from the robot's <b>left</b> side of the sensor (its own left: your right if you face it) until the dashboard says "got it", then take it away. The dog does not move meanwhile. The answer is remembered for this robot, so later runs use it by themselves; the dashboard shows which pin is the left and whether it was calibrated. The <b>Calibrate sides</b> button does the same while the demo runs. In Flydeck: tick "Calibrate sides at start".</p></li>
   <li><h3>Observe <span class="tag still">stands, then still</span></h3>
     <pre><code>uv run fly-escape</code></pre>
     <p>The dog stands. Keep hands away for 2 seconds while the resting level is measured; the app refuses escape mode if a channel reads about 0 (unplugged) or is very noisy. Then open <a href="http://127.0.0.1:8766/">http://127.0.0.1:8766</a> and bring a hand in, fast and slow, from each side. Watch which models mark an escape.</p></li>
@@ -226,7 +226,8 @@ uv run fly-escape --mock --open</code></pre>
 <tbody>
 <tr><td>"Calibration FAILED", both sides rest near 0 to 200</td><td style="text-align:left">Daylight is blinding the sensor. Move the dog away from windows or shade the sensor, then press Recalibrate.</td></tr>
 <tr><td>"calibration FAILED … rests at 0"</td><td style="text-align:left">Sensor unplugged, in the wrong socket, or a hand in front during the first 2 seconds. Check with the probe, then press Recalibrate.</td></tr>
-<tr><td>Escapes on the wrong side</td><td style="text-align:left"><code>--swap-sides</code> (run the side test above)</td></tr>
+<tr><td>Escapes on the wrong side</td><td style="text-align:left">Press <b>Calibrate sides</b> (see above). To force it for one run: <code>--swap-sides</code> or <code>--no-swap-sides</code>.</td></tr>
+<tr><td>"Sides not calibrated"</td><td style="text-align:left">This robot has not had the side check yet, so pin 36 is taken as its left. Press <b>Calibrate sides</b> once.</td></tr>
 <tr><td>Escapes with nobody near</td><td style="text-align:left">Turn on Hands off (<code>H</code>) and watch the False column; sunlight and shiny surfaces disturb infrared sensors.</td></tr>
 <tr><td>The dog does not move</td><td style="text-align:left">Is the dashboard in Escape mode, and was the app started with <code>--i-have-space</code>? A "low power" message means the battery is off or flat.</td></tr>
 <tr><td>Port 8766 is taken</td><td style="text-align:left"><code>--http-port 8767</code></td></tr>
@@ -250,7 +251,7 @@ uv run fly-escape --mock --open</code></pre>
     <li>Escape mode, fixed model: 6 escapes in 90 s, 4 from the left and 2 from the right, each one stood up again; 2 more were held back by the limit of 6 a minute.</li>
     <li>Daylight: beside a window at midday the sensor read as if permanently covered and calibration refused to start. Away from the window it read normally at once.</li>
     <li>Calibration also refused to start when a hand was in front of the sensor, as designed.</li>
-    <li>On that dog the half of the sensor on pin 39 was on its left, so it needs <code>--swap-sides</code>. This depends on which way round the sensor is strapped on.</li>
+    <li>On that dog the half of the sensor on pin 39 was on its left; on a second dog it was pin 36. It depends on which way round the sensor is strapped on, hence the side check.</li>
     <li>Over Bluetooth: 3 escapes in 90 s, each one stood up again. The sensor is read about 10 times a second there, against about 26 over USB, so a very fast hand gives the model fewer readings.</li>
     <li>Not yet tried on the robot: backing away with a turn.</li>
   </ul></div>
