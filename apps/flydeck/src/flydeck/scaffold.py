@@ -122,5 +122,7 @@ Next:
   3. edit {rel}/src/{pkg}/cli.py      # your idea goes in the main loop
      and {rel}/src/{pkg}/flydeck.py   # its card and settings in Flydeck
   4. uv run pytest {rel}                   # its smoke test, on the simulator
+  5. in the Flydeck app: "Use my flybrain folder..." and choose {root}
+     (or press Reload list if it shows this folder already)
 
 Read docs/adding-a-demo.md for the rules (always rest on exit, gate leg motion)."""

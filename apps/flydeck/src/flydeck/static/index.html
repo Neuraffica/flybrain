@@ -140,6 +140,9 @@ pre.log { background: var(--code); border-radius: 8px; padding: 10px; font: 12px
   display: none; align-items: center; justify-content: center; text-align: center; padding: 16px; z-index: 5; }
 .gone.show { display: flex; }
 [hidden] { display: none !important; }
+.source { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: -2px 0 12px;
+  font-size: 0.9rem; }
+.source .path { font-family: var(--mono); font-size: 0.82rem; word-break: break-all; }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 </style>
 </head>
@@ -184,13 +187,14 @@ pre.log { background: var(--code); border-radius: 8px; padding: 10px; font: 12px
       <section class="panel" aria-labelledby="deck-h">
         <div class="section-title"><h2 id="deck-h">Demos</h2>
           <button class="small" id="reload" title="Look for new demos (after uv sync)">Reload list</button></div>
+        <div id="source" hidden></div>
         <div class="deck" id="deck"></div>
         <div class="setup" id="setup"></div>
       </section>
     </main>
   </div>
 </div>
-<div class="gone" id="gone"><div><h2>Flydeck has stopped</h2><p class="muted">You can close this tab.</p></div></div>
+<div class="gone" id="gone"><div><h2>Flydeck has stopped</h2><p class="muted" id="gone-hint">You can close this tab.</p></div></div>
 
 <script>
 "use strict";
@@ -432,7 +436,7 @@ function renderRun() {
   if (showFrame && frameUrl !== r.url) {
     frameUrl = r.url;
     $("frame-slot").innerHTML = `<div class="frame-wrap" id="frame-wrap"><div class="frame-bar"><span class="muted">Dashboard</span>
-      <a href="${esc(r.url)}" target="_blank" rel="noopener">Open in a new tab ↗</a></div>
+      <a href="${esc(r.url)}" target="_blank" rel="noopener">${APP ? "Open in its own window ↗" : "Open in a new tab ↗"}</a></div>
       <iframe title="${esc(r.title)} dashboard" src="${esc(r.url)}"></iframe></div>`;
   } else if (!showFrame) {
     frameUrl = null;
@@ -463,8 +467,52 @@ $("reload").onclick = async () => { const r = await post("reload"); if (!r.ok) a
 $("quit").onclick = async () => {
   const running = S && S.run && S.run.active;
   if (running && !confirm("Stop " + S.run.title + " (the robot rests) and quit Flydeck?")) return;
-  post("quit");
+  if (APP) APP.quit(); else post("quit");
 };
+
+// ---- inside the Flydeck window (pywebview) ---------------------------------------------
+// Links: web pages open in the default browser; guides and dashboards in another Flydeck
+// window. Where the demos come from: the built-in ones, or a flybrain folder of yours.
+let APP = null, SOURCE = null, sourceMsg = null;
+document.addEventListener("click", (e) => {
+  const a = e.target.closest && e.target.closest("a[href]");
+  if (!a || !APP) return;
+  const u = new URL(a.getAttribute("href"), location.href);
+  if (u.protocol !== "http:" && u.protocol !== "https:") return;
+  const local = u.hostname === "127.0.0.1" || u.hostname === "localhost";
+  if (!local) { e.preventDefault(); APP.open_external(u.href); }
+  else if (a.target === "_blank") { e.preventDefault(); APP.open_window(u.href, a.textContent.trim()); }
+}, true);
+
+function renderSource() {
+  const box = $("source");
+  if (!SOURCE || !SOURCE.switchable) { box.hidden = true; return; }
+  box.hidden = false;
+  const mine = SOURCE.kind === "folder";
+  let h = `<div class="source"><span class="muted">Demos from:</span>
+    ${mine ? `<span class="path" title="${esc(SOURCE.root)}">${esc(SOURCE.root)}</span>` : `<b>built into Flydeck</b>`}
+    <button class="small" id="pick">${mine ? "Change folder…" : "Use my flybrain folder…"}</button>
+    ${mine ? `<button class="small" id="builtin">Use the built-in demos</button>` : ""}</div>`;
+  const msg = sourceMsg || SOURCE.note;
+  if (msg) h += `<div class="banner warn" style="margin:-4px 0 12px">${esc(msg)}</div>`;
+  box.innerHTML = h;
+  $("pick").onclick = async () => {
+    const r = await APP.choose_folder();
+    sourceMsg = r.ok || r.cancelled ? null : r.error;
+    renderSource();
+  };
+  const b = $("builtin");
+  if (b) b.onclick = async () => { const r = await APP.use_builtin(); sourceMsg = r.ok || r.cancelled ? null : r.error; renderSource(); };
+}
+
+window.addEventListener("pywebviewready", async () => {
+  APP = window.pywebview.api;
+  $("gone-hint").textContent = "Flydeck is closing.";
+  try { SOURCE = await APP.source(); } catch (e) { SOURCE = null; }
+  renderSource();
+  frameUrl = null; // redraw the dashboard link for the window
+  if (S) renderRun();
+});
 
 function connect() {
   const es = new EventSource("/api/stream");

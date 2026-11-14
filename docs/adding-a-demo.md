@@ -2,7 +2,7 @@
 
 A demo is a small command-line program that drives the robot (or the simulator) and usually
 shows a dashboard in the browser. Add one to `demos/` and it appears as a card in Flydeck,
-the Mac app that finds the robot and starts demos on it. This page is the 15-minute path,
+the app that finds the robot and starts demos on it. This page is the 15-minute path,
 then the rules every demo follows, then the details.
 
 ## The 15-minute path
@@ -24,8 +24,12 @@ robot's identity and tilt, stands up, wags the head, and rests when you stop it.
    Python arrives in the page as JSON, about as often as you publish.
 4. **Check it**: `uv run pytest demos/fly-groom` runs its smoke test on the simulator.
 
-Open Flydeck (or press **Reload list** if it is open) and your card is there. Tick **Try in
-simulator** and press Start.
+Show it in Flydeck: in the Flydeck app, press **Use my flybrain folder…** above the demo cards
+and choose this folder (once; Flydeck remembers it, and **Reload list** picks up later
+`uv sync`s). Your card is there, next to the other demos of this folder. Tick **Try in
+simulator** and press Start. Started from the app, your demo runs with this folder's `.venv`
+Python and the app's Bluetooth permission. Without the app (Windows, Linux, Intel Mac, or USB
+only), `uv run flydeck` in this folder shows the same cards.
 
 ## Safety rules
 

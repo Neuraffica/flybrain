@@ -74,7 +74,8 @@ def find_root(start: Path | None = None) -> Path | None:
 
 
 def _module_root(module: str) -> Path | None:
-    """The folder with pyproject.toml above the module's file (the demo's own folder)."""
+    """The folder with pyproject.toml above the module's file (the demo's own folder), for an
+    editable install; None for a module installed into site-packages."""
     try:
         spec = importlib.util.find_spec(module.split(".")[0])
     except (ImportError, ValueError):
@@ -82,6 +83,8 @@ def _module_root(module: str) -> Path | None:
     if spec is None or not spec.origin:
         return None
     for d in Path(spec.origin).resolve().parents:
+        if d.name == "site-packages":
+            return None  # installed from a wheel: no source folder (see discover)
         if (d / "pyproject.toml").is_file():
             return d
     return None
@@ -141,10 +144,14 @@ def discover(
     if refresh:
         refresh_paths()
     eps = list(entry_points(group=GROUP)) if eps is None else eps
+    declared = declared_in_folder(root / "demos") if root is not None else {}
     found: list[DemoEntry] = []
     by_id: dict[str, DemoEntry] = {}
     for ep in sorted(eps, key=lambda e: e.name):
         entry = load_entry(ep)
+        if entry.root is None:
+            # installed from a wheel (as in Flydeck.app): the guide is in root/demos/<name>
+            entry.root = declared.get(ep.name)
         if entry.ok and entry.id in by_id:
             entry.error = (
                 f"duplicate id {entry.id!r}: also published by {by_id[entry.id].source}; "
@@ -160,7 +167,7 @@ def discover(
         found.append(entry)
     if root is not None:
         known = {ep.name for ep in eps}
-        for name, folder in declared_in_folder(root / "demos").items():
+        for name, folder in declared.items():
             if name not in known:
                 found.append(
                     DemoEntry(

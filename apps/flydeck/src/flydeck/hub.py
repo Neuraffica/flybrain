@@ -42,9 +42,9 @@ NAME = "Flydeck"
 TAGLINE = "Pick a robot, pick a fly-brain demo, press Start."
 DEFAULT_PORT = 8760
 TERMINAL_BLE_HINT = (
-    "Started from a terminal: macOS will stop any Bluetooth use. For Bluetooth, open the "
-    "Flydeck app instead (create it with: uv run flydeck install-app). USB and the simulator "
-    "work here."
+    "Started from a terminal: macOS will stop any Bluetooth use. For Bluetooth, use the "
+    "Flydeck app (see the README; it can run the demos of this folder too). USB and the "
+    "simulator work here."
 )
 
 
@@ -63,11 +63,13 @@ class Hub:
         root: Path | None = None,
         python: str = sys.executable,
         settings: Settings | None = None,
+        workdir: Path | None = None,
         stop_timeout_s: float = 20.0,
         check_timeout_s: float = 45.0,
         entries: list[registry.DemoEntry] | None = None,
     ):
         self.root = root
+        self.workdir = workdir or root  # where demos run (they write runs/ there)
         self.python = python
         self.settings = settings or Settings()
         self.check_timeout_s = check_timeout_s
@@ -76,7 +78,7 @@ class Hub:
         self.closed = False
         self.quit_event = threading.Event()
         self.runner = Runner(
-            python=python, cwd=root, stop_timeout_s=stop_timeout_s, on_change=self.changed
+            python=python, cwd=self.workdir, stop_timeout_s=stop_timeout_s, on_change=self.changed
         )
         self.entries = entries if entries is not None else registry.discover(root)
         self.robot: dict[str, Any] = {
@@ -121,6 +123,7 @@ class Hub:
                 "ble_blocked": ble_blocked(),
                 "ble_hint": TERMINAL_BLE_HINT if ble_blocked() else None,
                 "root": str(self.root) if self.root else None,
+                "workdir": str(self.workdir) if self.workdir else None,
             },
             "version": self.version,
             "demos": [
@@ -151,7 +154,7 @@ class Hub:
                 capture_output=True,
                 text=True,
                 timeout=self.check_timeout_s,
-                cwd=self.root,
+                cwd=self.workdir,
                 env=env,
                 check=False,
             )

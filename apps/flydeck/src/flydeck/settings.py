@@ -1,4 +1,5 @@
-"""What Flydeck remembers between runs: the last robot and each demo's last settings.
+"""What Flydeck remembers between runs: the last robot, each demo's last settings, and (in the
+app) which flybrain folder's demos to show.
 
 Stored as JSON in ~/Library/Application Support/flybrain/flydeck.json (FLYDECK_HOME overrides
 the folder, e.g. for tests; see flybrain_demo_api.user_dir). Nothing here leaves the Mac.
@@ -18,20 +19,23 @@ class Settings:
     def __init__(self, path: Path | None = None):
         self.path = path or home() / "flydeck.json"
         self._lock = threading.Lock()
-        self.data: dict[str, Any] = {}
+        self.data: dict[str, Any] = self._read()
+
+    def _read(self) -> dict[str, Any]:
         try:
             loaded = json.loads(self.path.read_text())
-            if isinstance(loaded, dict):
-                self.data = loaded
         except (OSError, ValueError):
-            pass
+            return {}
+        return loaded if isinstance(loaded, dict) else {}
 
     def get(self, key: str, default: Any = None) -> Any:
         return self.data.get(key, default)
 
     def set(self, key: str, value: Any) -> None:
         with self._lock:
-            self.data[key] = value
+            # the Flydeck window and its hub are two processes sharing this file: keep the
+            # other's keys by re-reading before writing
+            self.data = {**self.data, **self._read(), key: value}
             try:
                 self.path.parent.mkdir(parents=True, exist_ok=True)
                 tmp = self.path.with_suffix(".tmp")

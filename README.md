@@ -10,19 +10,52 @@ The rules:
 2. **Compare against a standard baseline** and show the numbers.
 3. **Run it on a device**, ours or yours.
 
-> Status: planning docs plus one working demo, [Fly compass](demos/fly-compass/README.md) ([guide](demos/fly-compass/guide.html)), which has been tested on a simulated robot only. Firmware, simulation and tutorials are outlined but not implemented yet.
+Using this kit is optional: you can enter the hackathon with your own code and hardware.
 
-## Start here on a Mac
+> Status: four demos, all of which run in the simulator: [Fly compass](demos/fly-compass/README.md), [Fly escape](demos/fly-escape/README.md), [Fly escape (on the robot)](demos/fly-escape-onboard/README.md) and [Hello robot](demos/hello-robot/README.md). Each README has a "checked on hardware, and not" section; parts of them have run on one Bittle X+Arm over USB and Bluetooth, not every mode. The robot's own escape module is in [firmware/bittle/fly_escape](firmware/bittle/fly_escape/README.md). The simulator package (`sim/`), the XIAO firmware and the tutorials are outlined but not written yet.
 
-**Flydeck** is a small Mac app: pick a robot, pick a fly-brain demo, press Start. In Terminal, inside this folder:
+## Run the demos: Flydeck for Mac
+
+**Flydeck** is a Mac app: pick a robot (Bluetooth or USB cable) or the simulator, pick a fly-brain demo, press Start. It needs a Mac with Apple Silicon (M1 or newer) and macOS 12 or newer; it has been tried on one Mac only so far.
+
+1. Download `Flydeck-<version>-macos-arm64.dmg` from the [latest release](https://github.com/Neuraffica/flybrain/releases/latest), open it and drag **Flydeck** to **Applications**.
+2. Open Flydeck. The first time, macOS refuses: the app is not notarized by Apple, so macOS cannot verify it. Click **Done** (not Move to Trash), open **System Settings › Privacy & Security**, scroll down to the line about Flydeck, click **Open Anyway** and confirm. If macOS instead says the app "is damaged", or you prefer Terminal, run this once and open it again:
+
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/Flydeck.app
+   ```
+
+3. Flydeck opens in its own window. Switch the robot on, press **Scan**, click **Allow** when macOS asks whether Flydeck may use Bluetooth, and press **Use** next to your robot (or plug in the USB cable and press **Use** under *USB cable*). No robot? Tick **Try in simulator** on any demo.
+4. Click a demo card, choose its settings, press **Start**. Its dashboard appears in the window; **Stop** (or quitting Flydeck) lays the robot down to rest.
+
+The [Flydeck guide](apps/flydeck/guide.html) (also under **Guide** in the app) covers each step and troubleshooting.
+
+## Build your own demo
+
+You need [uv](https://docs.astral.sh/uv/) and git. In Terminal:
+
+```bash
+git clone https://github.com/Neuraffica/flybrain.git
+cd flybrain
+uv sync
+uv run flydeck new-demo my-idea     # copies the hello-robot template to demos/my-idea
+uv sync                             # installs it
+```
+
+Then, in Flydeck, press **Use my flybrain folder…** above the demo cards and choose the `flybrain` folder. Your demo appears as a card next to the others and runs with your folder's Python, with Flydeck's Bluetooth permission. After `uv sync` press **Reload list**; **Use the built-in demos** switches back. The rules and the robot API are in [docs/adding-a-demo.md](docs/adding-a-demo.md).
+
+## No Mac, or an Intel Mac
+
+There is no download for Windows, Linux or Intel Macs. Clone the repository and run Flydeck from the folder:
 
 ```bash
 uv sync
-uv run flydeck install-app      # creates ~/Applications/Flydeck.app for this folder
-open ~/Applications/Flydeck.app
+uv run flydeck            # opens in a window on a Mac, in the web browser elsewhere
 ```
 
-A browser tab opens with the Flydeck page. Switch the robot on, press **Scan**, click **Allow** when macOS asks whether Flydeck may use Bluetooth, press **Use** next to your robot, then pick a demo and press **Start**. Tick **Try in simulator** to run any demo with no robot. The [Flydeck guide](apps/flydeck/guide.html) covers first run and troubleshooting; to add your own demo, see [docs/adding-a-demo.md](docs/adding-a-demo.md) (`uv run flydeck new-demo my-idea`).
+USB and the simulator work this way. On macOS, Bluetooth needs the app: macOS stops a program started from Terminal when it touches Bluetooth. Each demo also runs on its own, e.g. `uv run fly-compass --mock --open`.
+
+To build the app yourself on an Apple Silicon Mac: `uv run flydeck build-app` writes `dist/Flydeck.app` and `dist/Flydeck-<version>-macos-arm64.dmg` (`install-app` builds it and puts it in `~/Applications`).
 
 ## Start here
 
@@ -48,13 +81,13 @@ A browser tab opens with the Flydeck page. Switch the robot on, press **Scan**, 
 | `sim/` | Bittle simulation environment with the same command interface as the real robot |
 | `models/` | Pretrained model zoo (weights are released as downloads, not committed) |
 | `demos/` | Reference demos, and `hello-robot`, the template for new ones |
-| `apps/flydeck` | Flydeck, the Mac app that finds the robot and starts demos |
+| `apps/flydeck` | Flydeck, the app that finds the robot and starts demos (`uv run flydeck build-app` builds the Mac app) |
 | `packages/flybrain-demo-api` | The small API a demo uses to appear in Flydeck (no dependencies) |
 | `tutorials/` | Step-by-step notebooks and guides |
 | `tools/` | Scripts for organizers: dataset recording, device flashing |
 | `data/` | Local cache for downloaded connectome files (gitignored) |
 
-## Setup
+## Setup (command line)
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.11 or newer.
 
