@@ -337,6 +337,9 @@ channels fall at slightly different times. Which pin is the robot's left is not 
 
 ### Flydeck on the real robot (2026-11-12)
 
+(This was the AppleScript applet made by `install-app`, since replaced by the self-contained
+Flydeck.app from `uv run flydeck build-app`; the hub and demos below are the same code.)
+
 - `uv run flydeck install-app` created `~/Applications/Flydeck.app`; opening it started the hub
   and a browser tab, with three demo cards.
 - The first two Bluetooth scans hung for 45 s ("no answer within 45 s") while macOS was showing

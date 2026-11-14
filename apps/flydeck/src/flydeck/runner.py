@@ -35,8 +35,8 @@ ROBOT_MAY_STAND = (
 )
 BLE_KILLED = (
     "macOS stopped the demo when it tried to use Bluetooth: this Flydeck was started from a "
-    "terminal, which has no Bluetooth permission. Install and open the Flydeck app "
-    "(uv run flydeck install-app), or use the USB cable."
+    "terminal, which has no Bluetooth permission. Open the Flydeck app instead (it can run "
+    "the demos of your folder too), or use the USB cable."
 )
 ACTIVE = ("starting", "connecting", "calibrating", "running", "attention", "stopping")
 

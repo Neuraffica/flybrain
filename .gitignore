@@ -25,3 +25,6 @@ data/
 
 # Session logs from demos
 runs/
+
+# Flydeck.app and .dmg (uv run flydeck build-app)
+dist/

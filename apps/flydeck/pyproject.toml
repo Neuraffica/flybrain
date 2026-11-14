@@ -7,6 +7,8 @@ dependencies = [
     "flybrain-demo-api",
     "flybrain-edge",
     "numpy",
+    # the Flydeck window (WKWebView); elsewhere Flydeck opens in the web browser
+    "pywebview>=6.2; sys_platform == 'darwin'",
 ]
 
 [project.scripts]

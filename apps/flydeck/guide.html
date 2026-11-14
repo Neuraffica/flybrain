@@ -138,19 +138,18 @@ dl.trouble dd { margin: 4px 0 0; color: var(--ink); }
 
 <section>
   <h2>Install</h2>
-  <p class="sub">Once, in Terminal, inside your flybrain folder. You need <a href="https://docs.astral.sh/uv/">uv</a>.</p>
+  <p class="sub">Once. Flydeck.app needs a Mac with Apple Silicon and nothing else: no Python, no uv, no copy of the code.</p>
   <ol class="steps">
-    <li><h3>Get the code ready</h3><pre><code>uv sync</code></pre></li>
-    <li><h3>Make the app</h3><pre><code>uv run flydeck install-app</code></pre>
-      <p>This creates <code>Flydeck.app</code> in the <code>Applications</code> folder of your home folder. It runs Flydeck from <em>this</em> folder, so if you move or rename the folder, run the command again (the app tells you if you forget).</p></li>
-    <li><h3>Open it</h3><p>Double-click <b>Flydeck</b> in Finder (Go › Home › Applications), or <code>open ~/Applications/Flydeck.app</code>. To keep it handy, right-click its Dock icon › Options › Keep in Dock.</p></li>
+    <li><h3>Download</h3><p>Get <code>Flydeck-&lt;version&gt;-macos-arm64.dmg</code> from the <a href="https://github.com/Neuraffica/flybrain/releases/latest">latest release</a>, open it and drag <b>Flydeck</b> to <b>Applications</b>.</p></li>
+    <li><h3>Open it the first time</h3><p>macOS refuses at first: the app is not notarized by Apple. Click <b>Done</b>, open System Settings › Privacy &amp; Security, click <b>Open Anyway</b> next to the line about Flydeck, and confirm. Or run <code>xattr -dr com.apple.quarantine /Applications/Flydeck.app</code> in Terminal. After that it opens like any app.</p></li>
+    <li><h3>Or build it yourself</h3><p>In a clone of the repository: <code>uv run flydeck build-app</code> writes <code>dist/Flydeck.app</code> and a <code>.dmg</code>; <code>uv run flydeck install-app</code> also puts the app in <code>~/Applications</code>.</p></li>
   </ol>
 </section>
 
 <section>
   <h2>First run</h2>
   <ol class="steps">
-    <li><h3>A browser tab opens</h3><p>Flydeck shows its page in your default browser, at an address like <code>http://127.0.0.1:8760</code>. The Flydeck icon stays in the Dock while it runs. (Why a tab and not its own window: see the end of this guide.)</p></li>
+    <li><h3>The Flydeck window opens</h3><p>Robot on the left, demo cards on the right. Guides and a demo's dashboard open in their own Flydeck windows; web links open in your browser.</p></li>
     <li><h3>Switch the robot on</h3><p>Long-press the battery button until the lights come on. Close the Petoi phone app: a robot connected to a phone does not show up in a scan.</p></li>
     <li><h3>Scan, and allow Bluetooth</h3><p>Press <b>Scan</b>. The first time, macOS asks <i>"Flydeck" would like to use Bluetooth</i>: click <b>Allow</b>. macOS remembers the answer. Your robot appears as something like <code>BittleC2_BLE</code> (the name can change between days).</p></li>
     <li><h3>Use, then Check</h3><p>Press <b>Use</b> next to it. Flydeck checks it straight away: model, firmware and battery voltage. Flydeck remembers this robot next time.</p></li>
@@ -165,29 +164,34 @@ dl.trouble dd { margin: 4px 0 0; color: var(--ink); }
     <tbody>
       <tr><td>Fly compass</td><td>the robot</td><td>mode is hold or sweep</td></tr>
       <tr><td>Fly escape</td><td>IR sensor on socket 39/36, 1 m clear behind, no direct daylight</td><td>mode is escape</td></tr>
+      <tr><td>Fly escape (on the robot)</td><td>the escape module in the robot's firmware (<code>firmware/bittle/fly_escape</code>)</td><td><i>Switch the module on</i> is ticked (the robot then moves by itself)</td></tr>
       <tr><td>Hello robot</td><td>the robot</td><td><i>Take a few steps</i> is ticked</td></tr>
     </tbody>
   </table></div>
   <p class="note" style="text-align:left">Every demo stands the robot up (that moves the legs a little) and lays it down at the end.</p>
   <div class="verdict"><p><b>The space check.</b> When your settings make the robot walk, Flydeck shows <i>The robot has space to move</i>. Tick it every time you start: clear the floor around and behind the robot first. In the simulator nothing real moves, so it is not asked.</p></div>
-  <p>While it runs you see its state (<i>connecting</i>, <i>calibrating</i>, <i>running</i>, or <i>needs attention</i> with the reason), its dashboard, and its output under <b>Output</b>. <b>Open in a new tab</b> gives the dashboard a whole window.</p>
+  <p>While it runs you see its state (<i>connecting</i>, <i>calibrating</i>, <i>running</i>, or <i>needs attention</i> with the reason), its dashboard, and its output under <b>Output</b>. <b>Open in its own window</b> gives the dashboard a whole window.</p>
   <p><b>Stop</b> asks the demo to stop: it halts any gait and lays the robot down, usually within a few seconds. If a demo does not finish within 20 seconds, Flydeck ends it by force and tells you that <b>the robot may still be standing</b>: switch it off with its battery button or lift it.</p>
-  <p><b>Quit Flydeck</b> (the button, Cmd-Q, or Quit on the Dock icon) stops a running demo the same way first.</p>
+  <p><b>Quit Flydeck</b> (the button, closing the window, Cmd-Q, or Quit on the Dock icon) stops a running demo the same way first. Even if Flydeck is force-quit, the demo is still stopped.</p>
 </section>
 
 <section>
   <h2>Add your own demo</h2>
-  <pre><code>uv run flydeck new-demo fly-groom
+  <pre><code>git clone https://github.com/Neuraffica/flybrain.git
+cd flybrain
+uv sync
+uv run flydeck new-demo fly-groom
 uv sync
 uv run fly-groom --mock --open</code></pre>
-  <p>This copies the <code>hello-robot</code> template to <code>demos/fly-groom</code> with the names filled in and adds it to the workspace. After <code>uv sync</code>, press <b>Reload list</b> in Flydeck (or reopen it) and your card is there. The 15-minute path, the rules, and the robot API are in <a href="../../docs/adding-a-demo.md"><code>docs/adding-a-demo.md</code></a>.</p>
+  <p>This copies the <code>hello-robot</code> template to <code>demos/fly-groom</code> with the names filled in and adds it to the workspace. Then, in Flydeck, press <b>Use my flybrain folder…</b> above the demo cards (or Demos › Use my flybrain folder… in the menu bar) and choose the <code>flybrain</code> folder. Flydeck now shows that folder's demos, yours included, and runs them with that folder's Python and Flydeck's Bluetooth permission. Flydeck remembers the folder; <b>Use the built-in demos</b> switches back. After another <code>uv sync</code>, press <b>Reload list</b>. If the folder has no <code>.venv</code> yet, Flydeck says so: run <code>uv sync</code> in it. The 15-minute path, the rules, and the robot API are in <a href="../../docs/adding-a-demo.md"><code>docs/adding-a-demo.md</code></a>.</p>
 </section>
 
 <section>
   <h2>From a terminal</h2>
-  <pre><code>uv run flydeck            # the same page, for USB and the simulator
+  <pre><code>uv run flydeck            # the same page: a window on a Mac, the browser elsewhere
+uv run flydeck --browser  # in the web browser
 uv run flydeck list       # which demos Flydeck sees, and any problems</code></pre>
-  <p>Started this way, macOS stops any program that touches Bluetooth, because Terminal has no Bluetooth permission. Flydeck says so on its page and explains a killed demo. Use the app for Bluetooth.</p>
+  <p>This is the way on Windows, Linux and Intel Macs. On macOS, started this way, macOS stops any program that touches Bluetooth, because Terminal has no Bluetooth permission. Flydeck says so on its page and explains a killed demo. Use the app for Bluetooth; it can show the demos of your folder.</p>
 </section>
 
 <section>
@@ -201,16 +205,18 @@ uv run flydeck list       # which demos Flydeck sees, and any problems</code></p
     <dd>The board runs on USB power but the servos have none: switch the battery on, or charge it.</dd>
     <dt>Fly escape: calibration failed, escapes refused</dt>
     <dd>Daylight blinds the infrared sensor (it reads about 50 to 170 instead of about 3200). Move the robot away from windows, keep hands away for the first 2 seconds, and press Recalibrate in its dashboard.</dd>
-    <dt>"Flydeck was installed from ... which has moved"</dt>
-    <dd>Open Terminal in the flybrain folder and run <code>uv sync &amp;&amp; uv run flydeck install-app</code>.</dd>
+    <dt>"Showing the built-in demos. ... is not there any more"</dt>
+    <dd>The flybrain folder you chose was moved or deleted. Press <b>Use my flybrain folder…</b> and choose it again.</dd>
+    <dt>"... has no Python environment yet" or "cannot run Flydeck"</dt>
+    <dd>Open Terminal in that folder and run <code>uv sync</code>, then choose the folder again.</dd>
     <dt>A card says "not installed: run uv sync"</dt>
     <dd>A new demo folder is there but not installed yet. Run <code>uv sync</code>, then Reload list.</dd>
     <dt>A card shows an error</dt>
     <dd>That demo's <code>flydeck.py</code> failed to load or is not valid; the card says why. The other demos still work.</dd>
     <dt>Something else</dt>
-    <dd>The app writes a log to <code>~/Library/Logs/Flydeck.log</code>. Each demo's output is under <b>Output</b>, and each run is saved in <code>runs/</code>.</dd>
-    <dt>Why a browser tab and not its own window?</dt>
-    <dd>Flydeck is a small web page served by Python on your Mac. A native window would need a second GUI toolkit inside the app, which is fragile; the tab is the same page and works in any browser. Closing the tab does not stop Flydeck: click the Dock icon to open it again, or use Quit.</dd>
+    <dd>The app writes a log to <code>~/Library/Logs/Flydeck.log</code>. Each demo's output is under <b>Output</b>. Runs are saved in <code>runs/</code>: for the built-in demos in <code>~/Library/Application Support/flybrain/runs</code>, for your folder's demos in that folder.</dd>
+    <dt>Can I use a browser instead?</dt>
+    <dd>The page is served on your Mac only, at an address like <code>http://127.0.0.1:8760</code>; while Flydeck runs you can open that address in a browser too. From a clone, <code>uv run flydeck --browser</code> opens it there directly.</dd>
   </dl>
 </section>
 
