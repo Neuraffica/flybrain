@@ -1,0 +1,78 @@
+apps/flydeck/src/flydeck/build_app.py
+  s_8da33b2ad5b96f::t_2ac02ca1298f9d 274-276,313
+  s_8da33b2ad5b96f::t_809a8664914032 48,203-204
+  s_8da33b2ad5b96f::t_c6e9589aebac01 1-47,49-202,205-273,277-312,314-437
+apps/flydeck/src/flydeck/app.py
+  s_8da33b2ad5b96f::t_c110a302f4e507 1-15,17-181,183-184,187-267,270-309,311-321,324-326,332-336,350-366,368-391
+  s_8da33b2ad5b96f::t_fd2cda70ff734c 310
+  s_8da33b2ad5b96f::t_150a55b9b8ef2b 185-186
+  s_8da33b2ad5b96f::t_63a244fae13b14 16,182,268-269,322-323,327-331
+  s_8da33b2ad5b96f::t_604831dea6d516 337-349,367
+apps/flydeck/tests/test_flydeck_build_app.py
+  s_8da33b2ad5b96f::t_668c28d54058c6 1-46,57-84,88-91
+  s_8da33b2ad5b96f::t_b2c86d4de364ba 47-56,85-87
+apps/flydeck/src/flydeck/hub.py
+  s_8da33b2ad5b96f::t_b08c9734804478 45-47,66,72,81,126,157
+docs/adding-a-demo.md
+  s_8da33b2ad5b96f::t_52bc06b87c97bb 5,27-32
+apps/flydeck/src/flydeck/registry.py
+  s_8da33b2ad5b96f::t_18e5ef662b42b6 147,152-154,170
+  s_8da33b2ad5b96f::t_3127817150bf37 77-78,86-87
+apps/flydeck/src/flydeck/cli.py
+  s_8da33b2ad5b96f::t_1b9e4a9aaaae11 3-4,7-8,22,25-30,40-73,80-83,123-124,127-133,136,179-180,182,185-186,193-199,205-206
+packages/flybrain-edge/NOTES.md
+  s_8da33b2ad5b96f::t_52bc06b87c97bb 340-342
+apps/flydeck/tests/test_flydeck_app.py
+  s_8da33b2ad5b96f::t_4b8f47d7e462a5 54
+  s_8da33b2ad5b96f::t_41413534d1f199 111
+  s_8da33b2ad5b96f::t_9562919907c812 200-260
+  s_8da33b2ad5b96f::t_3127817150bf37 169-171
+  s_8da33b2ad5b96f::t_82c6aab6e47cb1 1-22,25-53,55-110,112-168,172-199
+  s_8da33b2ad5b96f::t_56dd871effb905 23-24
+apps/flydeck/src/flydeck/settings.py
+  s_8da33b2ad5b96f::t_699077086b60e1 1-2
+  s_8da33b2ad5b96f::t_887634ae79c8b7 22-24,28-29,36-38
+apps/flydeck/guide.html
+  s_8da33b2ad5b96f::t_36a67157c54bb1 141,143-145,152,167,173,175,180-183,186,191-192,194,208-211,217-219
+apps/flydeck/src/flydeck/scaffold.py
+  s_8da33b2ad5b96f::t_80c83ba73fd160 125-126
+.gitignore
+  s_8da33b2ad5b96f::t_2a11e74e89cbb2 28-29
+  s_8da33b2ad5b96f::t_2ac02ca1298f9d 30
+README.md
+  s_8da33b2ad5b96f::t_cc9808b9691ccf 22,90
+  s_8da33b2ad5b96f::t_d9631476cc7cb6 13,15,17-21,23-35,38-39,41-42,45-58,84
+apps/flydeck/pyproject.toml
+  s_8da33b2ad5b96f::t_b2e56ef49e112f 10-11
+apps/flydeck/src/flydeck/runner.py
+  s_8da33b2ad5b96f::t_b08c9734804478 38-39
+demos/README.md
+  s_8da33b2ad5b96f::t_52bc06b87c97bb 10
+apps/flydeck/src/flydeck/static/index.html
+  s_8da33b2ad5b96f::t_39585bcfc0fd17 143-145,190,197,439,470,473-512,514-515
+  s_8da33b2ad5b96f::t_cf9fcc7c44a7c4 513
+  s_8da33b2ad5b96f::t_41785e1a935b73 516
+apps/flydeck/src/flydeck/sources.py
+  s_8da33b2ad5b96f::t_4428e7a8df8fd7 1-192,194-265
+  s_8da33b2ad5b96f::t_1b470f1c48024f 193
+apps/flydeck/src/flydeck/launcher.c
+  s_8da33b2ad5b96f::t_c91999193e876b 1-93
+uv.lock
+  s_8da33b2ad5b96f::t_217a08b3094f49 55-63,288,296,577-582,724-796,834-853
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "35085490cbb2f36c8a93efa7f97016648921e0f1",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
