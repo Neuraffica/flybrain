@@ -1,0 +1,114 @@
+Bittle simulator artwork — verification, 2026-11-15
+
+Technique and provenance
+Offline Blender/Cycles renders of Petoi's articulated Bittle geometry, with
+black/yellow materials and an original modeled double infrared sensor. Ten
+frames per view (stand, rest, eight gait phases), with an independent head
+layer for the compass pan command. WebP avoids a runtime 3D engine and model
+download. The app uses canvas; the website uses SVG image viewports.
+
+Source: PetoiCamp/ros_opencat, ros1 revision
+85962928970ee47f38d53cad56f8e304863a87f5,
+petoi_ROS_model_docs/bittle_ros/bittle_description.
+Package MIT licence: copyright 2018 Toshinori Kitamura.
+Repository MIT licence: copyright 2022 cc.
+Both notices, source URLs, modifications and reproduction commands are in
+static/bittle/NOTICE and the identical apps/web/public/bittle/NOTICE.
+Petoi product photos were used as visual references only; none are shipped.
+
+Sharing and size
+Flybrain owns scripts/bittle-art/{fetch.py,render.py,sync.py}. The sync command
+copies assets into the explicitly supplied Synaptix worktree and regenerates
+a SHA-256/byte manifest. All six asset files match between repositories and
+in the website production build. The common package totals 120,706 bytes;
+the three compressed images total 114,002 bytes. The website loads only the
+top/head images (60,584 bytes), after the existing lazy simulator opens.
+The side image is retained in both copies to keep the distribution identical.
+The guide embeds a compressed still and its licence so file:// and the
+bundled guide both work offline. No simulation/model parameters changed.
+
+Checks
+Flybrain: uv run ruff check .; uv run ruff format --check . both pass.
+uv run pytest demos apps/flydeck -q: 194 passed, one skipped on repeat.
+The first run, concurrent with rendering, missed one sample in the existing
+USB replay timing test (9 vs >=10). Its repeat passed. The skipped test is
+the opt-in slow app/DMG build. A separate `uv run flydeck build-app --no-dmg`
+succeeded, including the enhanced bundled asset smoke check. After the final
+asset-load callback fix, the HTTP/checksum test and app build passed again.
+
+Synaptix: npm run lint, npm run check:design, npm run typecheck, npm test,
+and npm run build -w apps/web pass. The normal pre-commit hook ran in full.
+Two default-worker attempts hit existing Flit timing tests. The successful
+commit used the supported VITEST_MAX_WORKERS=2 environment setting; no hook,
+assertion, test, or timeout was bypassed or changed.
+
+Visual inspection
+Headless Chromium: 390px and 1280px widths, light and dark, idle, approaches
+from left/head-on/right, and escape. Inspected app scene and side canvases,
+website SVG, compass at -45/0/+45 degrees, replay top view, and guide SVG.
+Compared shell, head, servos and leg geometry to Petoi's product reference.
+Enlarged the initial render in the scene/side view, aligned both beam roots
+to the IR apertures, added a subtle dark-scene silhouette highlight, and moved
+the website escape label below the feet. Stand/rest and articulated gait
+were inspected; rest was a renderer fixture because escape controls do not
+expose a rest command. Sensor beams, hand and band remain visible.
+
+The replay top view test used one recorded mock frame with its simulator
+field removed. Delaying image responses by 900ms exposed an initial-load
+blank canvas, fixed by a load event that schedules redraw. All four
+width/theme combinations then rendered correctly without another SSE frame.
+Reduced-motion check kept the added gait at the standing frame. With all
+non-local hosts blocked, the additional browser check recorded no external
+requests and no JavaScript errors. No robot artwork was requested before
+opening the website simulator.
+
+Limits
+The published generic Bittle shell represents the Bittle X exterior; internal
+X electronics and exact accessory dimensions are not verified against
+hardware. Gaits illustrate existing simulation phase/countdown, not measured
+servo angles. Compass head pan rotates the rendered head in its image plane.
+The desktop browser automation connection timed out, so UI inspection used
+headless Chromium. The native app was built/smoke-tested, but its WebKit
+window was not visually inspected. No hardware, Bluetooth, serial connection,
+flashing, push, merge or branch switch occurred. Port 5199 was occupied;
+the website worktree preview used 5209. The final commits remain local.
+
+Implementation commits
+Flybrain sim/photoreal-robot:
+  f273c89 Render simulator Bittle from licensed articulated model
+  b030712 Redraw single-frame views when robot artwork finishes loading
+Synaptix sim-photoreal-robot:
+  24f265c Use shared offline Bittle renders in escape simulator
+This verification record is committed separately in Flybrain.
+
+Changed files — Flybrain
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/.gitignore
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/apps/flydeck/src/flydeck/build_app.py
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/demos/fly-compass/src/fly_compass/static/index.html
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/demos/fly-escape/guide.html
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/demos/fly-escape/src/fly_escape/static/index.html
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/demos/fly-escape/tests/test_bittle_art.py
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/packages/flybrain-demo-api/src/flybrain_demo_api/static/bittle/NOTICE
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/packages/flybrain-demo-api/src/flybrain_demo_api/static/bittle/head.webp
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/packages/flybrain-demo-api/src/flybrain_demo_api/static/bittle/manifest.json
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/packages/flybrain-demo-api/src/flybrain_demo_api/static/bittle/robot.js
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/packages/flybrain-demo-api/src/flybrain_demo_api/static/bittle/side.webp
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/packages/flybrain-demo-api/src/flybrain_demo_api/static/bittle/top.webp
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/packages/flybrain-demo-api/src/flybrain_demo_api/web.py
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/scripts/bittle-art/fetch.py
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/scripts/bittle-art/render.py
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/scripts/bittle-art/sync.py
+/Users/tgorka/prj-neuraffica/flybrain/.claude/worktrees/sim-photoreal-robot/scripts/bittle-art/VERIFICATION.txt
+
+Changed files — Synaptix
+/Users/tgorka/prj-neuraffica/synaptix/.claude/worktrees/sim-photoreal-robot/.gitignore
+/Users/tgorka/prj-neuraffica/synaptix/.claude/worktrees/sim-photoreal-robot/_bmad-output/implementation-artifacts/sprint-status.yaml
+/Users/tgorka/prj-neuraffica/synaptix/.claude/worktrees/sim-photoreal-robot/_bmad-output/planning-artifacts/briefs/flydeck-bittle-art.md
+/Users/tgorka/prj-neuraffica/synaptix/.claude/worktrees/sim-photoreal-robot/apps/web/public/bittle/NOTICE
+/Users/tgorka/prj-neuraffica/synaptix/.claude/worktrees/sim-photoreal-robot/apps/web/public/bittle/head.webp
+/Users/tgorka/prj-neuraffica/synaptix/.claude/worktrees/sim-photoreal-robot/apps/web/public/bittle/manifest.json
+/Users/tgorka/prj-neuraffica/synaptix/.claude/worktrees/sim-photoreal-robot/apps/web/public/bittle/robot.js
+/Users/tgorka/prj-neuraffica/synaptix/.claude/worktrees/sim-photoreal-robot/apps/web/public/bittle/side.webp
+/Users/tgorka/prj-neuraffica/synaptix/.claude/worktrees/sim-photoreal-robot/apps/web/public/bittle/top.webp
+/Users/tgorka/prj-neuraffica/synaptix/.claude/worktrees/sim-photoreal-robot/apps/web/src/flydeck/EscapeSimDemo.tsx
+/Users/tgorka/prj-neuraffica/synaptix/.claude/worktrees/sim-photoreal-robot/scripts/bittle-art.test.mjs
