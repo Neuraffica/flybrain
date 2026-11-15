@@ -1,0 +1,50 @@
+packages/flybrain-demo-api/src/flybrain_demo_api/web.py
+  s_85a78541606d56::t_3d3ee5f3863f13 35-51,112-117
+  s_85a78541606d56::t_9f97342cdf0d1c 23
+demos/fly-escape/guide.html
+  s_85a78541606d56::t_5dab486627bcf5 114
+  s_85a78541606d56::t_675e54553893ee 119-206
+packages/flybrain-demo-api/src/flybrain_demo_api/static/bittle/robot.js
+  s_85a78541606d56::t_3d3ee5f3863f13 1-33,35-37
+  s_85a78541606d56::t_c2c9b86299f3a3 34
+demos/fly-compass/src/fly_compass/static/index.html
+  s_85a78541606d56::t_3d3ee5f3863f13 282,362-368
+packages/flybrain-demo-api/src/flybrain_demo_api/static/bittle/NOTICE
+  s_85a78541606d56::t_5dab486627bcf5 1-26,28-85
+  s_85a78541606d56::t_30e4fac2a70948 27
+scripts/bittle-art/fetch.py
+  s_85a78541606d56::t_5dab486627bcf5 1-32
+packages/flybrain-demo-api/src/flybrain_demo_api/static/bittle/manifest.json
+  s_85a78541606d56::t_5dab486627bcf5 1-2,5-22
+  s_85a78541606d56::t_1d827576900444 3-4
+scripts/bittle-art/sync.py
+  s_85a78541606d56::t_5dab486627bcf5 1-62
+demos/fly-escape/src/fly_escape/static/index.html
+  s_85a78541606d56::t_a8aae732b256bb 373-374,376,572-573,672
+  s_85a78541606d56::t_3d3ee5f3863f13 287,378,380,576,578-581,620-622,670-671,674
+  s_85a78541606d56::t_565b93eb517741 379,574,577,615,673
+.gitignore
+  s_85a78541606d56::t_79339e3995af18 31-33
+apps/flydeck/src/flydeck/build_app.py
+  s_85a78541606d56::t_d82870ffc66ed8 319-322
+demos/fly-escape/tests/test_bittle_art.py
+  s_85a78541606d56::t_c3ba47e4825908 1-29
+scripts/bittle-art/render.py
+  s_85a78541606d56::t_66888ff918abcb 1-209
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f273c8959357b4859cca280bdb2404c26a08377a",
+  "prompts": {},
+  "sessions": {
+    "s_85a78541606d56": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1e18e-008c-7e12-9b40-c841d9321eb7",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
