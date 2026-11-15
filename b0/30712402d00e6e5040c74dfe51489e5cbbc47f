@@ -1,0 +1,27 @@
+packages/flybrain-demo-api/src/flybrain_demo_api/static/bittle/manifest.json
+  s_85a78541606d56::t_e0793571ea2a7b 11-12
+demos/fly-escape/src/fly_escape/static/index.html
+  s_85a78541606d56::t_e0793571ea2a7b 798
+demos/fly-compass/src/fly_compass/static/index.html
+  s_85a78541606d56::t_e0793571ea2a7b 658
+packages/flybrain-demo-api/src/flybrain_demo_api/static/bittle/robot.js
+  s_85a78541606d56::t_e0793571ea2a7b 9
+scripts/bittle-art/sync.py
+  s_85a78541606d56::t_e0793571ea2a7b 52-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b030712402d00e6e5040c74dfe51489e5cbbc47f",
+  "prompts": {},
+  "sessions": {
+    "s_85a78541606d56": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1e18e-008c-7e12-9b40-c841d9321eb7",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
