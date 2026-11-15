@@ -154,3 +154,10 @@ answers.
 
 `uv run flydeck list` shows every demo Flydeck sees, and the error for any spec it cannot use.
 A broken demo shows its error on its card and does not affect the others.
+
+## Sharing your demo
+
+When your demo works, open a pull request that adds its folder under `demos/` to
+[Neuraffica/flybrain](https://github.com/Neuraffica/flybrain). The steps are in the README under
+"Share your demo". It is optional; if you do it during the hackathon, put the pull request number
+in the submission form.

@@ -44,6 +44,15 @@ uv sync                             # installs it
 
 Then, in Flydeck, press **Use my flybrain folder…** above the demo cards and choose the `flybrain` folder. Your demo appears as a card next to the others and runs with your folder's Python, with Flydeck's Bluetooth permission. After `uv sync` press **Reload list**; **Use the built-in demos** switches back. The rules and the robot API are in [docs/adding-a-demo.md](docs/adding-a-demo.md).
 
+### Share your demo
+
+Send your demo back as a pull request, so the next team can start from it. This is optional.
+
+1. Fork this repository on GitHub and push your branch to the fork.
+2. Open a pull request against `main`. Keep it to your own folder under `demos/` (and the one line `uv sync` adds to `uv.lock` for it).
+3. In the description, say which device it runs on, what the fly wiring does in your model, and your numbers against the baseline.
+4. Put the pull request number in the hackathon submission form.
+
 ## No Mac, or an Intel Mac
 
 There is no download for Windows, Linux or Intel Macs. Clone the repository and run Flydeck from the folder:
