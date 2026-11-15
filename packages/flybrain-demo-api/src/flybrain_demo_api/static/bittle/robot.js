@@ -6,6 +6,7 @@
   const image = (name) => {
     if (!images.has(name)) {
       const img = new Image();
+      img.addEventListener('load', () => window.dispatchEvent(new Event('bittle-art-ready')));
       img.src = new URL(name + '.webp', base).href;
       images.set(name, img);
     }

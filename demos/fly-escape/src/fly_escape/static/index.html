@@ -795,6 +795,7 @@ function loop() {
   requestAnimationFrame(loop);
 }
 window.addEventListener("resize", () => { dirty = true; });
+window.addEventListener("bittle-art-ready", () => { dirty = true; });
 
 const BENCH_KEYS = KEYS;
 // ---- offline benchmark: generic renderer for whatever sections the JSON has -------------

@@ -655,6 +655,7 @@ function loop() {
   requestAnimationFrame(loop);
 }
 window.addEventListener("resize", () => { dirty = true; });
+window.addEventListener("bittle-art-ready", () => { dirty = true; });
 
 // ---- offline benchmark: generic renderer for whatever sections the JSON has -------------
 const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);

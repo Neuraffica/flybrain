@@ -49,12 +49,11 @@ def main():
             r'<rect x="262" y="110"[^>]+/>\s*<rect x="248" y="138"[^>]+/>', replacement, text
         )
     # The guide can be redistributed alone, so keep the MIT notices with its still.
-    if "<!-- BITTLE ART NOTICE" not in text:
-        text = text.replace(
-            "</svg>",
-            "<!-- BITTLE ART NOTICE\n" + (ASSETS / "NOTICE").read_text() + "\n-->\n  </svg>",
-            1,
-        )
+    comment = "<!-- BITTLE ART NOTICE\n" + (ASSETS / "NOTICE").read_text() + "\n-->"
+    if "<!-- BITTLE ART NOTICE" in text:
+        text = re.sub(r"<!-- BITTLE ART NOTICE.*?-->", lambda _: comment, text, flags=re.DOTALL)
+    else:
+        text = text.replace("</svg>", comment + "\n  </svg>", 1)
     guide.write_text(text)
 
 
