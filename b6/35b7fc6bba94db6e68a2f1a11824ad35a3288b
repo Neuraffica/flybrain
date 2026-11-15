@@ -1,0 +1,19 @@
+scripts/bittle-art/VERIFICATION.txt
+  s_85a78541606d56::t_5e0b981d4431cc 1-114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b635b7fc6bba94db6e68a2f1a11824ad35a3288b",
+  "prompts": {},
+  "sessions": {
+    "s_85a78541606d56": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1e18e-008c-7e12-9b40-c841d9321eb7",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
