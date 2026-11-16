@@ -25,17 +25,25 @@ def test_icon_is_a_valid_icns_with_all_sizes():
     assert {"icp4", "ic07", "ic10"} <= set(types)
 
 
-def test_icon_is_the_teal_tile_with_a_fly_on_a_card():
+def test_icon_is_the_teal_tile_with_the_cover_fly_on_a_card():
     img = icon.render(128)
     assert img[2, 2, 3] == 0  # outside the macOS tile: transparent
     corner = img[20, 64, :3] * 255  # top of the tile: the Living Signal primary (#0e6f66)
     assert abs(corner - (14, 111, 102)).max() < 12
-    card = img[100, 46, :3] * 255  # the front card: paper (#faf7f1)
+    card = img[100, 46, :3] * 255  # the front card, clear of the fly: paper (#faf7f1)
     assert abs(card - (250, 247, 241)).max() < 6
-    body = img[77, 73, :3] * 255  # the fly's abdomen, on the card's centre line: ink (#1c2a30)
-    assert abs(body - (28, 42, 48)).max() < 12
-    eyes = [img[50, 72 + side * 5, :3] * 255 for side in (-1, 1)]  # two red eyes (#a3302a)
-    assert all(e[0] > 120 and e[0] > e[1] * 2 for e in eyes)
+    # the fly of the event cover sits on the card: orange-brown body, red eyes
+    on_card = img[40:108, 38:106, :3] * 255
+    r, g, b = on_card[..., 0], on_card[..., 1], on_card[..., 2]
+    assert ((r > 150) & (g > 80) & (g < 170) & (b < 110)).mean() > 0.03  # body
+    assert ((r > 150) & (g < 80) & (b < 80)).sum() >= 6  # eyes
+
+
+def test_icon_fly_cutout_is_read_without_an_image_library():
+    fly = icon.read_png(icon.FLY_PNG.read_bytes())
+    assert fly.shape[2] == 4 and fly.shape[1] > 300
+    assert fly[0, 0, 3] == 0 and fly[..., 3].max() == 1  # clear corner, solid body
+    assert icon.read_png(icon.png_bytes(fly)).shape == fly.shape
 
 
 def test_guides_and_pages_use_the_shared_look():

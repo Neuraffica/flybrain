@@ -1,6 +1,7 @@
-"""The Flydeck icon, drawn in code: a fly, seen from above, on the top paper card of a deck, on
-a bio-teal tile, in the Living Signal palette. The favicon
-(flybrain_demo_api/assets/flydeck.svg) is the same drawing on the same 64-unit grid.
+"""The Flydeck icon: the fly of the hackathon's cover on the top paper card of a deck, on a
+bio-teal tile, in the Living Signal palette. The tile and cards are drawn in code; the fly is
+``icon_fly.png``, cut out of the cover by scripts/flydeck-icon/cut_fly.py, which also writes
+the favicon (flybrain_demo_api/assets/flydeck.svg) with the same layout on the same 64-unit grid.
 
 ``icns_bytes()`` returns a macOS .icns with PNG images from 16 to 1024 px.
 """
@@ -9,6 +10,7 @@ from __future__ import annotations
 
 import struct
 import zlib
+from pathlib import Path
 
 import numpy as np
 
@@ -45,25 +47,11 @@ def _round_rect(x, y, cx, cy, hw, hh, r):
     return out + np.minimum(np.maximum(qx, qy), 0) - r
 
 
-def _ellipse(x, y, cx, cy, rx, ry, angle_deg=0.0):
-    a = np.deg2rad(angle_deg)
-    dx, dy = x - cx, y - cy
-    u = dx * np.cos(a) + dy * np.sin(a)
-    v = -dx * np.sin(a) + dy * np.cos(a)
-    k = np.hypot(u / rx, v / ry)
-    return (k - 1.0) * min(rx, ry)  # approximate distance, good enough for an icon
-
-
-# Living Signal (DESIGN.md): primary, primary-strong, paper, ink, and the fly's wing and eye
-PRIMARY, PRIMARY_STRONG, PAPER, INK = "#0e6f66", "#0a5750", "#faf7f1", "#1c2a30"
-WING, EYE = "#d6e8f0", "#a3302a"  # pip-wing, pip-eye
-# The fly on the 64-unit grid of flydeck.svg: (cx, cy, rx, ry, rotation in degrees). Wings and
-# legs are listed for the right side; the left side mirrors them about x = FLY_X.
-FLY_X = 36.5
-FLY_WING = (8.6, 2.8, 6.4, 13.6, -28.0)  # dx from FLY_X, dy from the front card's centre
-FLY_LEGS = ((6.4, -4.7, 5.7, 0.7, -35.0), (8.7, 0.0, 5.7, 0.7, 0.0), (6.4, 4.7, 5.7, 0.7, 35.0))
-FLY_BODY = ((0, 3.8, 4.3, 9.7), (0, -6.0, 4.6, 4.4), (0, -11.6, 3.5, 3.0))  # abdomen, thorax, head
-FLY_EYE = (2.8, -12.5, 1.9, 2.2)
+# Living Signal (DESIGN.md): primary, primary-strong, paper
+PRIMARY, PRIMARY_STRONG, PAPER = "#0e6f66", "#0a5750", "#faf7f1"
+# the fly on the 64-unit grid of flydeck.svg: its centre and its width (its height follows)
+FLY_CENTRE, FLY_WIDTH = (36.5, 36.7), 39.0
+FLY_PNG = Path(__file__).with_name("icon_fly.png")
 BACK_CARD = (29, 29, 21, 10, -9.0)  # centre x, y, half side, corner radius, rotation (deg)
 FRONT_CARD = (36.5, 36.5, 21.5, 10, 0.0)
 
@@ -105,24 +93,23 @@ def render(size: int = SIZE) -> np.ndarray:
             paint(_cover(_round_rect(u, v, cx + 6, cy + 14, half, half, r), 28), shadow, 0.30)
         paint(_cover(_round_rect(u, v, cx, cy, half, half, r), aa) * tile, paper, opacity)
 
-    # the fly, seen from above, on the front card
-    fx, fy = g(FLY_X), g(FRONT_CARD[1])
-    ink = _hex(INK)
-
-    def part(dx, dy, rx, ry, ang=0.0, side=1):
-        return _ellipse(x, y, fx + side * dx * k, fy + dy * k, rx * k, ry * k, side * ang)
-
-    for side in (-1, 1):
-        wing = part(*FLY_WING, side=side)
-        paint(_cover(wing, aa), _hex(WING), 0.9)
-        paint(_cover(np.abs(wing) - 0.22 * k, aa), ink, 0.55)
-    for side in (-1, 1):
-        for leg in FLY_LEGS:
-            paint(_cover(part(*leg, side=side), aa), ink)
-    for body in FLY_BODY:
-        paint(_cover(part(*body), aa), ink)
-    for side in (-1, 1):
-        paint(_cover(part(*FLY_EYE, side=side), aa), _hex(EYE))
+    # the fly, on the front card: the cut-out, resampled (bilinear) to its place
+    fly = read_png(FLY_PNG.read_bytes())
+    fh, fw = fly.shape[:2]
+    scale = FLY_WIDTH * k / fw  # 1024-unit pixels per fly pixel
+    u = (x - (g(FLY_CENTRE[0]) - fw * scale / 2)) / scale - 0.5
+    v = (y - (g(FLY_CENTRE[1]) - fh * scale / 2)) / scale - 0.5
+    inside = (u > -0.5) & (u < fw - 0.5) & (v > -0.5) & (v < fh - 0.5)
+    u0 = np.clip(np.floor(u).astype(int), 0, fw - 2)
+    v0 = np.clip(np.floor(v).astype(int), 0, fh - 2)
+    du = np.clip(u - u0, 0, 1)[..., None]
+    dv = np.clip(v - v0, 0, 1)[..., None]
+    pm = fly.copy()
+    pm[..., :3] *= pm[..., 3:4]  # premultiplied, so transparent pixels do not bleed colour
+    top = pm[v0, u0] * (1 - du) + pm[v0, u0 + 1] * du
+    bottom = pm[v0 + 1, u0] * (1 - du) + pm[v0 + 1, u0 + 1] * du
+    sample = (top * (1 - dv) + bottom * dv) * inside[..., None]
+    rgb = rgb * (1 - sample[..., 3:4]) + sample[..., :3]
 
     img = np.concatenate([rgb, alpha[..., None]], axis=-1)
     return np.clip(img, 0, 1)
@@ -161,6 +148,25 @@ def png_bytes(img: np.ndarray) -> bytes:
         + chunk(b"IDAT", zlib.compress(raw, 9))
         + chunk(b"IEND", b"")
     )
+
+
+def read_png(data: bytes) -> np.ndarray:
+    """An RGBA float image from a PNG whose rows are stored unfiltered, as ``png_bytes`` writes."""
+    pos, idat, w, h = 8, b"", 0, 0
+    while pos < len(data):
+        (n,), tag = struct.unpack(">I", data[pos : pos + 4]), data[pos + 4 : pos + 8]
+        body = data[pos + 8 : pos + 8 + n]
+        if tag == b"IHDR":
+            w, h, depth, colour = struct.unpack(">IIBB", body[:10])
+            if (depth, colour) != (8, 6):
+                raise ValueError("expected an 8-bit RGBA PNG")
+        elif tag == b"IDAT":
+            idat += body
+        pos += n + 12
+    rows = np.frombuffer(zlib.decompress(idat), np.uint8).reshape(h, 1 + w * 4)
+    if rows[:, 0].any():
+        raise ValueError("expected unfiltered PNG rows")
+    return rows[:, 1:].reshape(h, w, 4).astype(float) / 255
 
 
 def icns_bytes() -> bytes:
