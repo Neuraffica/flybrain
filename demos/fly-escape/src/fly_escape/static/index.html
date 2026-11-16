@@ -280,6 +280,7 @@ footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--i
   as a hand comes close, only over a narrow band of distances. All five models get the same two numbers at every reading; only the
   driver moves the robot. While the robot backs away the sensor is not read (a read would stop the walk), so the trace has a gap.
 </footer>
+<script src="/bittle/robot.js"></script>
 <script>
 "use strict";
 const KEYS = ["connectome", "rewired", "random", "prox", "looming"];
@@ -367,14 +368,14 @@ function drawTop() {
   // sensing wedges
   for (const [sgn, p] of [[1, pl], [-1, pr]]) {
     g.fillStyle = css["--s1"]; g.globalAlpha = 0.08 + 0.7 * p;
-    g.beginPath(); g.moveTo(G.cx, G.nose);
+    const sensorX = G.cx - sgn * 2.31 * G.scale;
+    g.beginPath(); g.moveTo(sensorX, G.nose);
     const r = 24 * G.scale, a0 = -Math.PI / 2 - sgn * 0.05, a1 = -Math.PI / 2 - sgn * 0.6;
-    g.arc(G.cx, G.nose, r, Math.min(a0, a1), Math.max(a0, a1)); g.closePath(); g.fill(); g.globalAlpha = 1;
+    g.arc(sensorX, G.nose, r, Math.min(a0, a1), Math.max(a0, a1)); g.closePath(); g.fill(); g.globalAlpha = 1;
   }
-  // body
-  const bw = 15 * G.scale, bl = 32 * G.scale;
-  g.fillStyle = css["--ink"]; g.beginPath(); g.roundRect ? g.roundRect(G.cx - bw / 2, G.nose + 3 * G.scale, bw, bl, 6) : g.rect(G.cx - bw / 2, G.nose + 3 * G.scale, bw, bl); g.fill();
-  g.beginPath(); g.arc(G.cx, G.nose + 2 * G.scale, 5 * G.scale, 0, 2 * Math.PI); g.fill();
+  g.save(); g.translate(G.cx, G.nose);
+  BittleArt.top(g, G.scale * 1.4);
+  g.restore();
   g.fillStyle = css["--ink-2"]; g.font = "12px system-ui, sans-serif"; g.textAlign = "center";
   g.fillText("left", G.cx - 30 * G.scale, G.nose - 4); g.fillText("right", G.cx + 30 * G.scale, G.nose - 4);
   if (frame && frame.hand) {
@@ -565,49 +566,17 @@ function simState(nowMs) {
 }
 const isDark = () => document.documentElement.dataset.theme === "dark" || (matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light");
 const SKIN = () => isDark() ? "#c99572" : "#e9b892";
-const YELLOW = "#f2c12e", BLACK = "#1b1b1a";
-
 function drawBittleTop(g, sc, pose, phase, lit) {
-  // origin = nose (front of the sensor), +y = backwards (down the screen), units cm
-  const swing = pose === "back" || pose === "walk" || pose === "turn" ? 2.2 : 0;
-  const tuck = pose === "rest";
-  g.save(); g.scale(sc, sc);
-  g.lineJoin = "round"; g.lineCap = "round";
-  // the robot is black and yellow; on a dark page its black parts get a light outline
-  const OUT = isDark() ? css["--ink-3"] : BLACK;
-  const blk = () => { g.fillStyle = BLACK; g.fill(); g.strokeStyle = OUT; g.lineWidth = 0.35; g.stroke(); };
-  // legs (under the body): front pair at y=9, back pair at y=22
-  const legs = [[-6.2, 9, 0], [6.2, 9, 0.5], [-6.2, 22, 0.5], [6.2, 22, 0]];
-  for (const [x, y, off] of legs) {
-    const s = swing * Math.sin(2 * Math.PI * (phase + off));
-    const lw = tuck ? 2.2 : 2.6, ll = tuck ? 3.5 : 7.5, dx = x < 0 ? -1 : 1;
-    g.beginPath(); g.roundRect(x + (dx < 0 ? -lw - 1.2 : 1.2) * 1, y - ll / 2 + s, lw, ll, 1.1); blk();
-    g.beginPath(); g.arc(x + dx * (1.2 + lw / 2), y + s + ll / 2, 1.3, 0, 2 * Math.PI); blk();  // paw
-  }
-  // body
-  g.fillStyle = YELLOW; g.strokeStyle = OUT; g.lineWidth = 0.7;
-  g.beginPath(); g.roundRect(-5.6, 5.5, 11.2, 20.5, 2.6); g.fill(); g.stroke();
-  g.beginPath(); g.roundRect(-2.6, 8.5, 5.2, 14, 1.4); g.fillStyle = BLACK; g.fill();  // battery / spine
-  g.fillStyle = YELLOW; for (let i = 0; i < 3; i++) { g.beginPath(); g.roundRect(-1.6, 10 + i * 4.2, 3.2, 2.4, 0.6); g.fill(); }
-  // tail stub
-  g.beginPath(); g.roundRect(-0.9, 25.6, 1.8, 2.4, 0.8); blk();
-  // head
-  g.fillStyle = YELLOW; g.strokeStyle = OUT; g.lineWidth = 0.7;
-  g.beginPath(); g.roundRect(-4.4, 0.6, 8.8, 6.6, 2.2); g.fill(); g.stroke();
-  g.beginPath(); g.roundRect(-3.4, 0.2, 6.8, 1.6, 0.8); blk();  // face plate
-  // arm: from the back of the head forward, ending in the claw
-  g.beginPath(); g.roundRect(-1.1, -3.2, 2.2, 9.5, 1.1); blk();
-  g.strokeStyle = isDark() ? css["--ink-2"] : BLACK; g.lineWidth = 0.9;
-  g.beginPath(); g.moveTo(-1.0, -3.0); g.quadraticCurveTo(-2.2, -5.2, -0.6, -6.2); g.stroke();
-  g.beginPath(); g.moveTo(1.0, -3.0); g.quadraticCurveTo(2.2, -5.2, 0.6, -6.2); g.stroke();
-  // the bone-shaped proximity sensor across the head
-  g.fillStyle = "#e9e8e4"; g.strokeStyle = BLACK; g.lineWidth = 0.45;  // the sensor is white
-  g.beginPath(); g.roundRect(-3.2, 2.1, 6.4, 1.3, 0.6); g.fill(); g.stroke();
-  for (const [x, p] of [[-3.3, lit[0]], [3.3, lit[1]]]) {
-    g.fillStyle = "#e9e8e4"; g.beginPath(); g.arc(x, 2.75, 1.25, 0, 2 * Math.PI); g.fill(); g.stroke();
-    g.fillStyle = css["--s1"]; g.globalAlpha = 0.25 + 0.75 * p; g.beginPath(); g.arc(x, 2.75, 0.6, 0, 2 * Math.PI); g.fill(); g.globalAlpha = 1;
-  }
+  g.save();
+  if (isDark()) { g.shadowColor = css["--ink-3"]; g.shadowBlur = 1.5; }
+  BittleArt.top(g, sc * 1.4, pose, phase);
   g.restore();
+  // Channel intensity remains an overlay on the two physical IR apertures.
+  for (const [x, p] of [[-2.31, lit[0]], [2.31, lit[1]]]) {
+    g.fillStyle = css["--s1"]; g.globalAlpha = 0.25 + 0.75 * p;
+    g.beginPath(); g.arc(x * sc, 0, 0.5 * sc, 0, 2 * Math.PI); g.fill();
+  }
+  g.globalAlpha = 1;
 }
 
 function drawHandTop(g, x, y, sc, ang) {
@@ -641,14 +610,14 @@ function drawScene() {
   // beams: one per channel, from each end of the bone, angled out; band shaded
   const p = frame ? frame.prox : [0, 0];
   for (const [i, sx] of [[0, -1], [1, 1]]) {
-    const bx = ox + sx * 3.3 * sc, by = oy + 2.75 * sc, a0 = sx * 0.17, half = 0.2;
+    const bx = ox + sx * 2.31 * sc, by = oy, a0 = sx * 0.17, half = 0.2;
     const ray = (r, a) => [bx + Math.sin(a) * r * sc, by - Math.cos(a) * r * sc];
     const wedge = (r0, r1) => { g.beginPath(); const [x0, y0] = ray(r0, a0 - half); g.moveTo(x0, y0);
       for (let k = 0; k <= 12; k++) { const [x, y] = ray(r1, a0 - half + 2 * half * k / 12); g.lineTo(x, y); }
       for (let k = 12; k >= 0; k--) { const [x, y] = ray(r0, a0 - half + 2 * half * k / 12); g.lineTo(x, y); } g.closePath(); };
-    g.fillStyle = css["--accent-bg"]; wedge(near, far + 2.75); g.fill();                     // graded band
-    g.fillStyle = css["--s1"]; g.globalAlpha = 0.06 + 0.6 * p[i]; wedge(0.8, far + 2.75); g.fill(); g.globalAlpha = 1;
-    g.strokeStyle = css["--line-2"]; g.lineWidth = 1; wedge(0.8, far + 2.75); g.stroke();
+    g.fillStyle = css["--accent-bg"]; wedge(near, far); g.fill();                     // graded band
+    g.fillStyle = css["--s1"]; g.globalAlpha = 0.06 + 0.6 * p[i]; wedge(0.8, far); g.fill(); g.globalAlpha = 1;
+    g.strokeStyle = css["--line-2"]; g.lineWidth = 1; wedge(0.8, far); g.stroke();
     g.fillStyle = css["--ink-2"]; g.font = "12px system-ui, sans-serif"; g.textAlign = "center";
     const [lx, ly] = ray(far + 6, a0); g.fillText(sx < 0 ? "left" : "right", lx, ly);
   }
@@ -696,21 +665,11 @@ function drawSide() {
   g.strokeStyle = css["--line-2"]; g.lineWidth = 1; g.beginPath(); g.moveTo(0, ground); g.lineTo(w, ground); g.stroke();
   g.fillStyle = css["--ink-3"]; for (let k = -200; k <= 200; k += 10) { const x = w * 0.62 + (k - camX) * sc; g.fillRect(x, ground, 1, 4); }
   const startX = w * 0.62 + (0 - camX) * sc; g.fillStyle = css["--ink-3"]; g.fillRect(startX - 1, ground - 4, 2, 10);
-  const pose = st.dog.pose, swing = pose === "back" || pose === "walk" ? 2.4 : 0, rest = pose === "rest";
-  const bodyY = ground - (rest ? 6 : 12) * sc;
-  // legs
-  for (const [lx, off] of [[-6, 0], [-18, 0.5]]) {
-    const s = swing * Math.sin(2 * Math.PI * (st.dog.phase + off));
-    g.strokeStyle = isDark() ? "#55554f" : BLACK; g.lineWidth = 2.4 * sc * 0.45; g.lineCap = "round";
-    const hx = noseX + lx * sc, kx = hx + s * sc, fy = ground - 0.5 * sc;
-    g.beginPath(); g.moveTo(hx, bodyY + 2 * sc); g.lineTo(kx + (rest ? 4 : 1.5) * sc, (bodyY + fy) / 2 + 1 * sc); g.lineTo(kx, fy); g.stroke();
-  }
-  g.fillStyle = YELLOW; g.strokeStyle = isDark() ? css["--ink-3"] : BLACK; g.lineWidth = 1;
-  g.beginPath(); g.roundRect(noseX - 26 * sc, bodyY - 3 * sc, 20.5 * sc, 6 * sc, 2 * sc); g.fill(); g.stroke();
-  g.beginPath(); g.roundRect(noseX - 7 * sc, bodyY - 7.5 * sc, 7 * sc, 6.5 * sc, 2 * sc); g.fill(); g.stroke();  // head
-  g.fillStyle = isDark() ? "#55554f" : BLACK; g.fillRect(noseX - 6 * sc, bodyY - 9 * sc, 5 * sc, 1.6 * sc);  // sensor on top
-  g.beginPath(); g.roundRect(noseX - 5 * sc, bodyY - 12.5 * sc, 1.8 * sc, 4 * sc, 0.8 * sc); g.fill();  // arm
-  g.beginPath(); g.roundRect(noseX - 5 * sc, bodyY - 12.8 * sc, 8 * sc, 1.6 * sc, 0.8 * sc); g.fill();
+  const bodyY = ground - (st.dog.pose === "rest" ? 6 : 12) * sc;
+  g.save(); g.translate(noseX, ground);
+  if (isDark()) { g.shadowColor = css["--ink-2"]; g.shadowBlur = 1.5; }
+  BittleArt.side(g, sc * 1.6, st.dog.pose, st.dog.phase);
+  g.restore();
   // hand at its distance in front
   const hx = noseX + Math.min(st.hand.distance, 80) * sc;
   if (hx < w - 4) { g.fillStyle = SKIN(); g.strokeStyle = css["--ink"]; g.beginPath(); g.roundRect(hx, bodyY - 11 * sc, 3 * sc, 9 * sc, 1.4 * sc); g.fill(); g.stroke(); }
@@ -834,6 +793,7 @@ function loop() {
   requestAnimationFrame(loop);
 }
 window.addEventListener("resize", () => { dirty = true; });
+window.addEventListener("bittle-art-ready", () => { dirty = true; });
 
 const BENCH_KEYS = KEYS;
 // ---- offline benchmark: generic renderer for whatever sections the JSON has -------------

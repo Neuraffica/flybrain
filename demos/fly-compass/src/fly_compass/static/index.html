@@ -270,6 +270,7 @@ footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--i
   Angular velocity is derived from the same yaw (the OpenCat firmware prints no raw gyro rate) and goes to
   all three models on every tick. Blindfolded, the models get angular velocity only.
 </footer>
+<script src="/bittle/robot.js"></script>
 <script>
 "use strict";
 const KEYS = ["connectome", "rewired", "gyro"];
@@ -350,11 +351,13 @@ function drawDial() {
     g.fillStyle = css[VAR[k]]; g.beginPath(); g.arc(x, y, 6, 0, 2 * Math.PI); g.fill();
     g.strokeStyle = css["--surface"]; g.lineWidth = 2; g.stroke();
   }
-  // the dog (truth): body arrow
-  const [bx, by] = pt(cx, cy, R * 0.62, frame.truth);
-  const [lx, ly] = pt(cx, cy, R * 0.18, frame.truth + 150), [rx, ry] = pt(cx, cy, R * 0.18, frame.truth - 150);
-  g.fillStyle = css["--ink"]; g.beginPath(); g.moveTo(bx, by); g.lineTo(lx, ly); g.lineTo(cx, cy); g.lineTo(rx, ry); g.closePath(); g.fill();
-  g.fillStyle = css["--surface"]; g.beginPath(); g.arc(cx, cy, 5, 0, 2 * Math.PI); g.fill();
+  // The measured body heading and commanded neck pan are independent.
+  g.save(); g.translate(cx, cy); g.rotate(-frame.truth * Math.PI / 180);
+  const dogScale = R / 27;
+  g.translate(0, -8 * dogScale);
+  BittleArt.top(g, dogScale, "stand", 0, frame.needle.cmd * (frame.pan_sign || 1));
+  g.restore();
+
 }
 
 function drawRing(key) {
@@ -644,6 +647,7 @@ function loop() {
   requestAnimationFrame(loop);
 }
 window.addEventListener("resize", () => { dirty = true; });
+window.addEventListener("bittle-art-ready", () => { dirty = true; });
 
 // ---- offline benchmark: generic renderer for whatever sections the JSON has -------------
 const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);

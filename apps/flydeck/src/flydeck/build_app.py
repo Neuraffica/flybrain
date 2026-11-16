@@ -317,7 +317,10 @@ def smoke_test(app: Path) -> None:
     check = (
         "import bleak, serial, numpy, webview, flydeck.app, flydeck.robotcheck;"
         "import fly_compass.cli, fly_escape.cli, fly_escape_onboard.cli, hello_robot.cli;"
-        "from flybrain_demo_api import assets; assert not assets.missing(), assets.missing()"
+        "from flybrain_demo_api import assets; assert not assets.missing(), assets.missing();"
+        "from flybrain_demo_api.web import bittle_asset;"
+        "assert all(bittle_asset('/bittle/' + name) for name in "
+        "('robot.js', 'top.webp', 'head.webp', 'side.webp', 'NOTICE', 'manifest.json'))"
     )
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     r = subprocess.run(

@@ -1,0 +1,85 @@
+Bittle simulator artwork, revision 1
+
+Source geometry: PetoiCamp/ros_opencat, ros1 commit
+85962928970ee47f38d53cad56f8e304863a87f5, directory
+petoi_ROS_model_docs/bittle_ros/bittle_description (meshes and URDF).
+https://github.com/PetoiCamp/ros_opencat/tree/85962928970ee47f38d53cad56f8e304863a87f5/petoi_ROS_model_docs/bittle_ros/bittle_description
+The package and repository each contain an MIT LICENSE (both reproduced below).
+
+Changes: offline Blender/Cycles lighting, black/yellow materials, original
+modeled double infrared board and lenses, standing/folded poses, and eight
+illustrative gait frames. Accessory, rendering code and derived images are
+provided under MIT with these source notices. Copyright (c) 2026 Neuraffica.
+The generic Bittle mesh is used as the Bittle X exterior; internal electronics
+are not represented. Joint poses illustrate simulator state, not measured
+servo angles. No product photography, textures or HDRIs are redistributed.
+Petoi and Bittle names/marks belong to their respective owners; no endorsement.
+
+Visual reference only (not included in shipped assets):
+https://www.petoi.com/products/petoi-robot-dog-bittle-x-voice-controlled
+https://www.petoi.com/pages/bittle-smart-robot-dog-model-overview
+
+Reproduction in the flybrain worktree:
+  uv venv work/render-env --python 3.11
+  uv pip install --python work/render-env/bin/python bpy==5.0.1 pillow==13.0.0
+  python3 scripts/bittle-art/fetch.py
+  work/render-env/bin/python scripts/bittle-art/render.py
+  work/render-env/bin/python scripts/bittle-art/sync.py /absolute/path/to/synaptix-worktree
+
+top.webp and side.webp are ten horizontal 384px tiles: stand, rest, then eight
+phases. head.webp is a separate 384px layer with the neck pivot at (192,134.94).
+Orthographic width is 32cm; +X on the model is forward. Top sensor origin is
+(192,85.8). Side sensor x is 298.2; floor y is 360. Rendering parameters are
+in scripts/bittle-art/render.py. The web simulator needs top/head only; side
+is shipped there too to keep the artwork distribution identical.
+
+flybrain is the artwork source of truth. sync.py regenerates manifest.json
+(SHA-256 and bytes), copies all asset files into apps/web/public/bittle, and
+updates the guide's embedded still. Commit both copies together after edits.
+Assets load from the local demo server/site only when their view is drawn.
+
+Package licence:
+MIT License
+
+Copyright (c) 2018 Toshinori Kitamura
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Repository licence:
+MIT License
+
+Copyright (c) 2022 cc
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

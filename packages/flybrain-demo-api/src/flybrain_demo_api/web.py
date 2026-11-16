@@ -21,6 +21,7 @@ import threading
 from collections.abc import Callable
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib import resources
 from typing import Any
 
 from . import assets
@@ -43,6 +44,23 @@ pre { margin: 0; background: var(--surface); border: 1px solid var(--outline-var
 <script>new EventSource('/api/stream').onmessage=e=>
 f.textContent=JSON.stringify(JSON.parse(e.data),null,2)</script>
 </body></html>"""
+
+
+def bittle_asset(path: str) -> tuple[bytes, str] | None:
+    """Serve only named, packaged artwork; no filesystem paths from HTTP input."""
+    name = path.removeprefix("/bittle/")
+    types = {
+        "robot.js": "text/javascript; charset=utf-8",
+        "top.webp": "image/webp",
+        "head.webp": "image/webp",
+        "side.webp": "image/webp",
+        "NOTICE": "text/plain; charset=utf-8",
+        "manifest.json": "application/json",
+    }
+    if name not in types:
+        return None
+    asset = resources.files("flybrain_demo_api").joinpath("static", "bittle", name)
+    return asset.read_bytes(), types[name]
 
 
 class FrameHub:
@@ -105,6 +123,12 @@ def make_handler(
             path = self.path.split("?", 1)[0]
             if path in ("/", "/index.html"):
                 self._send(200, page, "text/html; charset=utf-8")
+            elif path.startswith("/bittle/"):
+                asset = bittle_asset(path)
+                if asset is None:
+                    self._send(404, b"not found", "text/plain")
+                else:
+                    self._send(200, *asset)
             elif path == "/api/state":
                 self._json(hub.frame or {})
             elif path == "/api/benchmark":

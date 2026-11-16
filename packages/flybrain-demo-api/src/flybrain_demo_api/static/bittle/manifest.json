@@ -1,0 +1,22 @@
+{
+  "NOTICE": {
+    "bytes": 4519,
+    "sha256": "84f04e242ed1b53f0632e55a310f8a77c4fef78356f9a67f2b0cb9f96b6c7d07"
+  },
+  "head.webp": {
+    "bytes": 2178,
+    "sha256": "9f0c90b482cd76113f80ee1ece54e2310164b3529373c6fe3270ac77f7bd5a22"
+  },
+  "robot.js": {
+    "bytes": 1575,
+    "sha256": "7288f6670b3523ccdedffe708b9feecf541aa58354139b66ef010178b254c98b"
+  },
+  "side.webp": {
+    "bytes": 53418,
+    "sha256": "7dc915727557f442a1eef48594de31e11f1a64fb4e9482abfb9767fe070658ca"
+  },
+  "top.webp": {
+    "bytes": 58406,
+    "sha256": "865a08bb1a8522ba81175940a257a946906378a2e96d53c4ea26c175edf1b00d"
+  }
+}
