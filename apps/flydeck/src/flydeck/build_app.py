@@ -316,14 +316,15 @@ def smoke_test(app: Path) -> None:
     py = str(app / "Contents" / "Resources" / "python" / "bin" / "python3")
     check = (
         "import bleak, serial, numpy, webview, flydeck.app, flydeck.robotcheck;"
-        "import fly_compass.cli, fly_escape.cli, fly_escape_onboard.cli, hello_robot.cli"
+        "import fly_compass.cli, fly_escape.cli, fly_escape_onboard.cli, hello_robot.cli;"
+        "from flybrain_demo_api import assets; assert not assets.missing(), assets.missing()"
     )
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     r = subprocess.run(
         [py, "-I", "-c", check], capture_output=True, text=True, env=env, cwd="/", check=False
     )
     if r.returncode != 0:
-        raise BuildError(f"the built app is missing a package:\n{r.stderr}")
+        raise BuildError(f"the built app is missing a package or a file:\n{r.stderr}")
 
 
 def sign(app: Path) -> None:

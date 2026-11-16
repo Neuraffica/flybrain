@@ -1,10 +1,13 @@
-"""The Flydeck icon, drawn in code (no image files in the repo): a fly on a stack of cards.
+"""The Flydeck icon, drawn in code: Neuraffica's mark (an action potential on a paper card)
+dealt onto a deck, on a bio-teal tile, in the Living Signal palette. The favicon
+(flybrain_demo_api/assets/flydeck.svg) is the same drawing on the same 64-unit grid.
 
 ``icns_bytes()`` returns a macOS .icns with PNG images from 16 to 1024 px.
 """
 
 from __future__ import annotations
 
+import itertools
 import struct
 import zlib
 
@@ -43,19 +46,20 @@ def _round_rect(x, y, cx, cy, hw, hh, r):
     return out + np.minimum(np.maximum(qx, qy), 0) - r
 
 
-def _ellipse(x, y, cx, cy, rx, ry, angle_deg=0.0):
-    a = np.deg2rad(angle_deg)
-    dx, dy = x - cx, y - cy
-    u = dx * np.cos(a) + dy * np.sin(a)
-    v = -dx * np.sin(a) + dy * np.cos(a)
-    k = np.hypot(u / rx, v / ry)
-    return (k - 1.0) * min(rx, ry)  # approximate distance, good enough for an icon
+def _segment(x, y, ax, ay, bx, by):
+    """Distance to the segment a-b."""
+    dx, dy = bx - ax, by - ay
+    t = np.clip(((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy), 0, 1)
+    return np.hypot(x - (ax + t * dx), y - (ay + t * dy))
 
 
-def _rotate(x, y, cx, cy, angle_deg):
-    a = np.deg2rad(angle_deg)
-    dx, dy = x - cx, y - cy
-    return cx + dx * np.cos(a) + dy * np.sin(a), cy - dx * np.sin(a) + dy * np.cos(a)
+# Living Signal (DESIGN.md): primary, primary-strong, signal, paper
+PRIMARY, PRIMARY_STRONG, SIGNAL, PAPER = "#0e6f66", "#0a5750", "#0fa48d", "#faf7f1"
+# the mark's spike on the 64-unit grid of flydeck.svg, and the two cards
+SPIKE = ((20, 42.6), (28.6, 42.6), (33.6, 24), (39.4, 49.8), (43, 38.3), (53, 38.3))
+SPIKE_WIDTH, APEX_R = 4.2, 2.5
+BACK_CARD = (29, 29, 21, 10, -9.0)  # centre x, y, half side, corner radius, rotation (deg)
+FRONT_CARD = (36.5, 36.5, 21.5, 10, 0.0)
 
 
 def render(size: int = SIZE) -> np.ndarray:
@@ -64,6 +68,11 @@ def render(size: int = SIZE) -> np.ndarray:
     yy, xx = np.mgrid[0:size, 0:size].astype(float) + 0.5
     x, y = xx / s, yy / s  # draw in 1024 units
     aa = 1.5 / s
+    k = 824 / 60  # the svg's tile (2..62) onto the macOS grid's 824 px tile (100..924)
+
+    def g(v):
+        return 100 + (v - 2) * k
+
     rgb = np.zeros((size, size, 3))
     alpha = np.zeros((size, size))
 
@@ -73,49 +82,34 @@ def render(size: int = SIZE) -> np.ndarray:
         rgb = rgb * (1 - c) + color * c
         alpha[:] = alpha + (1 - alpha) * cov * opacity
 
-    # app tile: macOS grid, 824 px square with a 185 px corner radius, warm red gradient
+    # tile: macOS grid, 824 px square with a 185 px corner radius, primary to primary-strong
     tile = _cover(_round_rect(x, y, 512, 512, 412, 412, 185), aa)
     t = np.clip((y - 100) / 824, 0, 1)[..., None]
-    grad = _hex("#c9492f") * (1 - t) + _hex("#8a2c1c") * t
-    c = tile[..., None]
-    rgb = grad * c
+    rgb = (_hex(PRIMARY) * (1 - t) + _hex(PRIMARY_STRONG) * t) * tile[..., None]
     alpha = tile.copy()
 
-    paper, ink = _hex("#f6f2ea"), _hex("#1f1b16")
-    shadow = _hex("#5e1d12")
-    # the deck: two cards behind, one in front (tilted)
-    for ang, dx, dy, shade in ((-14, -70, 40, 0.80), (8, 60, 30, 0.90)):
-        xr, yr = _rotate(x, y, 512 + dx, 540 + dy, ang)
-        card = _cover(_round_rect(xr, yr, 512 + dx, 540 + dy, 230, 300, 40), aa)
-        paint(
-            _cover(_round_rect(xr, yr, 512 + dx + 10, 540 + dy + 16, 230, 300, 40), 18),
-            shadow,
-            0.35,
-        )
-        paint(card, paper * shade)
-    card = _cover(_round_rect(x, y, 512, 520, 240, 310, 42), aa)
-    paint(_cover(_round_rect(x, y, 522, 540, 240, 310, 42), 22), shadow, 0.45)
-    paint(card, paper)
+    paper = _hex(PAPER)
+    shadow = _hex("#04302b")  # on-primary (dark): the deck's shadow on the teal
+    for (cx, cy, half, r, ang), opacity in ((BACK_CARD, 0.38), (FRONT_CARD, 1.0)):
+        cx, cy, half, r = g(cx), g(cy), half * k, r * k
+        a = np.deg2rad(ang)  # svg rotate(): inverse-rotate the pixel into the card's frame
+        dx, dy = x - cx, y - cy
+        u, v = cx + dx * np.cos(a) + dy * np.sin(a), cy - dx * np.sin(a) + dy * np.cos(a)
+        if opacity == 1.0:
+            paint(_cover(_round_rect(u, v, cx + 6, cy + 14, half, half, r), 28), shadow, 0.30)
+        paint(_cover(_round_rect(u, v, cx, cy, half, half, r), aa) * tile, paper, opacity)
 
-    # the fly, seen from above
-    wing = _hex("#9fb3c8")
-    for side in (-1, 1):
-        paint(_cover(_ellipse(x, y, 512 + side * 92, 545, 70, 150, side * -28), aa), wing, 0.75)
-        paint(
-            _cover(np.abs(_ellipse(x, y, 512 + side * 92, 545, 70, 150, side * -28)) - 3, aa),
-            ink,
-            0.5,
-        )
-    for side in (-1, 1):  # legs
-        for k, (ly, ang) in enumerate(((470, -35), (520, 0), (570, 35))):
-            lx = 512 + side * (70 + 25 * (k == 1))
-            paint(_cover(_ellipse(x, y, lx, ly, 62, 7, side * ang), aa), ink)
-    paint(_cover(_ellipse(x, y, 512, 560, 46, 105), aa), ink)  # abdomen
-    paint(_cover(_ellipse(x, y, 512, 455, 50, 48), aa), ink)  # thorax
-    paint(_cover(_ellipse(x, y, 512, 395, 38, 32), aa), ink)  # head
-    red = _hex("#d8432c")
-    for side in (-1, 1):
-        paint(_cover(_ellipse(x, y, 512 + side * 30, 385, 20, 24), aa), red)
+    # the spike: round caps and joins, a primary-strong > primary > signal gradient across it
+    pts = [(g(px), g(py)) for px, py in SPIKE]
+    d = np.full(x.shape, np.inf)
+    for (ax, ay), (bx, by) in itertools.pairwise(pts):
+        d = np.minimum(d, _segment(x, y, ax, ay, bx, by))
+    u = np.clip((x - pts[0][0]) / (pts[-1][0] - pts[0][0]), 0, 1)[..., None]
+    lo = _hex(PRIMARY_STRONG) + (_hex(PRIMARY) - _hex(PRIMARY_STRONG)) * np.clip(u / 0.55, 0, 1)
+    hi = _hex(PRIMARY) + (_hex(SIGNAL) - _hex(PRIMARY)) * np.clip((u - 0.55) / 0.45, 0, 1)
+    paint(_cover(d - SPIKE_WIDTH * k / 2, aa), np.where(u < 0.55, lo, hi))
+    ax, ay = pts[2]
+    paint(_cover(np.hypot(x - ax, y - ay) - APEX_R * k, aa), _hex(SIGNAL))
 
     img = np.concatenate([rgb, alpha[..., None]], axis=-1)
     return np.clip(img, 0, 1)

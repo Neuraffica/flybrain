@@ -4,188 +4,292 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Flydeck</title>
+<link rel="stylesheet" href="/assets/living-signal.css">
+<link rel="icon" href="/assets/flydeck.svg">
 <style>
-:root {
-  --paper: #f6f2ea; --card: #fffdf8; --ink: #1f1b16; --muted: #6b6257; --line: #e2d9ca;
-  --accent: #b8402a; --accent-ink: #fff; --accent-soft: #f3ddd4; --ok: #2f6f4f; --ok-soft: #dcebe2;
-  --warn: #8a5d00; --warn-soft: #f6e8c6; --bad: #a3271b; --bad-soft: #f6d9d4; --code: #efe8db;
-  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #15130f; --card: #1d1a15; --ink: #ece6da; --muted: #a0968a; --line: #322d25;
-    --accent: #e8735a; --accent-ink: #1b0f0b; --accent-soft: #3a211b; --ok: #7fc8a0;
-    --ok-soft: #1c3027; --warn: #e0b050; --warn-soft: #362a12; --bad: #f08b7a; --bad-soft: #3c1d18;
-    --code: #26221b; color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --paper: #15130f; --card: #1d1a15; --ink: #ece6da; --muted: #a0968a; --line: #322d25;
-  --accent: #e8735a; --accent-ink: #1b0f0b; --accent-soft: #3a211b; --ok: #7fc8a0;
-  --ok-soft: #1c3027; --warn: #e0b050; --warn-soft: #362a12; --bad: #f08b7a; --bad-soft: #3c1d18;
-  --code: #26221b; color-scheme: dark;
-}
+/* Living Signal tokens, fonts and the marks come from /assets/living-signal.css (shared with
+   the dashboards and the guides). Components follow DESIGN.md "Flydeck components". */
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--sans); }
-a { color: var(--accent); }
-.wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px 64px; }
-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
-  padding: 22px 0 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.15; margin: 0; }
-h1 { font-size: 2.2rem; letter-spacing: -0.01em; }
-h2 { font-size: 1.35rem; }
-h3 { font-size: 1.12rem; }
-.tag { color: var(--muted); margin-top: 2px; }
+body { margin: 0; font-size: 15px; line-height: 1.55; }
+a { color: var(--primary); text-underline-offset: 3px; }
+a:hover { color: var(--primary-strong); }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
+[hidden] { display: none !important; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.muted { color: var(--ink-muted); }
+.small { font-size: 0.84rem; }
+.mono { font-family: var(--font-label); }
+.label { font-family: var(--font-label); font-size: 10px; font-weight: 600; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--ink-muted); }
+h1, h2, h3 { font-family: var(--font-headline); font-weight: 600; line-height: 1.15; margin: 0;
+  letter-spacing: -0.01em; color: var(--ink); }
+h2 { font-size: 1.7rem; }
+h3 { font-size: 1.3rem; }
+
+/* ---- top bar: the Neuraffica identity, then the app's own actions --------------------- */
+.topbar { position: sticky; top: 0; z-index: 4; background: var(--paper);
+  border-bottom: 1px solid var(--outline-variant); }
+.topbar .wrap { display: flex; align-items: center; gap: 12px; min-height: 56px; }
+.topbar .spacer { flex: 1; }
 .top-actions { display: flex; gap: 8px; align-items: center; }
-.layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; margin-top: 20px;
-  align-items: start; }
-@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } .layout.has-run > main { order: -1; } }
-.panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
-.panel + .panel { margin-top: 16px; }
-.section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
-  margin-bottom: 10px; }
-.kicker { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
-  font-weight: 600; }
-.muted { color: var(--muted); }
-.small { font-size: 0.86rem; }
-button, .btn { font: inherit; font-weight: 600; border-radius: 9px; padding: 8px 14px; cursor: pointer;
-  border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none;
-  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; }
-button:hover:not(:disabled), .btn:hover { border-color: var(--muted); }
+
+/* ---- title, on graph paper as on the web page's cover --------------------------------- */
+.hero { position: relative; }
+.hero .ls-grid { position: absolute; inset: 0; pointer-events: none; }
+.hero .wrap { position: relative; display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 8px 24px; flex-wrap: wrap; padding-top: 28px; padding-bottom: 22px; }
+.hero h1 { font-size: 2.9rem; line-height: 1.02; margin-top: 10px; letter-spacing: -0.02em; }
+.hero h1 em { font-style: italic; font-weight: 500; color: var(--primary); }
+.tag { font-size: 1.02rem; color: var(--ink-muted); margin-top: 8px; max-width: 34em; }
+
+/* ---- buttons: pills with mono-caps labels ------------------------------------------- */
+button, .btn { font-family: var(--font-label); font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+  text-transform: uppercase; border-radius: var(--r-full); padding: 0 16px; min-height: 36px;
+  cursor: pointer; border: 1px solid var(--outline); background: var(--surface); color: var(--ink);
+  text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  white-space: nowrap; transition: border-color .15s, color .15s; }
+button:hover:not(:disabled), .btn:hover { border-color: var(--primary); color: var(--primary); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
-button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-button.danger { background: var(--bad); border-color: var(--bad); color: var(--card); }
-button.small, .btn.small { padding: 4px 10px; min-height: 30px; font-size: 0.86rem; }
-button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visible,
-.demo:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.banner { border-radius: 10px; padding: 10px 12px; margin-top: 14px; font-size: 0.92rem; }
-.banner.info { background: var(--accent-soft); }
-.banner.warn { background: var(--warn-soft); color: var(--ink); border-left: 4px solid var(--warn); }
-.banner.bad { background: var(--bad-soft); border-left: 4px solid var(--bad); }
-.banner.ok { background: var(--ok-soft); border-left: 4px solid var(--ok); }
-.robot-current { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--paper); }
-.robot-name { font-weight: 700; font-size: 1.05rem; word-break: break-all; }
-dl.facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 8px 0 0;
-  font-size: 0.9rem; }
-dl.facts dt { color: var(--muted); }
-dl.facts dd { margin: 0; font-variant-numeric: tabular-nums; word-break: break-word; }
-.list { list-style: none; margin: 8px 0 0; padding: 0; }
+button.primary { background: linear-gradient(45deg, var(--primary-strong), var(--primary));
+  border-color: var(--primary-strong); color: var(--on-primary); padding: 0 24px; min-height: 42px;
+  letter-spacing: 0.16em; }
+button.primary:hover:not(:disabled) { color: var(--on-primary); border-color: var(--ink); }
+button.danger { background: var(--coral); border-color: var(--coral); color: var(--paper); }
+button.danger:hover:not(:disabled) { color: var(--paper); border-color: var(--ink); }
+button.small, .btn.small { padding: 0 12px; min-height: 30px; font-size: 10px; }
+button:focus-visible, .btn:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible,
+.demo:focus-visible, summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* ---- banners: a surface note with an edge; the words carry the meaning ------------------ */
+.banner { background: var(--surface); border: 1px solid var(--outline-variant);
+  border-left: 4px solid var(--outline); border-radius: var(--r-md); padding: 10px 14px;
+  margin-top: 12px; font-size: 0.92rem; color: var(--ink); }
+.banner.info { border-left-color: var(--primary); }
+.banner.warn { border-left-color: var(--amber-fill); }
+.banner.bad { border-left-color: var(--coral); }
+.banner.ok { border-left-color: var(--signal); }
+#banners .banner:first-child { margin-top: 0; }
+#banners:not(:empty) { margin-bottom: 18px; }
+
+/* ---- layout ------------------------------------------------------------------------- */
+.layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 24px; align-items: start;
+  padding-bottom: 64px; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } .layout.has-run > main { order: -1; } }
+@media (min-width: 1280px) { .layout { grid-template-columns: 360px minmax(0, 1fr); } }
+.section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px 12px;
+  flex-wrap: wrap; margin-bottom: 14px; }
+.section-head .ls-eyebrow { display: block; margin-bottom: 6px; }
+.sub-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+#run-panel:not([hidden]) { margin-bottom: 28px; }
+
+/* ---- robot: the monitor-console tray holding the robot's card --------------------------- */
+.tray { background: var(--surface-low); border: 1px solid var(--outline-variant); border-radius: var(--r-lg);
+  padding: 14px; }
+.card { background: var(--surface); border: 1px solid var(--outline-variant); border-radius: var(--r-md);
+  padding: 16px; }
+.status { display: flex; align-items: center; gap: 8px; font-family: var(--font-label); font-size: 10px;
+  font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-muted); }
+.status .glyph { font-size: 12px; letter-spacing: 0; color: var(--primary); }
+.status .glyph.off { color: var(--ink-muted); }
+.robot-name { font-family: var(--font-label); font-weight: 600; font-size: 1.05rem; margin-top: 8px;
+  word-break: break-all; color: var(--ink); }
+dl.facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 12px 0 0; align-items: baseline; }
+dl.facts dt { font-family: var(--font-label); font-size: 10px; font-weight: 600; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--ink-muted); }
+dl.facts dd { margin: 0; font-family: var(--font-label); font-size: 0.86rem; word-break: break-word; }
+.robot-actions { margin-top: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.links { margin-top: 18px; padding: 0 4px; }
+.links + .links { margin-top: 16px; }
+.list { list-style: none; margin: 0; padding: 0; background: var(--surface);
+  border: 1px solid var(--outline-variant); border-radius: var(--r-md); }
 .list li { display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 8px 0; border-top: 1px solid var(--line); }
+  padding: 9px 12px; border-top: 1px solid var(--outline-variant); }
 .list li:first-child { border-top: 0; }
 .list .who { min-width: 0; }
-.list .who b { display: block; word-break: break-all; }
-.bars { display: inline-flex; gap: 2px; align-items: flex-end; height: 12px; margin-right: 6px;
-  vertical-align: -1px; }
-.bars i { width: 3px; background: var(--line); border-radius: 1px; }
-.bars i.on { background: var(--ok); }
-.sub { margin-top: 16px; }
-.deck { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
-.demo { text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 14px;
-  background: var(--card); cursor: pointer; display: flex; flex-direction: column; gap: 8px;
-  min-height: 150px; font-weight: 400; align-items: stretch; }
-.demo:hover { border-color: var(--muted); }
-.demo.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.list .who b { display: block; word-break: break-all; font-family: var(--font-label); font-weight: 600;
+  font-size: 0.86rem; }
+.list .who .muted { font-family: var(--font-label); font-size: 0.76rem; }
+.bars { display: inline-flex; gap: 2px; align-items: flex-end; height: 12px; margin-right: 6px; vertical-align: -1px; }
+.bars i { width: 3px; background: var(--outline); border-radius: 1px; }
+.bars i.on { background: var(--primary); }
+.empty { color: var(--ink-muted); font-size: 0.88rem; padding: 4px 0; }
+.empty-box { color: var(--ink-muted); font-size: 0.88rem; padding: 12px 14px;
+  border: 1px dashed var(--outline); border-radius: var(--r-md); }
+.note-line { font-size: 0.8rem; color: var(--ink-muted); margin-top: 6px; }
+
+/* ---- where the demos come from --------------------------------------------------------- */
+.source { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; margin: 0 0 14px;
+  padding: 8px 8px 8px 14px; background: var(--surface-low); border: 1px solid var(--outline-variant);
+  border-radius: var(--r-full); }
+.source .what { font-size: 0.9rem; min-width: 0; flex: 1 1 200px; }
+.source .path { font-family: var(--font-label); font-size: 0.8rem; word-break: break-all; }
+.source + .banner { margin: -4px 0 14px; }
+
+/* ---- demo cards (the web page's tabs, as a grid that fits a window) ----------------------- */
+.deck { display: grid; grid-template-columns: repeat(auto-fill, minmax(192px, 1fr)); gap: 12px; }
+.demo { text-align: left; border: 1px solid var(--outline-variant); border-radius: var(--r-lg);
+  padding: 16px 16px 14px; background: var(--surface); cursor: pointer; display: flex;
+  flex-direction: column; justify-content: flex-start; gap: 8px; min-height: 178px; align-items: stretch; color: var(--ink);
+  font: inherit; letter-spacing: normal; text-transform: none; white-space: normal;
+  transition: border-color .15s, background-color .15s; }
+.demo:hover:not(.selected) { border-color: var(--outline); color: var(--ink); }
+.demo.selected { background: var(--surface-low); border-color: var(--primary); }
+.demo.selected:hover { color: var(--ink); }
 .demo.broken { border-style: dashed; cursor: default; }
-.demo p { margin: 0; color: var(--muted); font-size: 0.92rem; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
-.chip { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: var(--code);
+.demo h3 { font-size: 1.2rem; }
+.demo p { margin: 0; color: var(--ink-muted); font-size: 0.88rem; line-height: 1.5; }
+.tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.t { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-label); font-size: 9.5px;
+  font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px;
+  border-radius: var(--r-full); border: 1px solid var(--outline); color: var(--ink-muted); }
+.t.sim { border-color: var(--primary); color: var(--primary); }
+.t.moves { border-color: var(--amber-fill); color: var(--amber); }
+.t.still { border-style: dashed; }
+.t.live { background: var(--signal-container); border-color: var(--signal); color: var(--ink); }
+.t.live::before { content: "\25CF"; color: var(--signal); font-size: 9px; }
+.needs { font-size: 0.8rem; color: var(--ink-muted); line-height: 1.45; }
+.needs b { font-family: var(--font-label); font-size: 9.5px; font-weight: 600; letter-spacing: 0.14em;
+  text-transform: uppercase; }
+.pick { margin-top: auto; padding-top: 4px; font-family: var(--font-label); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-muted); }
+.demo.selected .pick { color: var(--primary); }
+.err { color: var(--coral); font-size: 0.86rem; word-break: break-word; }
+
+/* ---- the chosen demo's panel: a tray with a primary edge, then the start box ------------- */
+.setup { margin-top: 14px; }
+.setup .tray { border-color: var(--primary); padding: 20px; }
+.setup-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+.setup-head h3 { font-size: 1.5rem; }
+.setup-head .label { display: block; margin-bottom: 6px; }
+.form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 18px; margin-top: 16px; }
+.field label { display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 5px; }
+.field .help { color: var(--ink-muted); font-size: 0.8rem; margin-top: 5px; line-height: 1.45; }
+.field.check label { display: flex; gap: 8px; align-items: center; }
+select, input[type=number], input[type=text] { font: inherit; font-size: 0.92rem; width: 100%; padding: 8px 12px;
+  min-height: 38px; border-radius: var(--r-md); border: 1px solid var(--outline); background: var(--surface);
   color: var(--ink); }
-.chip.moves { background: var(--warn-soft); }
-.chip.sim { background: var(--ok-soft); }
-.err { color: var(--bad); font-size: 0.88rem; word-break: break-word; }
-.setup { margin-top: 16px; }
-.form { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px 16px;
-  margin-top: 12px; }
-.field label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
-.field .help { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
-.field.check label { display: flex; gap: 8px; align-items: center; font-weight: 600; }
-select, input[type=number], input[type=text] { font: inherit; width: 100%; padding: 7px 9px;
-  border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
-input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
-.startbar { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin-top: 16px;
-  padding-top: 14px; border-top: 1px solid var(--line); }
-.startbar label { display: flex; align-items: center; gap: 8px; font-weight: 600; }
-.space { background: var(--warn-soft); border-radius: 8px; padding: 6px 10px; }
-.cmd { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-top: 10px;
+input[type=number] { font-family: var(--font-label); }
+select:hover, input[type=number]:hover, input[type=text]:hover { border-color: var(--ink-muted); }
+input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--primary); margin: 0; flex: none; }
+.start-box { margin-top: 18px; background: var(--surface); border: 1px solid var(--outline-variant);
+  border-left: 4px solid var(--primary); border-radius: var(--r-md); padding: 14px 16px; }
+.startbar { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.startbar label { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.92rem; }
+.startbar .go { margin-left: auto; }
+.space { border: 1px solid var(--amber-fill); border-radius: var(--r-full); padding: 6px 14px; }
+.cmd { font-family: var(--font-label); font-size: 0.74rem; color: var(--ink-muted); margin-top: 12px;
   word-break: break-all; }
-.run-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start;
-  flex-wrap: wrap; }
-.pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.8rem;
-  padding: 3px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; }
+.cmd:not(:empty)::before { content: "$ "; }
+
+/* ---- the running demo: the brain banner, then its dashboard ------------------------------ */
+#run-panel { background: var(--surface-low); border: 1px solid var(--outline-variant); border-radius: var(--r-lg);
+  padding: 18px; }
+#run-panel.live { border-color: var(--primary); }
+.run-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.run-head h2 { margin-top: 6px; }
+.run-head .via { font-family: var(--font-label); font-size: 0.8rem; color: var(--ink-muted); margin-top: 4px; }
+.run-actions { display: flex; gap: 10px; align-items: center; }
+.pill { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-label); font-weight: 600;
+  font-size: 10px; letter-spacing: 0.16em; padding: 0 12px; min-height: 30px; border-radius: var(--r-full);
+  text-transform: uppercase; border: 1px solid var(--outline); background: var(--surface); color: var(--ink-muted); }
 .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-.pill.running { background: var(--ok-soft); color: var(--ok); }
-.pill.starting, .pill.connecting, .pill.calibrating, .pill.stopping { background: var(--warn-soft); color: var(--warn); }
-.pill.attention, .pill.failed { background: var(--bad-soft); color: var(--bad); }
-.pill.stopped { background: var(--code); color: var(--muted); }
-.pill.running::before, .pill.starting::before, .pill.connecting::before,
-.pill.calibrating::before, .pill.stopping::before { animation: pulse 1.2s infinite; }
-@keyframes pulse { 50% { opacity: 0.3; } }
-@media (prefers-reduced-motion: reduce) { .pill::before { animation: none !important; } }
-.frame-wrap { margin-top: 14px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
-  background: var(--paper); }
+.pill.running { background: var(--signal-container); border-color: var(--signal); color: var(--ink); }
+.pill.running::before { background: var(--signal); animation: glow 2.2s infinite; }
+.pill.starting, .pill.connecting, .pill.calibrating, .pill.stopping { border-color: var(--amber-fill); color: var(--amber); }
+.pill.starting::before, .pill.connecting::before, .pill.calibrating::before, .pill.stopping::before {
+  animation: blink 1.2s infinite; }
+.pill.attention, .pill.failed { border-color: var(--coral); color: var(--coral); }
+.pill.stopped::before { background: transparent; border: 1.5px solid currentColor; }
+@keyframes blink { 50% { opacity: 0.3; } }
+@keyframes glow { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--signal-glow) 60%, transparent); }
+  70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.detail { margin-top: 8px; color: var(--ink-muted); font-size: 0.92rem; }
+.frame-wrap { margin-top: 14px; border: 1px solid var(--outline-variant); border-radius: var(--r-md);
+  overflow: hidden; background: var(--paper); box-shadow: var(--card-shadow); }
 .frame-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px;
-  padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 0.85rem; }
+  padding: 8px 14px; border-bottom: 1px solid var(--outline-variant); background: var(--surface); }
+.frame-bar a { font-family: var(--font-label); font-size: 10px; font-weight: 600; letter-spacing: 0.14em;
+  text-transform: uppercase; text-decoration: none; }
+.frame-bar a:hover { text-decoration: underline; }
 iframe { display: block; width: 100%; height: min(72vh, 820px); border: 0; background: var(--paper); }
-details.log { margin-top: 12px; }
-details.log summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
-pre.log { background: var(--code); border-radius: 8px; padding: 10px; font: 12px/1.45 var(--mono);
-  max-height: 260px; overflow: auto; white-space: pre-wrap; word-break: break-word; margin: 8px 0 0; }
-.empty { color: var(--muted); font-size: 0.9rem; padding: 6px 0; }
-.gone { position: fixed; inset: 0; background: color-mix(in srgb, var(--paper) 92%, transparent);
-  display: none; align-items: center; justify-content: center; text-align: center; padding: 16px; z-index: 5; }
+.waiting { margin-top: 14px; }
+details.log { margin-top: 14px; }
+details.log summary { cursor: pointer; font-family: var(--font-label); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-muted); padding: 4px 0; }
+details.log summary:hover { color: var(--primary); }
+pre.log { background: var(--surface); border: 1px solid var(--outline-variant); border-radius: var(--r-sm);
+  padding: 10px 12px; font: 12px/1.5 var(--font-label); color: var(--ink); max-height: 260px; overflow: auto;
+  white-space: pre-wrap; word-break: break-word; margin: 8px 0 0; }
+
+/* ---- Flydeck has stopped ------------------------------------------------------------ */
+.gone { position: fixed; inset: 0; background: var(--overlay); display: none; align-items: center;
+  justify-content: center; text-align: center; padding: 16px; z-index: 10; }
 .gone.show { display: flex; }
-[hidden] { display: none !important; }
-.source { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: -2px 0 12px;
-  font-size: 0.9rem; }
-.source .path { font-family: var(--mono); font-size: 0.82rem; word-break: break-all; }
-.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.gone > div { background: var(--surface); border: 1px solid var(--outline-variant); border-radius: var(--r-lg);
+  padding: 28px 36px; box-shadow: var(--card-shadow); max-width: 420px; }
+.gone h2 { margin-top: 8px; }
+.gone p { margin: 8px 0 0; }
+
+@media (max-width: 640px) { .wrap { padding: 0 16px; } .hero h1 { font-size: 2.3rem; } .ls-chip.app { display: none; } }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <h1>Flydeck</h1>
-      <div class="tag" id="tagline">Pick a robot, pick a fly-brain demo, press Start.</div>
-    </div>
+<div class="topbar">
+  <div class="wrap">
+    <span class="ls-brand"><img src="/assets/neuraffica.svg" alt="" aria-hidden="true">
+      <span class="ls-wordmark"><span class="neura">NEURA</span><span class="ffica">FFICA</span></span></span>
+    <span class="ls-chip app">Flydeck</span>
+    <span class="spacer"></span>
     <div class="top-actions">
       <a class="btn small" href="/guide" target="_blank" rel="noopener">Guide</a>
       <button class="small" id="quit" title="Stops any running demo (the robot rests), then closes Flydeck">Quit Flydeck</button>
     </div>
-  </header>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="ls-grid" aria-hidden="true"></div>
+  <div class="wrap">
+    <div>
+      <div class="ls-eyebrow">Fly Brain &amp; Tiny Machines · starter kit</div>
+      <h1>Flydeck</h1>
+      <div class="tag" id="tagline">Pick a robot, pick a fly-brain demo, press Start.</div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
   <div id="banners" aria-live="polite"></div>
 
   <div class="layout" id="layout">
     <aside>
-      <section class="panel" aria-labelledby="robot-h">
-        <div class="section-title"><h2 id="robot-h">Robot</h2><span class="kicker" id="held"></span></div>
-        <div class="robot-current" id="current"></div>
-        <div class="sub">
-          <div class="section-title">
-            <span class="kicker">Bluetooth</span>
-            <button class="small" id="scan">Scan</button>
+      <section aria-labelledby="robot-h">
+        <div class="section-head"><div><span class="ls-eyebrow">Pick a robot</span><h2 id="robot-h">Robot</h2></div>
+          <span class="label" id="held"></span></div>
+        <div class="tray">
+          <div class="card" id="current"></div>
+          <div class="links">
+            <div class="sub-head">
+              <span class="label">Bluetooth</span>
+              <button class="small" id="scan">Scan</button>
+            </div>
+            <div id="ble"></div>
           </div>
-          <div id="ble"></div>
-        </div>
-        <div class="sub">
-          <div class="section-title">
-            <span class="kicker">USB cable</span>
-            <button class="small" id="ports">Refresh</button>
+          <div class="links">
+            <div class="sub-head">
+              <span class="label">USB cable</span>
+              <button class="small" id="ports">Refresh</button>
+            </div>
+            <div id="usb"></div>
           </div>
-          <div id="usb"></div>
         </div>
       </section>
     </aside>
 
     <main>
-      <section class="panel" id="run-panel" hidden aria-labelledby="run-h"></section>
-      <section class="panel" aria-labelledby="deck-h">
-        <div class="section-title"><h2 id="deck-h">Demos</h2>
+      <section id="run-panel" hidden aria-labelledby="run-h"></section>
+      <section aria-labelledby="deck-h">
+        <div class="section-head"><div><span class="ls-eyebrow">Pick a demo</span><h2 id="deck-h">Demos</h2></div>
           <button class="small" id="reload" title="Look for new demos (after uv sync)">Reload list</button></div>
         <div id="source" hidden></div>
         <div class="deck" id="deck"></div>
@@ -194,7 +298,7 @@ pre.log { background: var(--code); border-radius: 8px; padding: 10px; font: 12px
     </main>
   </div>
 </div>
-<div class="gone" id="gone"><div><h2>Flydeck has stopped</h2><p class="muted" id="gone-hint">You can close this tab.</p></div></div>
+<div class="gone" id="gone"><div><span class="ls-eyebrow">Flydeck</span><h2>Flydeck has stopped</h2><p class="muted" id="gone-hint">You can close this tab.</p></div></div>
 
 <script>
 "use strict";
@@ -243,9 +347,11 @@ function renderRobot() {
   $("held").textContent = R.held_by ? "connected by: " + R.held_by : "";
   let h = "";
   if (!sel) {
-    h = `<div class="muted">No robot chosen yet. Scan for it over Bluetooth, or plug in the USB cable.</div>`;
+    h = `<div class="status"><span class="glyph off" aria-hidden="true">○</span>No robot chosen</div>
+      <div class="muted small" style="margin-top:8px">No robot chosen yet. Scan for it over Bluetooth, or plug in the USB cable.</div>`;
   } else {
-    h = `<div class="kicker">${sel.transport === "ble" ? "Bluetooth" : "USB"}</div>
+    const ok = chk && chk.ok;
+    h = `<div class="status"><span class="glyph ${ok ? "" : "off"}" aria-hidden="true">${ok ? "●" : "○"}</span>${sel.transport === "ble" ? "Bluetooth" : "USB"}</div>
       <div class="robot-name">${esc(sel.name)}</div>`;
     if (chk && chk.ok) {
       h += `<dl class="facts"><dt>Model</dt><dd>${esc(chk.model || "?")}</dd>
@@ -256,7 +362,7 @@ function renderRobot() {
     } else if (chk && !chk.ok) {
       h += `<div class="banner bad">${esc(chk.error)}</div>`;
     }
-    h += `<div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+    h += `<div class="robot-actions">
       <button class="small" id="check" ${R.checking || R.held_by ? "disabled" : ""}>${R.checking ? "Checking…" : "Check"}</button>
       <span class="muted small">${R.held_by ? "busy while a demo runs" : "connects briefly, then lets go"}</span></div>`;
   }
@@ -267,15 +373,15 @@ function renderRobot() {
   $("scan").disabled = R.scanning || !!R.held_by;
   $("scan").textContent = R.scanning ? "Scanning…" : "Scan";
   let b = "";
-  if (R.scanning) b = `<div class="empty">Looking for robots for 5 seconds…</div>`;
-  else if (!scan) b = `<div class="empty">Switch the robot on, then press Scan.</div>`;
+  if (R.scanning) b = `<div class="empty-box">Looking for robots for 5 seconds…</div>`;
+  else if (!scan) b = `<div class="empty-box">Switch the robot on, then press Scan.</div>`;
   else if (!scan.ok) b = `<div class="banner bad">${esc(scan.error)}</div>`;
   else if (!scan.devices.length) b = `<div class="banner warn">${esc(scan.hint || "No robot found.")}</div>`;
   else b = `<ul class="list">${scan.devices.map((d) => {
       const isSel = sel && sel.transport === "ble" && sel.target === d.name;
-      return `<li><span class="who"><b>${esc(d.name)}</b><span class="muted small">${bars(d.rssi)}${d.rssi ?? "?"} dBm</span></span>
+      return `<li><span class="who"><b>${esc(d.name)}</b><span class="muted">${bars(d.rssi)}${d.rssi ?? "?"} dBm</span></span>
         <button class="small use" data-t="ble" data-v="${esc(d.name)}" ${isSel ? "disabled" : ""}>${isSel ? "Chosen" : "Use"}</button></li>`;
-    }).join("")}</ul><div class="muted small" style="margin-top:6px">Scanned ${ago(scan.at)}.</div>`;
+    }).join("")}</ul><div class="note-line">Scanned ${ago(scan.at)}.</div>`;
   $("ble").innerHTML = b;
 
   const ports = R.ports || [];
@@ -285,7 +391,7 @@ function renderRobot() {
         return `<li><span class="who"><b>${esc(p.replace("/dev/", ""))}</b></span>
           <button class="small use" data-t="usb" data-v="${esc(p)}" ${isSel ? "disabled" : ""}>${isSel ? "Chosen" : "Use"}</button></li>`;
       }).join("")}</ul>`
-    : `<div class="empty">No robot cable found. Plug it in and press Refresh.</div>`;
+    : `<div class="empty-box">No robot cable found. Plug it in and press Refresh.</div>`;
   document.querySelectorAll("button.use").forEach((btn) => {
     btn.onclick = async () => {
       const r = await post("select", { transport: btn.dataset.t, target: btn.dataset.v, name: btn.dataset.v });
@@ -301,18 +407,20 @@ function renderDeck() {
   const run = S.run && S.run.active ? S.run : null;
   $("deck").innerHTML = S.demos.map((d) => {
     if (!d.ok) {
-      return `<div class="demo broken"><h3>${esc(d.title)}</h3><div class="err">${esc(d.error)}</div>
-        <div class="muted small">${esc(d.source)}</div></div>`;
+      return `<div class="demo broken"><span class="tags"><span class="t">cannot load</span></span><h3>${esc(d.title)}</h3><div class="err">${esc(d.error)}</div>
+        <div class="muted small mono">${esc(d.source)}</div></div>`;
     }
-    const chips = [
-      ...d.needs.map((n) => `<span class="chip">${esc(n)}</span>`),
-      d.moves_robot ? `<span class="chip moves">moves the robot</span>` : `<span class="chip">does not move</span>`,
-      d.supports_mock ? `<span class="chip sim">simulator</span>` : "",
-      run && run.demo_id === d.id ? `<span class="chip sim">running</span>` : "",
+    const tags = [
+      run && run.demo_id === d.id ? `<span class="t live">running</span>` : "",
+      d.supports_mock ? `<span class="t sim">simulator</span>` : "",
+      d.moves_robot ? `<span class="t moves">moves the robot</span>` : `<span class="t still">does not move</span>`,
     ].join("");
-    return `<button class="demo ${d.id === selected ? "selected" : ""}" data-id="${esc(d.id)}" aria-pressed="${d.id === selected}">
-      <h3>${esc(d.title)}</h3><p>${esc(d.summary)}</p><div class="chips">${chips}</div></button>`;
-  }).join("") || `<div class="empty">No demos found. Run uv sync in the flybrain folder, then Reload list.</div>`;
+    const needs = d.needs.length ? `<div class="needs"><b>Needs</b> ${d.needs.map(esc).join(" · ")}</div>` : "";
+    const sel = d.id === selected;
+    return `<button class="demo ${sel ? "selected" : ""}" data-id="${esc(d.id)}" aria-pressed="${sel}">
+      <span class="tags">${tags}</span><h3>${esc(d.title)}</h3><p>${esc(d.summary)}</p>${needs}
+      <span class="pick" aria-hidden="true">${sel ? "▼ Shown below" : "○ Show this demo"}</span></button>`;
+  }).join("") || `<div class="empty-box">No demos found. Run uv sync in the flybrain folder, then Reload list.</div>`;
   document.querySelectorAll(".demo[data-id]").forEach((el) => {
     el.onclick = () => { selected = el.dataset.id; lastError = null; renderDeck(); renderSetup(); };
   });
@@ -348,18 +456,21 @@ function renderSetup() {
   const vals = keep || { ...Object.fromEntries(d.options.map((o) => [o.name, o.default])), ...(d.saved || {}) };
   if (!d.supports_mock) simulator = false;
   const opts = d.options.filter((o) => simulator || !o.mock_only);
+  const n = S.demos.indexOf(d) + 1;
   $("setup").innerHTML = `
-    <div class="panel" style="background:var(--paper)">
-      <div class="section-title"><h3>${esc(d.title)}</h3>
-        ${d.has_guide ? `<a class="small" href="/demos/${encodeURIComponent(d.id)}/guide" target="_blank" rel="noopener">How it works →</a>` : ""}</div>
-      ${opts.length ? `<div class="form">${opts.map((o) => fieldHtml(o, vals[o.name])).join("")}</div>` : `<div class="muted">No settings.</div>`}
-      <div class="startbar">
-        ${d.supports_mock ? `<label><input type="checkbox" id="sim" ${simulator ? "checked" : ""}> Try in simulator (no robot)</label>` : ""}
-        <label class="space" id="space-wrap" hidden><input type="checkbox" id="space"> The robot has space to move</label>
-        <button class="primary" id="start">Start</button>
+    <div class="tray" role="region" aria-label="${esc(d.title)} settings">
+      <div class="setup-head"><div><span class="label">${n} / ${S.demos.length}</span><h3>${esc(d.title)}</h3></div>
+        ${d.has_guide ? `<a class="btn small" href="/demos/${encodeURIComponent(d.id)}/guide" target="_blank" rel="noopener">How it works →</a>` : ""}</div>
+      ${opts.length ? `<div class="form">${opts.map((o) => fieldHtml(o, vals[o.name])).join("")}</div>` : `<div class="muted" style="margin-top:12px">No settings.</div>`}
+      <div class="start-box">
+        <div class="startbar">
+          ${d.supports_mock ? `<label><input type="checkbox" id="sim" ${simulator ? "checked" : ""}> Try in simulator (no robot)</label>` : ""}
+          <label class="space" id="space-wrap" hidden><input type="checkbox" id="space"> The robot has space to move</label>
+          <button class="primary go" id="start">Start</button>
+        </div>
+        <div id="start-msg"></div>
+        <div class="cmd" id="cmd"></div>
       </div>
-      <div id="start-msg"></div>
-      <div class="cmd" id="cmd"></div>
     </div>`;
   formFor = d.id;
   const sim = $("sim");
@@ -417,12 +528,13 @@ function renderRun() {
   $("layout").classList.toggle("has-run", !!(r && r.active));
   if (!r) { panel.hidden = true; frameUrl = null; return; }
   panel.hidden = false;
+  panel.classList.toggle("live", !!r.active);
   const link = r.transport === "mock" ? "simulator" : (r.transport === "ble" ? "Bluetooth " : "USB ") + (r.robot || "");
-  let head = `<div class="run-head"><div><div class="kicker">${r.active ? "Now running" : "Last run"}</div>
-      <h2>${esc(r.title)}</h2><div class="muted small">${esc(link)}</div></div>
-      <div style="display:flex;gap:10px;align-items:center"><span class="pill ${esc(r.state)}">${esc(STATE_TEXT[r.state] || r.state)}</span>
+  let head = `<div class="run-head"><div><span class="ls-eyebrow">${r.active ? "Now running" : "Last run"}</span>
+      <h2>${esc(r.title)}</h2><div class="via">${esc(link)}</div></div>
+      <div class="run-actions"><span class="pill ${esc(r.state)}">${esc(STATE_TEXT[r.state] || r.state)}</span>
       ${r.active ? `<button class="danger" id="stop" ${r.state === "stopping" ? "disabled" : ""}>${r.state === "stopping" ? "Stopping…" : "Stop"}</button>` : ""}</div></div>`;
-  if (r.detail) head += `<div class="muted" style="margin-top:6px">${esc(r.detail)}</div>`;
+  if (r.detail) head += `<div class="detail">${esc(r.detail)}</div>`;
   for (const w of r.warnings || []) head += `<div class="banner warn">${esc(w)}</div>`;
   if (!r.active && r.reason) head += `<div class="banner ${r.state === "failed" ? "bad" : "ok"}">${esc(r.reason)}</div>`;
   // keep the iframe element alive across updates so the dashboard does not reload
@@ -435,13 +547,13 @@ function renderRun() {
   const st = $("stop"); if (st) st.onclick = () => post("stop");
   if (showFrame && frameUrl !== r.url) {
     frameUrl = r.url;
-    $("frame-slot").innerHTML = `<div class="frame-wrap" id="frame-wrap"><div class="frame-bar"><span class="muted">Dashboard</span>
+    $("frame-slot").innerHTML = `<div class="frame-wrap" id="frame-wrap"><div class="frame-bar"><span class="label">Dashboard</span>
       <a href="${esc(r.url)}" target="_blank" rel="noopener">${APP ? "Open in its own window ↗" : "Open in a new tab ↗"}</a></div>
       <iframe title="${esc(r.title)} dashboard" src="${esc(r.url)}"></iframe></div>`;
   } else if (!showFrame) {
     frameUrl = null;
     $("frame-slot").innerHTML = r.active
-      ? `<div class="empty" style="margin-top:12px">The dashboard appears here when the demo is ready.</div>`
+      ? `<div class="empty-box waiting">The dashboard appears here when the demo is ready.</div>`
       : "";
   }
   const log = $("log"), stick = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
@@ -481,7 +593,7 @@ document.addEventListener("click", (e) => {
   if (u.protocol !== "http:" && u.protocol !== "https:") return;
   const local = u.hostname === "127.0.0.1" || u.hostname === "localhost";
   if (!local) { e.preventDefault(); APP.open_external(u.href); }
-  else if (a.target === "_blank") { e.preventDefault(); APP.open_window(u.href, a.textContent.trim()); }
+  else if (a.target === "_blank") { e.preventDefault(); APP.open_window(u.href, a.textContent.replace(/[→↗]/g, "").trim()); }
 }, true);
 
 function renderSource() {
@@ -489,12 +601,12 @@ function renderSource() {
   if (!SOURCE || !SOURCE.switchable) { box.hidden = true; return; }
   box.hidden = false;
   const mine = SOURCE.kind === "folder";
-  let h = `<div class="source"><span class="muted">Demos from:</span>
-    ${mine ? `<span class="path" title="${esc(SOURCE.root)}">${esc(SOURCE.root)}</span>` : `<b>built into Flydeck</b>`}
+  let h = `<div class="source"><span class="label">Demos from</span>
+    <span class="what">${mine ? `<span class="path" title="${esc(SOURCE.root)}">${esc(SOURCE.root)}</span>` : `built into Flydeck`}</span>
     <button class="small" id="pick">${mine ? "Change folder…" : "Use my flybrain folder…"}</button>
     ${mine ? `<button class="small" id="builtin">Use the built-in demos</button>` : ""}</div>`;
   const msg = sourceMsg || SOURCE.note;
-  if (msg) h += `<div class="banner warn" style="margin:-4px 0 12px">${esc(msg)}</div>`;
+  if (msg) h += `<div class="banner warn">${esc(msg)}</div>`;
   box.innerHTML = h;
   $("pick").onclick = async () => {
     const r = await APP.choose_folder();

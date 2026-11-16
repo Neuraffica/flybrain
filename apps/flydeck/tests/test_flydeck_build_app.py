@@ -25,6 +25,28 @@ def test_icon_is_a_valid_icns_with_all_sizes():
     assert {"icp4", "ic07", "ic10"} <= set(types)
 
 
+def test_icon_is_the_teal_tile_with_the_mark_on_a_card():
+    img = icon.render(128)
+    assert img[2, 2, 3] == 0  # outside the macOS tile: transparent
+    corner = img[20, 64, :3] * 255  # top of the tile: the Living Signal primary (#0e6f66)
+    assert abs(corner - (14, 111, 102)).max() < 12
+    card = img[100, 46, :3] * 255  # the front card: paper (#faf7f1)
+    assert abs(card - (250, 247, 241)).max() < 6
+
+
+def test_guides_and_pages_use_the_shared_look():
+    root = registry.find_root()
+    pages = [root / "apps" / "flydeck" / "guide.html", *root.glob("demos/*/guide.html")]
+    pages += list(root.glob("demos/*/src/*/static/index.html"))
+    pages.append(root / "apps" / "flydeck" / "src" / "flydeck" / "static" / "index.html")
+    assert len(pages) >= 9
+    for p in pages:
+        text = p.read_text()
+        assert 'href="/assets/living-signal.css"' in text, p
+        assert 'rel="icon"' in text, p
+        assert "fonts.googleapis" not in text and "@import" not in text, p
+
+
 def test_info_plist():
     info = build_app.info_plist("1.2.3")
     assert info["CFBundleIdentifier"] == "com.neuraffica.flydeck"
@@ -85,6 +107,8 @@ def test_build_app(tmp_path):
     assert (
         app / "Contents" / "Resources" / "flybrain" / "apps" / "flydeck" / "guide.html"
     ).is_file()
+    fonts = list(app.rglob("flybrain_demo_api/assets/fonts/*.woff2"))
+    assert len(fonts) == 6, fonts
     assert not list(app.rglob("__pycache__"))
     v = subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app)], check=False)
     assert v.returncode == 0

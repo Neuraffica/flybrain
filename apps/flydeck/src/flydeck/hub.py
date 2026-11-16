@@ -3,6 +3,7 @@
     GET  /                    the Flydeck page
     GET  /guide               the Flydeck guide
     GET  /demos/<id>/guide    a demo's guide
+    GET  /assets/...          the shared stylesheet, fonts and marks (flybrain_demo_api.assets)
     GET  /docs/<name>.md      a doc from the checkout (plain text)
     GET  /api/state           everything the page shows, as JSON
     GET  /api/stream          the same, as Server-Sent Events, on every change
@@ -28,7 +29,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from flybrain_demo_api import SpecError
+from flybrain_demo_api import SpecError, assets
 from flybrain_edge.bittle import find_serial_ports
 
 from . import registry
@@ -429,6 +430,8 @@ def make_handler(hub: Hub, page: bytes | None = None):
                     html = g.suffix.lower() in (".html", ".htm")
                     ctype = "text/html" if html else "text/plain"
                     self._send(200, g.read_bytes(), f"{ctype}; charset=utf-8")
+            elif path.startswith(assets.PREFIX) and (found := assets.asset(path)):
+                self._send(200, *found)
             elif path == "/favicon.ico":
                 self._send(204, b"", "text/plain")
             else:

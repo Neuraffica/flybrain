@@ -1,4 +1,5 @@
 import json
+import urllib.error
 import urllib.request
 
 import pytest
@@ -119,5 +120,35 @@ def test_web_server_page_state_and_command():
         req = urllib.request.Request(srv.url + "api/command", data=b'{"action":"x"}', method="POST")
         assert json.loads(urllib.request.urlopen(req).read())["echo"] == {"action": "x"}
         assert urllib.request.urlopen(srv.url + "api/benchmark").status == 204
+    finally:
+        srv.stop()
+
+
+def test_shared_look_is_whole_and_served_offline():
+    from flybrain_demo_api import assets
+
+    assert assets.missing() == []
+    css, ctype = assets.asset("/assets/living-signal.css")
+    assert ctype.startswith("text/css") and b"--primary: #0e6f66" in css
+    assert b"http://" not in css and b"https://" not in css  # nothing fetched from the network
+    for bad in ("/assets/../web.py", "/assets/fonts/../../web.py", "/assets/assets.py", "/x.css"):
+        assert assets.asset(bad) is None
+    inline = assets.inline_css()
+    assert "url(fonts/" not in inline and inline.count("data:font/woff2;base64,") == 3
+    assert assets.data_uri("flydeck.svg").startswith("data:image/svg+xml;base64,")
+
+    srv = DashboardServer(FrameHub(), lambda cmd: {"ok": True}).start()
+    try:
+        for path, ctype in (
+            ("assets/living-signal.css", "text/css"),
+            ("assets/fonts/fraunces-latin-opsz-normal.woff2", "font/woff2"),
+            ("assets/neuraffica.svg", "image/svg+xml"),
+        ):
+            r = urllib.request.urlopen(srv.url + path)
+            assert r.headers["Content-Type"].startswith(ctype) and r.read()
+        page = urllib.request.urlopen(srv.url).read()  # the default page uses the shared look
+        assert b"/assets/living-signal.css" in page
+        with pytest.raises(urllib.error.HTTPError):
+            urllib.request.urlopen(srv.url + "assets/nope.css")
     finally:
         srv.stop()

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Flydeck: the Neuraffica mark (an action potential on a paper card, neuraffica.svg)
+       dealt onto a deck, on a bio-teal tile. The app icon (flydeck/icon.py) draws the same. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0E6F66"/>
+      <stop offset="1" stop-color="#0A5750"/>
+    </linearGradient>
+    <linearGradient id="spike" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0A5750"/>
+      <stop offset="0.55" stop-color="#0E6F66"/>
+      <stop offset="1" stop-color="#0FA48D"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#tile)"/>
+  <rect x="8" y="8" width="42" height="42" rx="10" fill="#FAF7F1" fill-opacity="0.38"
+        transform="rotate(-9 29 29)"/>
+  <rect x="15" y="15" width="43" height="43" rx="10" fill="#FAF7F1"/>
+  <path d="M20 42.6 H28.6 L33.6 24 L39.4 49.8 L43 38.3 H53"
+        fill="none" stroke="url(#spike)" stroke-width="4.2"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="33.6" cy="24" r="2.5" fill="#0FA48D"/>
+</svg>

@@ -58,6 +58,11 @@ def test_page_and_state(fake_hub):
     _hub, url = fake_hub
     html = urllib.request.urlopen(url).read().decode()
     assert "<title>Flydeck</title>" in html
+    # the shared look (tokens, fonts, favicon) comes from the hub itself: nothing from the network
+    assert 'href="/assets/living-signal.css"' in html and 'href="/assets/flydeck.svg"' in html
+    assert "https://" not in html
+    for path in ("living-signal.css", "flydeck.svg", "fonts/ibm-plex-mono-latin-600-normal.woff2"):
+        assert urllib.request.urlopen(url + "assets/" + path).read()
     st = get_state(url)
     assert st["app"]["name"] == "Flydeck"
     assert [d["id"] for d in st["demos"]] == ["fake-demo"]
