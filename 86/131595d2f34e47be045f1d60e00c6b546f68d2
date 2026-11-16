@@ -1,0 +1,27 @@
+apps/flydeck/tests/test_flydeck_app.py
+  s_8da33b2ad5b96f::t_e4cbf6b1f7b817 261-309
+apps/flydeck/src/flydeck/app.py
+  s_8da33b2ad5b96f::t_07fa81f58cf9d2 22,90-93,95-97,235,238-271
+  s_8da33b2ad5b96f::t_e4cbf6b1f7b817 59-60
+  s_8da33b2ad5b96f::t_2a4a4ca7b88757 272
+apps/flydeck/pyproject.toml
+  s_8da33b2ad5b96f::t_61809bda115e02 3
+uv.lock
+  s_8da33b2ad5b96f::t_9ec424eed507b3 281
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "86131595d2f34e47be045f1d60e00c6b546f68d2",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
