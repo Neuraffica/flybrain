@@ -1,0 +1,80 @@
+packages/flybrain-demo-api/src/flybrain_demo_api/assets/fonts/OFL-IBMPlexMono.txt
+  s_8da33b2ad5b96f::t_726fd95cbd2b4e 1-93
+packages/flybrain-demo-api/src/flybrain_demo_api/assets/fonts/OFL-InstrumentSans.txt
+  s_8da33b2ad5b96f::t_726fd95cbd2b4e 1-93
+apps/flydeck/src/flydeck/icon.py
+  s_8da33b2ad5b96f::t_d9beaf8fc0c678 10,105
+  s_8da33b2ad5b96f::t_e7341bfeb3a681 1-3,49-53,56-62,71-75,85,88,91-104,106-112
+apps/flydeck/src/flydeck/static/index.html
+  s_8da33b2ad5b96f::t_e2387927d3cfa8 132
+  s_8da33b2ad5b96f::t_4b92d641a7481e 129
+  s_8da33b2ad5b96f::t_084287f5bce061 83
+  s_8da33b2ad5b96f::t_7c345e270d1fce 7-8,10-11,13-33,35-51,53-82,84-104,106,109-128,130-131,133-137,139-169,171-180,182-194,196-208,210-213,215-226,228-233,237-242,247-261,266-276,278-283,290-292,301,350-351,353-354,365,376-377,382,384,394,410-411,413-416,418-423,459,461-472,531,533-535,537,550,556,596,604-605,609
+apps/flydeck/src/flydeck/build_app.py
+  s_8da33b2ad5b96f::t_492e25f722356e 319-320,327
+demos/hello-robot/src/hello_robot/static/index.html
+  s_8da33b2ad5b96f::t_dae8a38f9405fe 7-8,10-30,34-41,43,45,57
+demos/fly-escape/guide.html
+  s_8da33b2ad5b96f::t_01ebb3aebfadc5 7-8,10,12-15,18-27,29-34,37,39-43,46-48,52-56,58,60,62-63,66-69,71-72,76,78-86,89-90,92,95,100,102-104,108,110-113
+demos/fly-compass/src/fly_compass/static/index.html
+  s_8da33b2ad5b96f::t_04fe59426a6476 7-8,10-11,13-25,29-30,32-33,35-38,41-43,45-50,52-54,56-59,61,65-66,69-70,88-90,92,94-96,98,105-106,111-112,114,116,118-122,124-126,129-139,141-143,145-149,152-156,158-159,161,163,169-174,279,381,392,394,413
+demos/fly-compass/guide.html
+  s_8da33b2ad5b96f::t_01ebb3aebfadc5 7-8,10,12-15,18-27,29-34,37,39-43,46-48,52-56,58,60,62-63,66-69,71-72,76,78-86,89-90,92,95,103,105-108
+demos/fly-escape/src/fly_escape/static/index.html
+  s_8da33b2ad5b96f::t_c1daec39f1ed04 7-8,10-11,13-16,20-27,29-43,45-46,50,52-61,63,65-66,71,76,78-79,81-86,89,91,93,95-100,104-106,108-110,115,117-118,120-121,123-124,126-128,130,132-136,139,141,146,289,298,323
+  s_8da33b2ad5b96f::t_32b30eab9bade7 74-75,293,330
+apps/flydeck/tests/test_flydeck_build_app.py
+  s_8da33b2ad5b96f::t_bfec1329d75157 28-49,110-111
+demos/fly-escape-onboard/src/fly_escape_onboard/static/index.html
+  s_8da33b2ad5b96f::t_45da3e05dc8ec2 7-8,10,12-15,19-26,28-39,41-42,46,48-57,60,62-64,66-69,71-73,75,77-78,80-84,89,145,150,170,178,193-195
+apps/flydeck/src/flydeck/app.py
+  s_8da33b2ad5b96f::t_d256d9d30f8c44 83
+  s_8da33b2ad5b96f::t_9590b811bbf6aa 89
+  s_8da33b2ad5b96f::t_427efe0e10d461 27-28,57-58,60-61,63-82,84-88,93-96,107-109
+packages/flybrain-demo-api/src/flybrain_demo_api/assets/living-signal.css
+  s_8da33b2ad5b96f::t_a1ce8b1a8be6ad 1-16,18-23,25-30,32-268
+  s_8da33b2ad5b96f::t_cc71dbefcc4a93 17,24,31
+packages/flybrain-demo-api/src/flybrain_demo_api/assets/flydeck.svg
+  s_8da33b2ad5b96f::t_647229a0b881e5 1-23
+packages/flybrain-demo-api/src/flybrain_demo_api/assets/fonts/OFL-Fraunces.txt
+  s_8da33b2ad5b96f::t_726fd95cbd2b4e 1-93
+packages/flybrain-demo-api/src/flybrain_demo_api/web.py
+  s_8da33b2ad5b96f::t_930721140c36cd 8,26-27,30-45,120-121
+packages/flybrain-demo-api/src/flybrain_demo_api/assets/neuraffica.svg
+  s_8da33b2ad5b96f::t_726fd95cbd2b4e 1-16
+apps/flydeck/src/flydeck/hub.py
+  s_8da33b2ad5b96f::t_04e79f531a728d 32
+  s_8da33b2ad5b96f::t_930721140c36cd 6,433-434
+packages/flybrain-demo-api/src/flybrain_demo_api/assets.py
+  s_8da33b2ad5b96f::t_492e25f722356e 46-59
+  s_8da33b2ad5b96f::t_d256d9d30f8c44 60-65
+  s_8da33b2ad5b96f::t_ef7045255b5fe0 66-73,75-77
+  s_8da33b2ad5b96f::t_611c939a48ecd9 1-13,15-45,74,78
+  s_8da33b2ad5b96f::t_0dac3b857183d9 14,79-87
+demos/fly-escape-onboard/guide.html
+  s_8da33b2ad5b96f::t_01ebb3aebfadc5 7-8,10,12-15,18-27,29-39,41-43,47,49-53,55,58
+apps/flydeck/tests/test_flydeck_hub.py
+  s_8da33b2ad5b96f::t_bfec1329d75157 61-65
+packages/flybrain-demo-api/tests/test_demo_api.py
+  s_8da33b2ad5b96f::t_bfec1329d75157 2,125-152
+  s_8da33b2ad5b96f::t_c6e85af13cc1c7 153-154
+apps/flydeck/guide.html
+  s_8da33b2ad5b96f::t_01ebb3aebfadc5 7-8,10,12-15,18-27,29-34,37,39-43,46-48,52-56,58,60,62-63,66-69,71-72,76,78-86,89-90,92,95,100,102-106,108-110,114,116-119,175
+  s_8da33b2ad5b96f::t_8eba725a71f7ac 107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "40cc615b92934a24255dafbccaa062a0e8d55edc",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
