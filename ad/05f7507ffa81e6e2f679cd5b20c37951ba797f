@@ -1,0 +1,23 @@
+apps/flydeck/src/flydeck/icon.py
+  s_8da33b2ad5b96f::t_bdabf801713228 1-2,48-66,108-125
+packages/flybrain-demo-api/src/flybrain_demo_api/assets/flydeck.svg
+  s_8da33b2ad5b96f::t_bdabf801713228 2-3,14-26
+apps/flydeck/tests/test_flydeck_build_app.py
+  s_8da33b2ad5b96f::t_dd96eb8c28ab96 28,35-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ad05f7507ffa81e6e2f679cd5b20c37951ba797f",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
