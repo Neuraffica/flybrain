@@ -1,5 +1,5 @@
-"""The Flydeck icon, drawn in code: Neuraffica's mark (an action potential on a paper card)
-dealt onto a deck, on a bio-teal tile, in the Living Signal palette. The favicon
+"""The Flydeck icon, drawn in code: a fly, seen from above, on the top paper card of a deck, on
+a bio-teal tile, in the Living Signal palette. The favicon
 (flybrain_demo_api/assets/flydeck.svg) is the same drawing on the same 64-unit grid.
 
 ``icns_bytes()`` returns a macOS .icns with PNG images from 16 to 1024 px.
@@ -7,7 +7,6 @@ dealt onto a deck, on a bio-teal tile, in the Living Signal palette. The favicon
 
 from __future__ import annotations
 
-import itertools
 import struct
 import zlib
 
@@ -46,18 +45,25 @@ def _round_rect(x, y, cx, cy, hw, hh, r):
     return out + np.minimum(np.maximum(qx, qy), 0) - r
 
 
-def _segment(x, y, ax, ay, bx, by):
-    """Distance to the segment a-b."""
-    dx, dy = bx - ax, by - ay
-    t = np.clip(((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy), 0, 1)
-    return np.hypot(x - (ax + t * dx), y - (ay + t * dy))
+def _ellipse(x, y, cx, cy, rx, ry, angle_deg=0.0):
+    a = np.deg2rad(angle_deg)
+    dx, dy = x - cx, y - cy
+    u = dx * np.cos(a) + dy * np.sin(a)
+    v = -dx * np.sin(a) + dy * np.cos(a)
+    k = np.hypot(u / rx, v / ry)
+    return (k - 1.0) * min(rx, ry)  # approximate distance, good enough for an icon
 
 
-# Living Signal (DESIGN.md): primary, primary-strong, signal, paper
-PRIMARY, PRIMARY_STRONG, SIGNAL, PAPER = "#0e6f66", "#0a5750", "#0fa48d", "#faf7f1"
-# the mark's spike on the 64-unit grid of flydeck.svg, and the two cards
-SPIKE = ((20, 42.6), (28.6, 42.6), (33.6, 24), (39.4, 49.8), (43, 38.3), (53, 38.3))
-SPIKE_WIDTH, APEX_R = 4.2, 2.5
+# Living Signal (DESIGN.md): primary, primary-strong, paper, ink, and the fly's wing and eye
+PRIMARY, PRIMARY_STRONG, PAPER, INK = "#0e6f66", "#0a5750", "#faf7f1", "#1c2a30"
+WING, EYE = "#d6e8f0", "#a3302a"  # pip-wing, pip-eye
+# The fly on the 64-unit grid of flydeck.svg: (cx, cy, rx, ry, rotation in degrees). Wings and
+# legs are listed for the right side; the left side mirrors them about x = FLY_X.
+FLY_X = 36.5
+FLY_WING = (8.6, 2.8, 6.4, 13.6, -28.0)  # dx from FLY_X, dy from the front card's centre
+FLY_LEGS = ((6.4, -4.7, 5.7, 0.7, -35.0), (8.7, 0.0, 5.7, 0.7, 0.0), (6.4, 4.7, 5.7, 0.7, 35.0))
+FLY_BODY = ((0, 3.8, 4.3, 9.7), (0, -6.0, 4.6, 4.4), (0, -11.6, 3.5, 3.0))  # abdomen, thorax, head
+FLY_EYE = (2.8, -12.5, 1.9, 2.2)
 BACK_CARD = (29, 29, 21, 10, -9.0)  # centre x, y, half side, corner radius, rotation (deg)
 FRONT_CARD = (36.5, 36.5, 21.5, 10, 0.0)
 
@@ -99,17 +105,24 @@ def render(size: int = SIZE) -> np.ndarray:
             paint(_cover(_round_rect(u, v, cx + 6, cy + 14, half, half, r), 28), shadow, 0.30)
         paint(_cover(_round_rect(u, v, cx, cy, half, half, r), aa) * tile, paper, opacity)
 
-    # the spike: round caps and joins, a primary-strong > primary > signal gradient across it
-    pts = [(g(px), g(py)) for px, py in SPIKE]
-    d = np.full(x.shape, np.inf)
-    for (ax, ay), (bx, by) in itertools.pairwise(pts):
-        d = np.minimum(d, _segment(x, y, ax, ay, bx, by))
-    u = np.clip((x - pts[0][0]) / (pts[-1][0] - pts[0][0]), 0, 1)[..., None]
-    lo = _hex(PRIMARY_STRONG) + (_hex(PRIMARY) - _hex(PRIMARY_STRONG)) * np.clip(u / 0.55, 0, 1)
-    hi = _hex(PRIMARY) + (_hex(SIGNAL) - _hex(PRIMARY)) * np.clip((u - 0.55) / 0.45, 0, 1)
-    paint(_cover(d - SPIKE_WIDTH * k / 2, aa), np.where(u < 0.55, lo, hi))
-    ax, ay = pts[2]
-    paint(_cover(np.hypot(x - ax, y - ay) - APEX_R * k, aa), _hex(SIGNAL))
+    # the fly, seen from above, on the front card
+    fx, fy = g(FLY_X), g(FRONT_CARD[1])
+    ink = _hex(INK)
+
+    def part(dx, dy, rx, ry, ang=0.0, side=1):
+        return _ellipse(x, y, fx + side * dx * k, fy + dy * k, rx * k, ry * k, side * ang)
+
+    for side in (-1, 1):
+        wing = part(*FLY_WING, side=side)
+        paint(_cover(wing, aa), _hex(WING), 0.9)
+        paint(_cover(np.abs(wing) - 0.22 * k, aa), ink, 0.55)
+    for side in (-1, 1):
+        for leg in FLY_LEGS:
+            paint(_cover(part(*leg, side=side), aa), ink)
+    for body in FLY_BODY:
+        paint(_cover(part(*body), aa), ink)
+    for side in (-1, 1):
+        paint(_cover(part(*FLY_EYE, side=side), aa), _hex(EYE))
 
     img = np.concatenate([rgb, alpha[..., None]], axis=-1)
     return np.clip(img, 0, 1)

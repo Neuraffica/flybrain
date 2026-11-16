@@ -25,13 +25,17 @@ def test_icon_is_a_valid_icns_with_all_sizes():
     assert {"icp4", "ic07", "ic10"} <= set(types)
 
 
-def test_icon_is_the_teal_tile_with_the_mark_on_a_card():
+def test_icon_is_the_teal_tile_with_a_fly_on_a_card():
     img = icon.render(128)
     assert img[2, 2, 3] == 0  # outside the macOS tile: transparent
     corner = img[20, 64, :3] * 255  # top of the tile: the Living Signal primary (#0e6f66)
     assert abs(corner - (14, 111, 102)).max() < 12
     card = img[100, 46, :3] * 255  # the front card: paper (#faf7f1)
     assert abs(card - (250, 247, 241)).max() < 6
+    body = img[77, 73, :3] * 255  # the fly's abdomen, on the card's centre line: ink (#1c2a30)
+    assert abs(body - (28, 42, 48)).max() < 12
+    eyes = [img[50, 72 + side * 5, :3] * 255 for side in (-1, 1)]  # two red eyes (#a3302a)
+    assert all(e[0] > 120 and e[0] > e[1] * 2 for e in eyes)
 
 
 def test_guides_and_pages_use_the_shared_look():
