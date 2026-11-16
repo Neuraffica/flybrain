@@ -24,6 +24,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from flybrain_demo_api import assets
+
 from . import sources
 from .settings import Settings
 
@@ -52,29 +54,46 @@ LINKS_JS = r"""
 })();
 """
 
+# The window's own pages, shown before the hub answers (no server behind them): the Living
+# Signal stylesheet inlined, fonts included, so they look like the hub page they lead to.
 PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>Flydeck</title><style>
-:root {{ --paper:#f6f2ea; --card:#fffdf8; --ink:#1f1b16; --muted:#6b6257; --line:#e2d9ca;
-  --accent:#b8402a; --bad-soft:#f6d9d4; --bad:#a3271b; color-scheme: light; }}
-@media (prefers-color-scheme: dark) {{ :root {{ --paper:#15130f; --card:#1d1a15; --ink:#ece6da;
-  --muted:#a0968a; --line:#322d25; --accent:#e8735a; --bad-soft:#3c1d18; --bad:#f08b7a;
-  color-scheme: dark; }} }}
-body {{ margin:0; background:var(--paper); color:var(--ink);
-  font:15px/1.5 system-ui,-apple-system,sans-serif; display:flex; min-height:100vh;
+{css}
+body {{ margin:0; font-size:15px; line-height:1.55; display:flex; min-height:100vh;
   align-items:center; justify-content:center; }}
-main {{ max-width:620px; padding:24px; }}
-h1 {{ font-family:"Iowan Old Style",Palatino,Georgia,serif; font-weight:600; margin:0 0 8px; }}
-p {{ color:var(--muted); }}
-pre {{ background:var(--card); border:1px solid var(--line); border-left:4px solid var(--bad);
-  border-radius:8px; padding:10px; white-space:pre-wrap; word-break:break-word;
-  font:12px/1.45 ui-monospace,Menlo,monospace; color:var(--ink); max-height:40vh; overflow:auto; }}
-button {{ font:inherit; font-weight:600; border-radius:9px; padding:8px 14px; cursor:pointer;
-  border:1px solid var(--line); background:var(--card); color:var(--ink); margin:4px 8px 0 0; }}
-button.primary {{ background:var(--accent); border-color:var(--accent); color:#fff; }}
-</style></head><body><main>{body}</main></body></html>"""
+main {{ max-width:640px; padding:32px; }}
+.ls-brand {{ margin-bottom:28px; }}
+h1 {{ font-family:var(--font-headline); font-weight:600; font-size:2.4rem; line-height:1.05;
+  letter-spacing:-0.02em; margin:10px 0 10px; }}
+p {{ color:var(--ink-muted); }}
+pre {{ background:var(--surface); border:1px solid var(--outline-variant);
+  border-left:4px solid var(--coral); border-radius:var(--r-md); padding:12px 14px;
+  white-space:pre-wrap; word-break:break-word; font:12px/1.5 var(--font-label); color:var(--ink);
+  max-height:40vh; overflow:auto; }}
+button {{ font:600 11px/1 var(--font-label); letter-spacing:.12em; text-transform:uppercase;
+  border-radius:var(--r-full); padding:0 16px; min-height:36px; cursor:pointer;
+  border:1px solid var(--outline); background:var(--surface); color:var(--ink); margin:6px 8px 0 0; }}
+button:hover {{ border-color:var(--primary); color:var(--primary); }}
+button:focus-visible {{ outline:2px solid var(--primary); outline-offset:2px; }}
+button.primary {{ background:linear-gradient(45deg,var(--primary-strong),var(--primary));
+  border-color:var(--primary-strong); color:var(--on-primary); }}
+.dots::after {{ content:""; display:inline-block; width:8px; height:8px; margin-left:10px;
+  border-radius:50%; background:var(--signal); animation:blink 1.2s infinite; vertical-align:1px; }}
+@keyframes blink {{ 50% {{ opacity:.25; }} }}
+</style></head><body><main>
+<div class="ls-brand"><img src="{mark}" alt=""><span class="ls-wordmark"><span class="neura">NEURA</span><span class="ffica">FFICA</span></span>
+<span class="ls-chip">Flydeck</span></div>
+{body}</main></body></html>"""
+
+
+def _page(body: str) -> str:
+    return PAGE.format(css=assets.inline_css(), mark=assets.data_uri("neuraffica.svg"), body=body)
 
 
 def loading_page(text: str) -> str:
-    return PAGE.format(body=f"<h1>Flydeck</h1><p>{html.escape(text)}</p>")
+    return _page(
+        f'<div class="ls-eyebrow">Fly Brain &amp; Tiny Machines</div><h1>Flydeck</h1>'
+        f'<p class="dots">{html.escape(text)}</p>'
+    )
 
 
 def error_page(title: str, detail: str, switchable: bool, kind: str) -> str:
@@ -85,9 +104,9 @@ def error_page(title: str, detail: str, switchable: bool, kind: str) -> str:
             buttons.append('<button onclick="pywebview.api.use_builtin()">Built-in demos</button>')
     buttons.append('<button onclick="pywebview.api.quit()">Quit</button>')
     log_hint = "" if kind == "dev" else f"<p>More in {html.escape(str(sources.log_path()))}</p>"
-    return PAGE.format(
-        body=f"<h1>{html.escape(title)}</h1><pre>{html.escape(detail)}</pre>{log_hint}"
-        + "".join(buttons)
+    return _page(
+        f'<div class="ls-eyebrow">Flydeck</div><h1>{html.escape(title)}</h1>'
+        f"<pre>{html.escape(detail)}</pre>{log_hint}" + "".join(buttons)
     )
 
 

@@ -28,3 +28,6 @@ runs/
 
 # Flydeck.app and .dmg (uv run flydeck build-app)
 dist/
+
+# Local artwork rendering and verification scratch files
+/work/

@@ -5,6 +5,7 @@ Standard library only; binds to 127.0.0.1 by default.
     GET  /api/stream       text/event-stream, one JSON frame per publish
     GET  /api/state        latest frame as JSON
     GET  /api/benchmark    optional offline results JSON, or 204
+    GET  /assets/...       the shared stylesheet, fonts and marks (flybrain_demo_api.assets)
     POST /api/command      JSON object handed to your on_command; its reply is returned
 
     hub = FrameHub()
@@ -20,15 +21,46 @@ import threading
 from collections.abc import Callable
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib import resources
 from typing import Any
+
+from . import assets
 
 log = logging.getLogger(__name__)
 
-DEFAULT_PAGE = (
-    b"<!doctype html><meta charset=utf-8><title>demo</title><pre id=f>waiting...</pre>"
-    b"<script>new EventSource('/api/stream').onmessage=e=>"
-    b"f.textContent=JSON.stringify(JSON.parse(e.data),null,2)</script>"
-)
+DEFAULT_PAGE = b"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>demo</title>
+<link rel="stylesheet" href="/assets/living-signal.css">
+<link rel="icon" href="/assets/neuraffica.svg">
+<style>
+body { margin: 0; padding: 24px; }
+header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+pre { margin: 0; background: var(--surface); border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md); padding: 16px; font: 13px/1.5 var(--font-label);
+  white-space: pre-wrap; word-break: break-word; }
+</style></head><body>
+<header><span class="ls-eyebrow">Live frame</span></header>
+<pre id="f">waiting...</pre>
+<script>new EventSource('/api/stream').onmessage=e=>
+f.textContent=JSON.stringify(JSON.parse(e.data),null,2)</script>
+</body></html>"""
+
+
+def bittle_asset(path: str) -> tuple[bytes, str] | None:
+    """Serve only named, packaged artwork; no filesystem paths from HTTP input."""
+    name = path.removeprefix("/bittle/")
+    types = {
+        "robot.js": "text/javascript; charset=utf-8",
+        "top.webp": "image/webp",
+        "head.webp": "image/webp",
+        "side.webp": "image/webp",
+        "NOTICE": "text/plain; charset=utf-8",
+        "manifest.json": "application/json",
+    }
+    if name not in types:
+        return None
+    asset = resources.files("flybrain_demo_api").joinpath("static", "bittle", name)
+    return asset.read_bytes(), types[name]
 
 
 class FrameHub:
@@ -91,6 +123,12 @@ def make_handler(
             path = self.path.split("?", 1)[0]
             if path in ("/", "/index.html"):
                 self._send(200, page, "text/html; charset=utf-8")
+            elif path.startswith("/bittle/"):
+                asset = bittle_asset(path)
+                if asset is None:
+                    self._send(404, b"not found", "text/plain")
+                else:
+                    self._send(200, *asset)
             elif path == "/api/state":
                 self._json(hub.frame or {})
             elif path == "/api/benchmark":
@@ -103,6 +141,8 @@ def make_handler(
                     self._json(b)
             elif path == "/api/stream":
                 self._stream()
+            elif path.startswith(assets.PREFIX) and (found := assets.asset(path)):
+                self._send(200, *found)
             elif path == "/favicon.ico":
                 self.send_response(HTTPStatus.NO_CONTENT)
                 self.send_header("Content-Length", "0")

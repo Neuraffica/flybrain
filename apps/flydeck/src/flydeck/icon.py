@@ -1,4 +1,7 @@
-"""The Flydeck icon, drawn in code (no image files in the repo): a fly on a stack of cards.
+"""The Flydeck icon: the fly of the hackathon's cover on the top paper card of a deck, on a
+bio-teal tile, in the Living Signal palette. The tile and cards are drawn in code; the fly is
+``icon_fly.png``, cut out of the cover by scripts/flydeck-icon/cut_fly.py, which also writes
+the favicon (flybrain_demo_api/assets/flydeck.svg) with the same layout on the same 64-unit grid.
 
 ``icns_bytes()`` returns a macOS .icns with PNG images from 16 to 1024 px.
 """
@@ -7,6 +10,7 @@ from __future__ import annotations
 
 import struct
 import zlib
+from pathlib import Path
 
 import numpy as np
 
@@ -43,19 +47,13 @@ def _round_rect(x, y, cx, cy, hw, hh, r):
     return out + np.minimum(np.maximum(qx, qy), 0) - r
 
 
-def _ellipse(x, y, cx, cy, rx, ry, angle_deg=0.0):
-    a = np.deg2rad(angle_deg)
-    dx, dy = x - cx, y - cy
-    u = dx * np.cos(a) + dy * np.sin(a)
-    v = -dx * np.sin(a) + dy * np.cos(a)
-    k = np.hypot(u / rx, v / ry)
-    return (k - 1.0) * min(rx, ry)  # approximate distance, good enough for an icon
-
-
-def _rotate(x, y, cx, cy, angle_deg):
-    a = np.deg2rad(angle_deg)
-    dx, dy = x - cx, y - cy
-    return cx + dx * np.cos(a) + dy * np.sin(a), cy - dx * np.sin(a) + dy * np.cos(a)
+# Living Signal (DESIGN.md): primary, primary-strong, paper
+PRIMARY, PRIMARY_STRONG, PAPER = "#0e6f66", "#0a5750", "#faf7f1"
+# the fly on the 64-unit grid of flydeck.svg: its centre and its width (its height follows)
+FLY_CENTRE, FLY_WIDTH = (36.5, 36.7), 39.0
+FLY_PNG = Path(__file__).with_name("icon_fly.png")
+BACK_CARD = (29, 29, 21, 10, -9.0)  # centre x, y, half side, corner radius, rotation (deg)
+FRONT_CARD = (36.5, 36.5, 21.5, 10, 0.0)
 
 
 def render(size: int = SIZE) -> np.ndarray:
@@ -64,6 +62,11 @@ def render(size: int = SIZE) -> np.ndarray:
     yy, xx = np.mgrid[0:size, 0:size].astype(float) + 0.5
     x, y = xx / s, yy / s  # draw in 1024 units
     aa = 1.5 / s
+    k = 824 / 60  # the svg's tile (2..62) onto the macOS grid's 824 px tile (100..924)
+
+    def g(v):
+        return 100 + (v - 2) * k
+
     rgb = np.zeros((size, size, 3))
     alpha = np.zeros((size, size))
 
@@ -73,49 +76,40 @@ def render(size: int = SIZE) -> np.ndarray:
         rgb = rgb * (1 - c) + color * c
         alpha[:] = alpha + (1 - alpha) * cov * opacity
 
-    # app tile: macOS grid, 824 px square with a 185 px corner radius, warm red gradient
+    # tile: macOS grid, 824 px square with a 185 px corner radius, primary to primary-strong
     tile = _cover(_round_rect(x, y, 512, 512, 412, 412, 185), aa)
     t = np.clip((y - 100) / 824, 0, 1)[..., None]
-    grad = _hex("#c9492f") * (1 - t) + _hex("#8a2c1c") * t
-    c = tile[..., None]
-    rgb = grad * c
+    rgb = (_hex(PRIMARY) * (1 - t) + _hex(PRIMARY_STRONG) * t) * tile[..., None]
     alpha = tile.copy()
 
-    paper, ink = _hex("#f6f2ea"), _hex("#1f1b16")
-    shadow = _hex("#5e1d12")
-    # the deck: two cards behind, one in front (tilted)
-    for ang, dx, dy, shade in ((-14, -70, 40, 0.80), (8, 60, 30, 0.90)):
-        xr, yr = _rotate(x, y, 512 + dx, 540 + dy, ang)
-        card = _cover(_round_rect(xr, yr, 512 + dx, 540 + dy, 230, 300, 40), aa)
-        paint(
-            _cover(_round_rect(xr, yr, 512 + dx + 10, 540 + dy + 16, 230, 300, 40), 18),
-            shadow,
-            0.35,
-        )
-        paint(card, paper * shade)
-    card = _cover(_round_rect(x, y, 512, 520, 240, 310, 42), aa)
-    paint(_cover(_round_rect(x, y, 522, 540, 240, 310, 42), 22), shadow, 0.45)
-    paint(card, paper)
+    paper = _hex(PAPER)
+    shadow = _hex("#04302b")  # on-primary (dark): the deck's shadow on the teal
+    for (cx, cy, half, r, ang), opacity in ((BACK_CARD, 0.38), (FRONT_CARD, 1.0)):
+        cx, cy, half, r = g(cx), g(cy), half * k, r * k
+        a = np.deg2rad(ang)  # svg rotate(): inverse-rotate the pixel into the card's frame
+        dx, dy = x - cx, y - cy
+        u, v = cx + dx * np.cos(a) + dy * np.sin(a), cy - dx * np.sin(a) + dy * np.cos(a)
+        if opacity == 1.0:
+            paint(_cover(_round_rect(u, v, cx + 6, cy + 14, half, half, r), 28), shadow, 0.30)
+        paint(_cover(_round_rect(u, v, cx, cy, half, half, r), aa) * tile, paper, opacity)
 
-    # the fly, seen from above
-    wing = _hex("#9fb3c8")
-    for side in (-1, 1):
-        paint(_cover(_ellipse(x, y, 512 + side * 92, 545, 70, 150, side * -28), aa), wing, 0.75)
-        paint(
-            _cover(np.abs(_ellipse(x, y, 512 + side * 92, 545, 70, 150, side * -28)) - 3, aa),
-            ink,
-            0.5,
-        )
-    for side in (-1, 1):  # legs
-        for k, (ly, ang) in enumerate(((470, -35), (520, 0), (570, 35))):
-            lx = 512 + side * (70 + 25 * (k == 1))
-            paint(_cover(_ellipse(x, y, lx, ly, 62, 7, side * ang), aa), ink)
-    paint(_cover(_ellipse(x, y, 512, 560, 46, 105), aa), ink)  # abdomen
-    paint(_cover(_ellipse(x, y, 512, 455, 50, 48), aa), ink)  # thorax
-    paint(_cover(_ellipse(x, y, 512, 395, 38, 32), aa), ink)  # head
-    red = _hex("#d8432c")
-    for side in (-1, 1):
-        paint(_cover(_ellipse(x, y, 512 + side * 30, 385, 20, 24), aa), red)
+    # the fly, on the front card: the cut-out, resampled (bilinear) to its place
+    fly = read_png(FLY_PNG.read_bytes())
+    fh, fw = fly.shape[:2]
+    scale = FLY_WIDTH * k / fw  # 1024-unit pixels per fly pixel
+    u = (x - (g(FLY_CENTRE[0]) - fw * scale / 2)) / scale - 0.5
+    v = (y - (g(FLY_CENTRE[1]) - fh * scale / 2)) / scale - 0.5
+    inside = (u > -0.5) & (u < fw - 0.5) & (v > -0.5) & (v < fh - 0.5)
+    u0 = np.clip(np.floor(u).astype(int), 0, fw - 2)
+    v0 = np.clip(np.floor(v).astype(int), 0, fh - 2)
+    du = np.clip(u - u0, 0, 1)[..., None]
+    dv = np.clip(v - v0, 0, 1)[..., None]
+    pm = fly.copy()
+    pm[..., :3] *= pm[..., 3:4]  # premultiplied, so transparent pixels do not bleed colour
+    top = pm[v0, u0] * (1 - du) + pm[v0, u0 + 1] * du
+    bottom = pm[v0 + 1, u0] * (1 - du) + pm[v0 + 1, u0 + 1] * du
+    sample = (top * (1 - dv) + bottom * dv) * inside[..., None]
+    rgb = rgb * (1 - sample[..., 3:4]) + sample[..., :3]
 
     img = np.concatenate([rgb, alpha[..., None]], axis=-1)
     return np.clip(img, 0, 1)
@@ -154,6 +148,25 @@ def png_bytes(img: np.ndarray) -> bytes:
         + chunk(b"IDAT", zlib.compress(raw, 9))
         + chunk(b"IEND", b"")
     )
+
+
+def read_png(data: bytes) -> np.ndarray:
+    """An RGBA float image from a PNG whose rows are stored unfiltered, as ``png_bytes`` writes."""
+    pos, idat, w, h = 8, b"", 0, 0
+    while pos < len(data):
+        (n,), tag = struct.unpack(">I", data[pos : pos + 4]), data[pos + 4 : pos + 8]
+        body = data[pos + 8 : pos + 8 + n]
+        if tag == b"IHDR":
+            w, h, depth, colour = struct.unpack(">IIBB", body[:10])
+            if (depth, colour) != (8, 6):
+                raise ValueError("expected an 8-bit RGBA PNG")
+        elif tag == b"IDAT":
+            idat += body
+        pos += n + 12
+    rows = np.frombuffer(zlib.decompress(idat), np.uint8).reshape(h, 1 + w * 4)
+    if rows[:, 0].any():
+        raise ValueError("expected unfiltered PNG rows")
+    return rows[:, 1:].reshape(h, w, 4).astype(float) / 255
 
 
 def icns_bytes() -> bytes:
