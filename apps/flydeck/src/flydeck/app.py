@@ -19,6 +19,7 @@ import os
 import signal
 import sys
 import threading
+import time
 import webbrowser
 from pathlib import Path
 from typing import Any
@@ -55,7 +56,8 @@ LINKS_JS = r"""
 """
 
 # The window's own pages, shown before the hub answers (no server behind them): the Living
-# Signal stylesheet inlined, fonts included, so they look like the hub page they lead to.
+# Signal stylesheet inlined, without its fonts. They must load at once: a heavy splash that is
+# still loading when the hub's page is asked for keeps the window on the splash (see _show).
 PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>Flydeck</title><style>
 {css}
 body {{ margin:0; font-size:15px; line-height:1.55; display:flex; min-height:100vh;
@@ -85,8 +87,14 @@ button.primary {{ background:linear-gradient(45deg,var(--primary-strong),var(--p
 {body}</main></body></html>"""
 
 
+# showing the hub's page (App._show): how often to look, how long it must stay, when to ask again
+SHOW_POLL_S, SHOW_SETTLE_S, SHOW_RETRY_S, SHOW_TIMEOUT_S = 0.2, 1.0, 1.0, 30.0
+
+
 def _page(body: str) -> str:
-    return PAGE.format(css=assets.inline_css(), mark=assets.data_uri("neuraffica.svg"), body=body)
+    return PAGE.format(
+        css=assets.inline_css(fonts=()), mark=assets.data_uri("neuraffica.svg"), body=body
+    )
 
 
 def loading_page(text: str) -> str:
@@ -224,8 +232,43 @@ class Shell:
                 self.main.load_html(error_page(title, str(e), self.switchable, source.kind))
                 return
             self.hub = hub
-            self.main.load_url(url)
+            self._show(hub, url)
         threading.Thread(target=self._watch, args=(hub,), daemon=True).start()
+
+    def _current_url(self) -> str:
+        """What the window shows now, asked without waiting for a load to finish."""
+        gui = getattr(self.main, "gui", None)
+        if gui is None:  # a window that cannot say (tests): take its word for it
+            return ""
+        return gui.get_current_url(self.main.uid) or ""
+
+    def _show(self, hub: sources.HubProcess, url: str) -> None:
+        """Show the hub's page, and make sure the window really got there.
+
+        WebKit lets an HTML load that is still in flight (the splash page) win over a URL load
+        asked for right after it: the window then stays on the splash for ever. So ask, look at
+        what the window shows, and ask again until it shows the hub's page and stays there.
+        """
+        self.main.load_url(url)
+        if getattr(self.main, "gui", None) is None:
+            return
+        asked = time.monotonic()
+        there = 0
+        deadline = asked + SHOW_TIMEOUT_S
+        while time.monotonic() < deadline and not self.quitting and self.hub is hub:
+            time.sleep(SHOW_POLL_S)
+            if self._current_url().startswith(url):
+                there += 1
+                if there * SHOW_POLL_S >= SHOW_SETTLE_S:
+                    return
+                continue
+            there = 0
+            if time.monotonic() - asked >= SHOW_RETRY_S:
+                log.warning("the window is not showing %s yet: asking again", url)
+                self.main.load_url(url)
+                asked = time.monotonic()
+        if not self.quitting and self.hub is hub:
+            log.warning("the window did not reach %s", url)
 
     def _demo_running(self) -> bool:
         st = self.hub.state() if self.hub else None

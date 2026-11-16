@@ -258,3 +258,52 @@ def test_switching_folders_does_not_quit_and_is_remembered(tmp_path, monkeypatch
     shell.switch(sources.builtin(bundle), save=True)
     time.sleep(0.3)
     assert not quits and settings.get(sources.SETTING) is None
+
+
+class FakeGui:
+    """What WebKit did on the real Mac: the first asks leave the window on the splash."""
+
+    def __init__(self, window, stuck_asks):
+        self.window, self.stuck_asks = window, stuck_asks
+
+    def get_current_url(self, uid):
+        asks = [u for u in self.window.loaded if u != "html"]
+        return asks[-1] if len(asks) > self.stuck_asks else "file:///splash/"
+
+
+def _shell_with_window(tmp_path, monkeypatch, stuck_asks):
+    monkeypatch.setattr(app, "SHOW_POLL_S", 0.01)
+    monkeypatch.setattr(app, "SHOW_SETTLE_S", 0.03)
+    monkeypatch.setattr(app, "SHOW_RETRY_S", 0.03)
+    monkeypatch.setattr(app, "SHOW_TIMEOUT_S", 2.0)
+    bundle = tmp_path / "Flydeck.app"
+    shell = app.Shell(
+        sources.builtin(bundle), bundle=bundle, settings=Settings(tmp_path / "s.json")
+    )
+    shell.main = FakeWindow()
+    shell.main.uid = "main"
+    shell.main.gui = FakeGui(shell.main, stuck_asks)
+    monkeypatch.setattr(shell, "_new_hub", FakeHub)
+    return shell
+
+
+def test_the_hub_page_is_asked_for_again_when_the_window_stays_on_the_splash(tmp_path, monkeypatch):
+    shell = _shell_with_window(tmp_path, monkeypatch, stuck_asks=2)
+    shell.switch(shell.source)
+    asks = [u for u in shell.main.loaded if u != "html"]
+    assert len(asks) == 3 and len(set(asks)) == 1  # asked until the window showed the page
+    assert shell.main.gui.get_current_url("main") == shell.hub.url
+
+
+def test_the_hub_page_is_asked_for_once_when_the_window_gets_there(tmp_path, monkeypatch):
+    shell = _shell_with_window(tmp_path, monkeypatch, stuck_asks=0)
+    shell.switch(shell.source)
+    assert len([u for u in shell.main.loaded if u != "html"]) == 1
+
+
+def test_the_splash_page_is_light():
+    # no embedded fonts: it has to finish loading before the hub's page is asked for
+    assert len(app.loading_page("Starting Flydeck…")) < 20_000
+    assert "base64" not in app.loading_page("x").split("</style>")[0].replace(
+        "image/svg+xml;base64", ""
+    )
