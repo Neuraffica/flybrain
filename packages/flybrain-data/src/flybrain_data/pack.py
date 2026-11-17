@@ -3,6 +3,15 @@
 Matrix convention: ``W[post, pre]``, so a rate vector updates as ``W @ r``.
 ``counts[post, pre]`` is the thresholded synapse count (summed over neuropils) and
 ``W = counts * sign[pre]``.
+
+Angles: ``ring_angle`` is a neuron's position on the central-complex ring (packs with a ring).
+``azimuth`` is the estimated receptive-field centre of a visual neuron in the horizontal plane,
+in radians, positive = to the fly's LEFT (counter-clockwise, as in ``flybrain_models.compass``),
+0 = straight ahead. It is optional (``None`` for packs without it, including older files).
+
+``input_total`` (optional) is each neuron's total number of input synapses in the whole brain
+(all presynaptic partners, no threshold), so ``counts[post, pre] / input_total[post]`` is the
+fraction of the neuron's input that comes from ``pre``.
 """
 
 from __future__ import annotations
@@ -32,6 +41,10 @@ class CircuitPack:
     # Optional split of ``counts`` by neuropil group: shape (len(neuropils), n, n), sums to counts
     by_neuropil: np.ndarray | None = None
     neuropils: tuple[str, ...] = ()
+    # Optional (n,) float64 receptive-field azimuth, radians, + = left; NaN where undefined
+    azimuth: np.ndarray | None = None
+    # Optional (n,) int64 whole-brain input synapse count per neuron (all partners, no threshold)
+    input_total: np.ndarray | None = None
 
     # ---- derived views -------------------------------------------------------------------
     @property
@@ -73,18 +86,21 @@ class CircuitPack:
         """Neuron table as a pandas DataFrame (pandas is imported lazily)."""
         import pandas as pd
 
-        return pd.DataFrame(
-            {
-                "root_id": self.root_id,
-                "cell_type": self.cell_type,
-                "side": self.side,
-                "nt": self.nt,
-                "sign": self.sign,
-                "ring_angle": self.ring_angle,
-                "in_degree": (self.counts > 0).sum(1),
-                "out_degree": (self.counts > 0).sum(0),
-            }
-        )
+        cols = {
+            "root_id": self.root_id,
+            "cell_type": self.cell_type,
+            "side": self.side,
+            "nt": self.nt,
+            "sign": self.sign,
+            "ring_angle": self.ring_angle,
+        }
+        if self.azimuth is not None:
+            cols["azimuth"] = self.azimuth
+        if self.input_total is not None:
+            cols["input_total"] = self.input_total
+        cols["in_degree"] = (self.counts > 0).sum(1)
+        cols["out_degree"] = (self.counts > 0).sum(0)
+        return pd.DataFrame(cols)
 
     def summary(self) -> str:
         head = (
@@ -110,6 +126,10 @@ class CircuitPack:
         if self.by_neuropil is not None:
             extra["np_count"] = self.by_neuropil[:, rows, cols].astype(np.int32)
             extra["neuropils"] = np.array(self.neuropils, dtype="U")
+        if self.azimuth is not None:
+            extra["azimuth"] = self.azimuth.astype(np.float64)
+        if self.input_total is not None:
+            extra["input_total"] = self.input_total.astype(np.int64)
         np.savez_compressed(
             path,
             **extra,
@@ -139,6 +159,8 @@ class CircuitPack:
                 nps = tuple(str(x) for x in z["neuropils"])
                 by_np = np.zeros((len(nps), n, n), dtype=np.int32)
                 by_np[:, z["post"], z["pre"]] = z["np_count"]
+            azimuth = z["azimuth"] if "azimuth" in z.files else None
+            input_total = z["input_total"] if "input_total" in z.files else None
             return cls(
                 name=name or meta.get("name", "pack"),
                 counts=counts,
@@ -151,6 +173,8 @@ class CircuitPack:
                 metadata=meta,
                 by_neuropil=by_np,
                 neuropils=nps,
+                azimuth=azimuth,
+                input_total=input_total,
             )
 
     def replace_counts(
@@ -174,6 +198,8 @@ class CircuitPack:
             variant=variant or self.variant,
             by_neuropil=by_neuropil,
             neuropils=self.neuropils if by_neuropil is not None else (),
+            azimuth=self.azimuth,
+            input_total=self.input_total,
         )
 
 
