@@ -1,8 +1,11 @@
-"""Glue: the simulation, the dashboard's commands and the frames it draws.
+"""Glue: the rig (the simulation or the robot's head), the dashboard's commands and the
+frames it draws.
 
-The simulation runs in the thread that calls ``run`` (the main thread in the CLI); commands
-arrive on the dashboard server's threads and change the simulation under a lock. The steering
-curve is computed on the command's thread, on a separate model instance, so the simulation
+The rig is ``sim.PursuitSim`` or ``robot.HeadRig``; both have the same settings, the same
+``advance(seconds)`` and frames with the same fields (``FRAME_DEFAULTS`` fills in the fields
+that only the robot has). It runs in the thread that calls ``run`` (the main thread in the
+CLI); commands arrive on the dashboard server's threads and change it under a lock. The
+steering curve is computed on the command's thread, on a separate model instance, so the rig
 keeps running meanwhile.
 
 Commands (POST /api/command, JSON):
@@ -15,14 +18,15 @@ Commands (POST /api/command, JSON):
     {"action": "fov", "deg": 60}             half field of view: 30 | 60 | 100
     {"action": "reset"}                      restart the running numbers
 
-Each reply is {"ok": true} or {"ok": false, "error": "..."}.
+Each reply is {"ok": true} or {"ok": false, "error": "..."}. On the robot, target, nudge,
+motion and fov are refused: the target is the face the camera sees.
 """
 
 from __future__ import annotations
 
 import threading
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from flybrain_demo_api.web import FrameHub
 
@@ -36,13 +40,37 @@ from .controllers import (
 )
 from .sim import PursuitSim
 
+if TYPE_CHECKING:
+    from .robot import HeadRig
+
 FRAME_HZ = 20.0  # frames published to the dashboard per second
 MAX_CATCHUP_S = 0.25  # after a stall, simulate at most this much at once
 
+# Fields only the robot's frames carry; the simulator's frames get these values.
+FRAME_DEFAULTS: dict[str, Any] = {
+    "mode": "sim",
+    "head_deg": None,
+    "camera_age_s": None,
+    "camera_lines": None,
+    "hold": False,
+    "pan_limit_deg": None,
+    "link": None,
+    "raw_bearing_deg": None,
+    "camera_score": None,
+    "camera_source": None,
+    "camera_error": None,
+    "attention": None,
+}
+
 
 class PursuitApp:
-    def __init__(self, sim: PursuitSim, hub: FrameHub | None = None, frame_hz: float = FRAME_HZ):
-        self.sim = sim
+    def __init__(
+        self,
+        sim: PursuitSim | HeadRig,
+        hub: FrameHub | None = None,
+        frame_hz: float = FRAME_HZ,
+    ):
+        self.sim = sim  # the rig: simulated, or the robot's head
         self.hub = hub or FrameHub()
         self.frame_hz = frame_hz
         self.lock = threading.Lock()
@@ -141,11 +169,16 @@ class PursuitApp:
     def frame(self) -> dict[str, Any]:
         """The frame the page draws (call with ``lock`` held, or from the sim thread)."""
         f = self.sim.snapshot()
+        for k, v in FRAME_DEFAULTS.items():
+            f.setdefault(k, v)
         info = CONTROLLERS[self.sim.controller]
         f["controller_label"] = info.label
         f["controller_note"] = info.note
         f["activity"] = self._activity()
         f["curve"] = self.curve
+        gain = f["rig"].get("gain", 1.0)
+        if self.curve is not None and gain != 1.0:  # the robot's --gain scales every turn
+            f["curve"] = dict(self.curve, turn_deg_s=[gain * v for v in self.curve["turn_deg_s"]])
         return f
 
     # ---- running -------------------------------------------------------------------------
@@ -157,8 +190,8 @@ class PursuitApp:
         return f
 
     def run(self, stop: threading.Event, duration: float | None = None) -> None:
-        """Simulate in real time and publish frames until ``stop`` is set (or ``duration``
-        seconds have passed)."""
+        """Step the rig in real time and publish frames until ``stop`` is set (or
+        ``duration`` seconds have passed). Errors from the rig (a lost robot link) end it."""
         period = 1.0 / self.frame_hz
         start = last = time.monotonic()
         self.tick(0.0)

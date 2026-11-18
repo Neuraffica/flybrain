@@ -99,6 +99,39 @@ def test_frame_has_what_the_page_uses(app):
     assert f["camera"] in ("seen", "outside", "dropped", "hidden", "waiting")
 
 
+def test_robot_frames_have_the_same_fields(app):
+    """The page reads the same fields from the robot's frames as from the simulator's."""
+    from fly_pursuit.camera import CameraReader
+    from fly_pursuit.robot import HeadRig
+
+    reader = CameraReader()
+    head = PursuitApp(HeadRig(reader), frame_hz=15)
+    reader.feed_line("-72.00\t-16.00\tsize = 69\t76\t", time.monotonic())
+    f = json.loads(json.dumps(head.tick(1 / 15)))
+    s = json.loads(json.dumps(app.tick(0.1)))
+    assert set(f) == set(s)
+    assert set(f["target"]) == set(s["target"]) and set(f["stats"]) == set(s["stats"])
+    assert set(s["rig"]) <= set(f["rig"])
+    page = resources.files("fly_pursuit").joinpath("static/index.html").read_text()
+    used = set(re.findall(r"\bframe\.([a-z_0-9]+)", page))
+    assert used <= set(f), sorted(used - set(f))
+    assert f["mode"] == "robot" and s["mode"] == "sim" and s["link"] is None
+    assert f["camera"] == "seen" and f["error_deg"] == pytest.approx(18.0)
+    assert f["target"]["bearing_deg"] == pytest.approx(f["head_deg"] + 18.0)
+    assert f["activity"] is not None and f["curve"]["controller"] == "connectome"
+    for k in ("camera_fov_deg", "stale_s", "centre_deg", "hold_after_s", "max_turn_deg_s"):
+        assert f["rig"][k] is not None
+    # the simulator's own commands are refused on the robot
+    for cmd in (
+        {"action": "target", "deg": 10},
+        {"action": "motion", "motion": "sweep"},
+        {"action": "fov", "deg": 60},
+    ):
+        assert head.on_command(cmd)["ok"] is False
+    assert head.on_command({"action": "controller", "controller": "bang-bang"}) == {"ok": True}
+    assert head.on_command({"action": "arousal", "value": 0.5}) == {"ok": True}
+
+
 def test_baselines_have_no_activity(app):
     app.on_command({"action": "controller", "controller": "proportional"})
     f = app.tick(0.1)
@@ -126,11 +159,28 @@ def test_spec_is_valid_and_matches():
     assert flydeck.CONTROLLERS == CONTROLLER_KEYS
     assert flydeck.FOVS == FOV_CHOICES
     assert flydeck.MOTIONS == MOTIONS
-    assert spec.transports == ("mock",) and not spec.moves_robot
+    assert spec.transports == ("mock", "usb", "ble") and spec.moves_robot
+    assert not spec.needs_space({}, "usb")  # the legs never walk: no space confirmation
+    assert any("SCL SDA +5V GND" in n for n in spec.needs)
+    assert any("floor" in n for n in spec.needs)
     assert (DEMO / spec.guide).is_file()
     argv = spec.argv("mock", {"fov": "100", "target": "jumps"}, 8123)
     a = cli.build_parser().parse_args(argv)
     assert a.mock and a.fov == 100 and a.target == "jumps" and a.http_port == 8123 and a.no_open
+    # on the robot the simulator's settings are not passed; the robot's are
+    opts = {"fov": "100", "camera_fov": "50", "head_rate": "45", "command_rate": "5"}
+    argv = spec.argv("usb", opts, 8123, robot="/dev/cu.fake")
+    assert "--fov" not in argv and "--target" not in argv
+    a = cli.build_parser().parse_args(argv)
+    assert a.port == "/dev/cu.fake" and not a.mock and a.camera_fov == 50 and a.head_rate == 45
+    assert a.command_rate == 5 and a.pan_limit == 50 and not a.leave_voice_off
+    a = cli.build_parser().parse_args(spec.argv("ble", {"leave_voice_off": True}, 8123))
+    assert a.ble == "" and a.leave_voice_off
+    for o in spec.options:  # the card's defaults are the program's
+        if o.name not in ("fov", "target", "controller", "camera_port"):
+            assert getattr(cli.build_parser().parse_args([]), o.name) == o.default, o.name
+    a = cli.build_parser().parse_args(spec.argv("ble", {"camera": "usb", "gain": 0.5}, 8123))
+    assert a.camera == "usb" and a.gain == 0.5 and a.camera_port == ""
 
 
 def test_flydeck_lists_it():
@@ -163,13 +213,28 @@ def test_readme_table_is_the_benchmark_file():
 
 
 @pytest.mark.parametrize(
-    "argv", [[], ["--port", "/dev/null-robot"], ["--ble"], ["--mock", "--ble", "Bittle"]]
+    "argv",
+    [
+        ["--mock", "--ble", "Bittle"],
+        ["--mock", "--port", "/dev/null-robot"],
+        ["--port", "/dev/null-robot", "--ble"],
+        ["--port", "/dev/null-robot", "--pan-limit", "130"],
+        ["--port", "/dev/null-robot", "--camera-fov", "0"],
+        ["--mock", "--camera-off"],
+        ["--port", "/dev/null-robot", "--gain", "3"],
+        ["--port", "/dev/null-robot", "--camera-port", "/dev/null-cam"],
+        ["--camera", "usb"],
+    ],
 )
-def test_cli_refuses_a_robot_run(argv, capsys, monkeypatch):
+def test_cli_refuses_bad_combinations(argv, capsys, monkeypatch):
+    """Refused before any link is opened (the fake factory would fail the test otherwise)."""
     monkeypatch.setenv("FLYDECK_STATUS", "1")
-    assert cli.main(argv) == 2
-    out, err = capsys.readouterr()
-    assert "only in the simulator" in err
+
+    def no_link():
+        raise AssertionError("a link was opened")
+
+    assert cli.main(argv, make_transport=no_link) == 2
+    out, _ = capsys.readouterr()
     events = [json.loads(ln[8:]) for ln in out.splitlines() if ln.startswith("FLYDECK ")]
     assert events and events[-1]["event"] == "failed"
 

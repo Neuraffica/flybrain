@@ -1,10 +1,11 @@
 [project]
 name = "fly-pursuit"
 version = "0.0.1"
-description = "flybrain demo: a fly pursuit circuit turns a simulated robot dog toward a target"
+description = "flybrain demo: a fly pursuit circuit turns a robot dog (simulated, or its real head) toward a target"
 requires-python = ">=3.11"
 dependencies = [
     "flybrain-demo-api",
+    "flybrain-edge",
     "flybrain-models",
     "numpy",
 ]
@@ -25,4 +26,5 @@ packages = ["src/fly_pursuit"]
 
 [tool.uv.sources]
 flybrain-demo-api = { workspace = true }
+flybrain-edge = { workspace = true }
 flybrain-models = { workspace = true }

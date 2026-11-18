@@ -117,14 +117,14 @@ footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--i
     <div>
       <div class="ls-eyebrow">Flydeck demo</div>
       <h1>Fly pursuit</h1>
-      <p>A circuit of 265 neurons from the fly connectome turns a simulated robot dog toward a target</p>
+      <p id="subtitle">A circuit of 265 neurons from the fly connectome turns a simulated robot dog toward a target</p>
     </div>
   </div>
   <span class="pill"><span class="dot" id="conn-dot"></span><span id="conn-text">connecting…</span></span>
 </header>
 <main>
-  <section class="notice" aria-label="About this simulation">
-    <b>This is a simulation.</b>
+  <section class="notice" aria-label="About this run">
+    <b id="notice-title">This is a simulation.</b>
     <span id="rig-text">The camera and robot numbers (15 Hz, 100 ms delay, 90°/s turn limit) are assumed until they are measured on the robot.</span>
   </section>
 
@@ -153,14 +153,14 @@ footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--i
       <div class="ctl"><label class="k" for="arousal">Arousal</label>
         <div class="row"><input type="range" id="arousal" min="0" max="1" step="0.05" value="1"><output id="arousal-out" class="num" for="arousal">1.00</output></div>
       </div>
-      <div class="ctl"><span class="k" id="k-fov">Camera field of view</span>
+      <div class="ctl sim-only"><span class="k" id="k-fov">Camera field of view</span>
         <div class="seg" role="group" aria-labelledby="k-fov">
           <button data-fov="30" aria-pressed="false">±30°</button>
           <button data-fov="60" aria-pressed="false">±60°</button>
           <button data-fov="100" aria-pressed="false" title="A camera on a panning head; the head itself is not simulated">±100° head</button>
         </div>
       </div>
-      <div class="ctl"><span class="k" id="k-motion">Target</span>
+      <div class="ctl sim-only"><span class="k" id="k-motion">Target</span>
         <div class="seg" role="group" aria-labelledby="k-motion">
           <button data-motion="still" aria-pressed="false" title="Stays where you put it">Still</button>
           <button data-motion="sweep" aria-pressed="false" title="Swings 40° each way, 10 s per cycle">Sweep</button>
@@ -176,13 +176,15 @@ footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--i
 
   <section class="card span-5" aria-labelledby="h-arena">
     <h2 id="h-arena">Arena, seen from above</h2>
-    <canvas id="arena" tabindex="0" aria-label="Arena. Drag the target around the dog, or press the left and right arrow keys to move it."></canvas>
+    <canvas id="arena" tabindex="0" aria-label="Arena seen from above: the dog, where it looks and the target"></canvas>
     <div class="cam" aria-live="polite"><span class="dot" id="cam-dot"></span><span id="cam-text">—</span></div>
     <div class="readouts">
-      <div class="readout"><div class="k">Bearing error</div><div class="v num" id="ro-err">—</div><div class="s" id="ro-err-side"></div></div>
-      <div class="readout"><div class="k">Turning</div><div class="v num" id="ro-rate">—</div><div class="s" id="ro-rate-side"></div></div>
+      <div class="readout"><div class="k" id="k-err">Bearing error</div><div class="v num" id="ro-err">—</div><div class="s" id="ro-err-side"></div></div>
+      <div class="readout"><div class="k" id="k-rate">Turning</div><div class="v num" id="ro-rate">—</div><div class="s" id="ro-rate-side"></div></div>
     </div>
-    <p class="note">Drag the target around the ring, or click the arena and press <kbd>←</kbd> <kbd>→</kbd> (Shift: 15°). The shaded wedge is what the camera can see.</p>
+    <p class="note sim-only">Drag the target around the ring, or click the arena and press <kbd>←</kbd> <kbd>→</kbd> (Shift: 15°). The shaded wedge is what the camera can see.</p>
+    <p class="note robot-only hidden">The body stays still and the head turns. The shaded wedge is what the camera sees (its width is assumed), the dashed lines are the head's turn limit, and the marker is where the camera last reported the face. It cannot be dragged: move in front of the robot instead.</p>
+    <p class="note robot-only hidden" id="link-note"></p>
   </section>
 
   <section class="card span-7" aria-labelledby="h-circuit">
@@ -200,9 +202,9 @@ footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--i
   <section class="card span-6" aria-labelledby="h-curve">
     <h2 id="h-curve">Steering curve</h2>
     <div class="legend">
-      <span><i class="ln"></i>Turn the robot makes (°/s)</span>
+      <span><i class="ln"></i><span id="lg-turn">Turn the robot makes (°/s)</span></span>
       <span><i class="ln dash"></i>Command before the limit</span>
-      <span><i class="ln lim"></i>Robot's turn limit</span>
+      <span><i class="ln lim"></i><span id="lg-limit">Robot's turn limit</span></span>
       <span><i class="fovband"></i>Field of view</span>
     </div>
     <canvas id="curve" aria-label="Turn command against target bearing"></canvas>
@@ -214,22 +216,22 @@ footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--i
     <div class="legend">
       <span><i class="ln ink"></i>Bearing error</span>
       <span><i class="ln"></i>Turn command</span>
-      <span><i class="band"></i>Camera does not see the target (thin: a dropped frame)</span>
+      <span><i class="band"></i><span id="lg-band">Camera does not see the target (thin: a dropped frame)</span></span>
     </div>
     <canvas id="hist" aria-label="Bearing error and turn command over the last 20 seconds"></canvas>
     <div class="stats">
       <div class="stat"><div class="k">Mean |error|</div><div class="v num" id="st-mae">—</div></div>
       <div class="stat"><div class="k">Within 10°</div><div class="v num" id="st-within">—</div></div>
-      <div class="stat"><div class="k">In view</div><div class="v num" id="st-view">—</div></div>
+      <div class="stat"><div class="k" id="k-view">In view</div><div class="v num" id="st-view">—</div></div>
       <div class="stat"><div class="k">Over</div><div class="v num" id="st-time">—</div></div>
       <button id="reset" title="Start the running numbers again">Reset numbers</button>
     </div>
-    <p class="note">Since the last reset, counted only while there is a target. <span id="bench-note"></span></p>
+    <p class="note"><span id="stats-note">Since the last reset, counted only while there is a target.</span> <span id="bench-note"></span></p>
   </section>
 </main>
 <footer>
   Angles: positive means to the dog's left. The connectome circuit is the small-object pursuit pathway (LC10a, AOTU019, AOTU025, DNa02 and the cells between them), wired from FlyWire v783.
-  Its only fitted number is the output gain. Nothing here has run on the robot yet.
+  Its only fitted number is the output gain. On the robot only the head turns; the camera's field of view there is assumed and the head's rates are this program's choices.
 </footer>
 <script src="/bittle/robot.js"></script>
 <script>
@@ -287,8 +289,16 @@ function drawArena() {
     line(g, x1, y1, x2, y2, css["--outline"], 1);
   }
   if (!frame) return;
-  const hd = frame.heading_deg, fov = frame.fov_deg;
-  // field of view: a wedge that turns with the dog
+  const robot = frame.mode === "robot";
+  // hd: where the camera looks. In the simulator the dog turns; on the robot the head does.
+  const body = frame.heading_deg, hd = robot ? frame.head_deg : body, fov = frame.fov_deg;
+  if (robot && frame.pan_limit_deg != null) {  // how far the head may turn
+    for (const e of [frame.pan_limit_deg, -frame.pan_limit_deg]) {
+      const [x1, y1] = pt(cx, cy, R * 0.35, e), [x2, y2] = pt(cx, cy, R, e);
+      line(g, x1, y1, x2, y2, css["--amber"], 1.5, [5, 4]);
+    }
+  }
+  // field of view: a wedge that turns with the camera
   g.fillStyle = css["--primary"]; g.globalAlpha = 0.10;
   g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R, arcAngle(hd + fov), arcAngle(hd - fov)); g.closePath(); g.fill();
   g.globalAlpha = 1;
@@ -296,9 +306,9 @@ function drawArena() {
     const [x, y] = pt(cx, cy, R, e);
     line(g, cx, cy, x, y, css["--primary"], 1, [4, 4]);
   }
-  // where the dog faces
+  // where the camera looks (on the robot: the head, drawn stronger)
   const [fx, fy] = pt(cx, cy, R, hd);
-  line(g, cx, cy, fx, fy, css["--ink-muted"], 1.5);
+  line(g, cx, cy, fx, fy, robot ? css["--primary"] : css["--ink-muted"], robot ? 3 : 1.5);
   // the camera's last report (body-relative bearing, drawn in the world)
   const t = frame.target;
   if (t.exists) {
@@ -311,7 +321,7 @@ function drawArena() {
     line(g, x1, y1, x2, y2, css["--ink"], 3);
   }
   // the dog
-  g.save(); g.translate(cx, cy); g.rotate(-rad(hd));
+  g.save(); g.translate(cx, cy); g.rotate(-rad(body));
   const s = R / 46;
   if (window.BittleArt) { g.translate(0, -8.85 * s); BittleArt.top(g, s, "stand", 0, 0); }
   else {
@@ -325,7 +335,7 @@ function drawArena() {
     g.strokeStyle = css["--surface"]; g.lineWidth = 3; g.stroke();
     g.fillStyle = css["--surface"]; g.beginPath(); g.arc(tx, ty, 4, 0, 2 * Math.PI); g.fill();
   } else {
-    text(g, "no target", cx, cy + R * 0.62, "center");
+    text(g, robot ? "no face reported" : "no target", cx, cy + R * 0.62, "center");
   }
 }
 
@@ -337,15 +347,43 @@ const CAMERA = {
   waiting: ["", "Camera starting"],
 };
 
+// On the robot the camera reports a position only when it changes: see robot.py / camera.py.
+function robotCamera(f) {
+  if (f.camera_error) return ["bad", "Camera stopped: " + f.camera_error];
+  if (f.attention && f.camera_lines === 0) return ["warn", f.attention];
+  const age = f.camera_age_s == null ? "" : f.camera_age_s.toFixed(1) + " s ago";
+  const score = f.camera_score == null ? "" : ", score " + Math.round(f.camera_score);
+  if (f.camera === "seen") return ["ok", "The camera sees the face (last report " + age + score + ")"];
+  if (f.camera === "centred") return ["ok", "Seen " + age + ", centred: a still face sends nothing"];
+  if (f.camera === "lost") return ["warn", "Lost" + (age ? " (last report " + age + ")" : "") +
+    (f.hold ? ": the head holds where it is" : ": the circuit gets no target")];
+  return ["", "Waiting for the camera's first report: move in front of it"];
+}
+
 function renderArena() {
-  const [cls, label] = CAMERA[frame.camera] || ["", frame.camera];
+  const robot = frame.mode === "robot";
+  const [cls, label] = robot ? robotCamera(frame) : (CAMERA[frame.camera] || ["", frame.camera]);
   $("cam-dot").className = "dot " + cls; $("cam-text").textContent = label;
+  $("k-err").textContent = robot ? "Face, seen from the head" : "Bearing error";
+  $("k-rate").textContent = robot ? "Head turning" : "Turning";
   const e = frame.error_deg;
   $("ro-err").innerHTML = e == null ? "—" : sgn(e) + "<small>°</small>";
-  $("ro-err-side").textContent = e == null ? "no target" : Math.abs(e) < 0.5 ? "straight ahead" : e > 0 ? "target to the left" : "target to the right";
+  $("ro-err-side").textContent = (e == null ? (robot ? "no face" : "no target") : Math.abs(e) < 0.5 ? "straight ahead" : e > 0 ? "to the left" : "to the right") +
+    (robot && frame.raw_bearing_deg != null ? " · camera measured " + sgn(frame.raw_bearing_deg) + "°, before the head turned since" : "");
   const r = frame.rate_deg_s;
   $("ro-rate").innerHTML = sgn(r) + "<small>°/s</small>";
-  $("ro-rate-side").textContent = Math.abs(r) < 1 ? "still" : r > 0 ? "turning left" : "turning right";
+  $("ro-rate-side").textContent = (Math.abs(r) < 1 ? "still" : r > 0 ? "turning left" : "turning right") +
+    (robot ? ", head at " + sgn(frame.head_deg) + "°" : "");
+  if (robot && frame.link) {
+    const k = frame.link;
+    $("link-note").textContent = "Camera: " + (frame.camera_source === "usb" ? "on its own USB cable" : "through the robot") +
+      ". Link: " + k.label + (k.description ? " (" + k.description + ")" : "") +
+      (k.firmware ? ", firmware " + k.firmware : "") + (k.connected ? "" : ", DISCONNECTED") +
+      ". Commands sent " + k.commands + ", without echo " + k.echo_timeouts +
+      "; head commands at most " + k.command_hz + " per second" +
+      (k.head_sent_deg == null ? "" : ", last head angle " + k.head_sent_deg + "°") +
+      ". Camera lines received: " + frame.camera_lines + ".";
+  }
 }
 
 // ---- circuit ----------------------------------------------------------------------------
@@ -392,7 +430,7 @@ function edge(g, x1, y1, x2, y2, excites, faint) {
 }
 
 // The turn command as a bar: left turns to the left of centre; ticks at the robot's limit.
-function turnBar(g, w, y, turn, cmd, limit) {
+function turnBar(g, w, y, turn, cmd, limit, limitName) {
   const L = 12, half = w / 2 - L, T = 2 * limit, cx = w / 2;
   const X = (v) => cx - clamp(v, -T, T) / T * half;
   text(g, "Turn command", L, y - 18, "left", css["--ink"], "600 11px " + MONO);
@@ -407,7 +445,7 @@ function turnBar(g, w, y, turn, cmd, limit) {
   line(g, cx, y - 11, cx, y + 11, css["--ink"], 1.5);
   for (const v of [limit, -limit]) line(g, X(v), y - 12, X(v), y + 12, css["--amber"], 2, [3, 2]);
   text(g, "left", L, y + 20); text(g, "right", w - L, y + 20, "right");
-  text(g, "robot limit ±" + limit + "°/s", cx, y + 20, "center", css["--amber"]);
+  text(g, (limitName || "robot limit") + " ±" + limit + "°/s", cx, y + 20, "center", css["--amber"]);
   if (Math.abs(turn) > T) text(g, turn > 0 ? "◀" : "▶", turn > 0 ? L - 2 : w - L + 2, y, turn > 0 ? "left" : "right", css["--primary"]);
 }
 
@@ -419,7 +457,7 @@ function drawCircuit() {
     text(g, "No neurons.", w / 2, h / 2 - 80, "center", css["--ink"], "600 13px " + MONO);
     text(g, "This controller computes the turn", w / 2, h / 2 - 56, "center", css["--ink-muted"], "12px " + MONO);
     text(g, "straight from the camera's bearing.", w / 2, h / 2 - 38, "center", css["--ink-muted"], "12px " + MONO);
-    turnBar(g, w, h / 2 + 30, frame.turn_deg_s, frame.cmd_deg_s, limit);
+    turnBar(g, w, h / 2 + 30, frame.turn_deg_s, frame.cmd_deg_s, limit, frame.mode === "robot" ? "head limit" : "");
     return;
   }
   const L = 12, cx = w / 2, half = w / 2 - L;
@@ -477,7 +515,7 @@ function drawCircuit() {
   node(g, a25R[0], a25R[1], "AOTU025 R", A.aotu025[1], false, off25);
   node(g, dnL[0], dnL[1], "DNa02 L", A.dna02[0], true, false, "left");
   node(g, dnR[0], dnR[1], "DNa02 R", A.dna02[1], true, false, "right");
-  turnBar(g, w, y3, frame.turn_deg_s, frame.cmd_deg_s, limit);
+  turnBar(g, w, y3, frame.turn_deg_s, frame.cmd_deg_s, limit, frame.mode === "robot" ? "head limit" : "");
 }
 
 function renderCircuitNote() {
@@ -595,7 +633,7 @@ function drawHist() {
 let bench = null;  // offline benchmark summary from /api/benchmark
 fetch("/api/benchmark").then((r) => r.status === 200 ? r.json() : null).then((b) => { bench = b; dirty = true; }).catch(() => {});
 function benchText() {
-  if (!bench || !bench.models) return "";
+  if (!bench || !bench.models || frame.mode === "robot") return "";  // the benchmark is simulated
   const key = "fov" + frame.fov_deg, m = bench.models[frame.controller], p = bench.models.proportional;
   if (!m || !m[key]) return "";
   let s = "Offline benchmark, " + bench.episodes[key] + " simulated runs with this camera: " + frame.controller_label + " " +
@@ -615,7 +653,26 @@ function renderStats() {
 }
 
 // ---- controls ---------------------------------------------------------------------------
+function renderMode() {
+  const robot = frame.mode === "robot";
+  for (const el of document.querySelectorAll(".sim-only")) el.classList.toggle("hidden", robot);
+  for (const el of document.querySelectorAll(".robot-only")) el.classList.toggle("hidden", !robot);
+  $("arena").style.cursor = robot ? "default" : "";
+  $("h-arena").textContent = robot ? "The robot, seen from above" : "Arena, seen from above";
+  $("subtitle").textContent = robot
+    ? "A circuit of 265 neurons from the fly connectome turns the robot dog's head toward a face seen by its camera"
+    : "A circuit of 265 neurons from the fly connectome turns a simulated robot dog toward a target";
+  $("lg-turn").textContent = robot ? "Turn the head makes (°/s)" : "Turn the robot makes (°/s)";
+  $("lg-limit").textContent = robot ? "Head's turn limit" : "Robot's turn limit";
+  $("lg-band").textContent = robot ? "No fresh camera report (a still face, or none)" : "Camera does not see the target (thin: a dropped frame)";
+  $("k-view").textContent = robot ? "With a bearing" : "In view";
+  $("stats-note").textContent = robot
+    ? "Since the last reset. Mean and within 10° are counted while the circuit has a bearing; the error is the face's bearing from the head."
+    : "Since the last reset, counted only while there is a target.";
+}
+
 function renderControls() {
+  renderMode();
   const ctl = $("ctl");
   if (document.activeElement !== ctl && ctl.value !== frame.controller) ctl.value = frame.controller;
   const ar = $("arousal");
@@ -626,13 +683,27 @@ function renderControls() {
   for (const b of document.querySelectorAll("[data-motion]")) b.setAttribute("aria-pressed", String(b.dataset.motion === frame.target.motion));
   $("ctl-note").textContent = frame.controller_label + ": " + frame.controller_note;
   const rg = frame.rig;
-  $("rig-text").textContent = "The camera and robot numbers (" + rg.rate_hz + " Hz, " + Math.round(rg.delay_s * 1000) +
-    " ms delay, " + rg.max_turn_deg_s + "°/s turn limit) are assumed until they are measured on the robot.";
+  if (frame.mode === "robot") {
+    $("notice-title").textContent = "Running on the robot.";
+    const viaRobot = frame.camera_source !== "usb";
+    $("rig-text").textContent = "Only the head turns. The camera's field of view (" + rg.camera_fov_deg +
+      "° across) is not properly measured. " + (viaRobot
+        ? "Through the robot the camera reports a position only when it changes, so a still face sends nothing: " +
+          "a bearing within ±" + rg.centre_deg + "° is kept, a larger one counts as lost after " + rg.stale_s + " s"
+        : "On its own USB cable the camera reports every frame and says when it sees no face: that is lost at once") +
+      ", and after " + rg.hold_after_s + " s lost the head holds where it is. Head limits: " + rg.max_turn_deg_s +
+      "°/s, ±" + frame.pan_limit_deg + "°, turn gain " + rg.gain + ". The bearing is corrected for how far the head turned since the camera measured it.";
+  } else {
+    $("notice-title").textContent = "This is a simulation.";
+    $("rig-text").textContent = "The camera and robot numbers (" + rg.rate_hz + " Hz, " + Math.round(rg.delay_s * 1000) +
+      " ms delay, " + rg.max_turn_deg_s + "°/s turn limit) are assumed until they are measured on the robot.";
+  }
   $("curve-note").textContent = "Turn command after a target is held at one bearing for 1 s, from rest, with no feedback, for " +
     frame.controller_label + (frame.circuit && frame.curve ? " at arousal " + frame.curve.arousal.toFixed(2) : "") +
     ". The dot is the bearing now.";
-  $("conn-dot").className = "dot ok";
-  $("conn-text").textContent = "simulator · " + Math.floor(frame.t) + " s";
+  const k = frame.link;
+  $("conn-dot").className = "dot " + (k && !k.connected ? "bad" : "ok");
+  $("conn-text").textContent = (frame.mode === "robot" ? "robot over " + (k ? k.label : "?") : "simulator") + " · " + Math.floor(frame.t) + " s";
 }
 
 async function send(cmd) {
@@ -643,7 +714,7 @@ async function send(cmd) {
     if (!j.ok) { m.textContent = j.error || "command failed"; m.className = "err"; }
     else { m.textContent = ""; m.className = ""; }
     if (cmd.action === "reset") history = [];
-  } catch (e) { m.textContent = "simulation unreachable"; m.className = "err"; }
+  } catch (e) { m.textContent = "demo unreachable"; m.className = "err"; }
 }
 $("ctl").addEventListener("change", (e) => send({ action: "controller", controller: e.target.value }));
 let arousalSent = 0;
@@ -664,7 +735,9 @@ function pointerBearing(e) {
   const x = e.clientX - r.left - r.width / 2, y = e.clientY - r.top - r.height / 2;
   return Math.atan2(-x, -y) * 180 / Math.PI;
 }
+const fixedTarget = () => frame && frame.mode === "robot";  // the robot's target is the face
 $("arena").addEventListener("pointerdown", (e) => {
+  if (fixedTarget()) return;
   dragging = true; $("arena").setPointerCapture(e.pointerId);
   send({ action: "target", deg: pointerBearing(e) });
 });
@@ -676,6 +749,7 @@ $("arena").addEventListener("pointermove", (e) => {
 $("arena").addEventListener("pointerup", (e) => { if (dragging) send({ action: "target", deg: pointerBearing(e) }); dragging = false; });
 $("arena").addEventListener("pointercancel", () => { dragging = false; });
 $("arena").addEventListener("keydown", (e) => {
+  if (fixedTarget()) return;
   const step = e.shiftKey ? 15 : 5;
   if (e.key === "ArrowLeft") { send({ action: "nudge", deg: step }); e.preventDefault(); }
   if (e.key === "ArrowRight") { send({ action: "nudge", deg: -step }); e.preventDefault(); }
@@ -692,7 +766,7 @@ function onFrame(f) {
 function connect() {
   const es = new EventSource("/api/stream");
   es.onmessage = (e) => { try { onFrame(JSON.parse(e.data)); } catch (err) { console.error(err); } };
-  es.onerror = () => { $("conn-dot").className = "dot bad"; $("conn-text").textContent = "simulation stopped or unreachable, retrying…"; };
+  es.onerror = () => { $("conn-dot").className = "dot bad"; $("conn-text").textContent = "demo stopped or unreachable, retrying…"; };
 }
 function loop() {
   if (dirty) {

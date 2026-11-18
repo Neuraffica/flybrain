@@ -112,8 +112,8 @@ p code, footer code { overflow-wrap: anywhere; } /* long paths wrap on a phone *
   <div>
     <div class="kicker">Fly Brain &amp; Tiny Machines · demo</div>
     <h1>Fly pursuit</h1>
-    <p class="lede">A male fruit fly chasing a female keeps her in front of him with a small set of neurons that detect small objects and steer. Here a circuit of 265 neurons taken from the fly connectome turns a simulated robot dog toward a target.</p>
-    <div class="status"><b>Simulator only, for now.</b> The dog, its camera and the target are simulated. The robot version needs the camera's frame rate, delay and field of view measured first.</div>
+    <p class="lede">A male fruit fly chasing a female keeps her in front of him with a small set of neurons that detect small objects and steer. Here a circuit of 265 neurons taken from the fly connectome turns a simulated robot dog toward a target, or the real robot dog's head toward a face its camera sees.</p>
+    <div class="status"><b>Simulator, and the robot's head.</b> In the simulator the dog, its camera and the target are simulated. On the robot only the head turns, toward a face seen by the camera in its mouth; the legs do not walk. <a href="#robot">On the robot</a>.</div>
   </div>
   <svg viewBox="0 0 360 300" role="img" aria-label="Seen from above: a dog in the middle of a ring, its camera's field of view as a wedge, and a target on the ring inside the wedge">
     <circle cx="180" cy="160" r="120" fill="none" stroke="var(--outline)" stroke-width="1.5"/>
@@ -209,16 +209,52 @@ uv run fly-pursuit --mock --open</code></pre>
   <li><h3>A simple rule</h3><p><b>Proportional</b> turns in proportion to the bearing; <b>Bang-bang</b> turns at full rate outside a dead zone. Press <b>Reset numbers</b> and compare their running numbers with the connectome's on the same target motion.</p></li>
 </ol>
 
+<h2 id="robot">On the robot</h2>
+<p class="sub">The camera sits in the dog's mouth and turns with the head, so the head is the body the circuit turns. The legs do not walk.</p>
+<div class="tablewrap">
+<table class="prose" style="min-width:520px">
+<thead><tr><th>Camera</th><th style="text-align:left">Through the robot (<code>--camera robot</code>, default)</th><th style="text-align:left">Its own USB cable (<code>--camera usb</code>)</th></tr></thead>
+<tbody>
+<tr><td>Cable</td><td style="text-align:left">Grove socket labelled <b>SCL SDA +5V GND</b>, not the one by TX2/RX2. No cable to the laptop.</td><td style="text-align:left">The camera's USB-C port into the laptop: a cable from the dog's mouth.</td></tr>
+<tr><td>Starts</td><td style="text-align:left">Once per power-on of the robot.</td><td style="text-align:left">Any number of times.</td></tr>
+<tr><td>Reports</td><td style="text-align:left">Only when the face moves; no score, no "lost".</td><td style="text-align:left">Every frame, about 15 a second, with a score and a real "no face".</td></tr>
+<tr><td>Meanwhile</td><td style="text-align:left">The robot's IMU is off and the infrared sensor cannot be used.</td><td style="text-align:left">The robot's sensors are untouched.</td></tr>
+</tbody>
+</table>
+</div>
+<div class="two" style="margin-top:16px">
+  <div class="card"><h3>Before you start</h3><ul>
+    <li>The robot <b>on the floor</b>, away from edges, battery on. It sits when the demo starts.</li>
+    <li>Camera through the robot, over Bluetooth: <b>switch the robot off and on</b> first if its camera was used since. Its firmware can start the camera only once per power-on; a second start reports only the last old position, which looks like a still face. Over USB the program restarts the board itself.</li>
+    <li>Camera on its USB cable with the robot on USB too: give <code>--port</code> or <code>--camera-port</code>, since both ports look the same to the computer.</li>
+  </ul></div>
+  <div class="card"><h3>Run it</h3>
+<pre><code>uv run fly-pursuit --ble --open
+uv run fly-pursuit --ble --camera usb --open
+uv run fly-pursuit --port /dev/cu.usbserial-XXXX --open</code></pre>
+    <p>On macOS, Bluetooth from a terminal goes through <code>uv run flybrain-bittle ble-run -- uv run fly-pursuit --ble --open</code>. In Flydeck, pick the robot instead of the simulator and choose the camera connection. Stop with Ctrl-C or Stop.</p></div>
+</div>
+<ol class="steps">
+  <li><h3>Start <span class="tag moves">the robot sits</span></h3><p>Voice module off (sounds could make the robot move). Through the robot: camera on with its own head reaction off, then asked to report the face whenever it moves; a missing reply is not taken as a failure, because over Bluetooth replies go missing while the camera runs. On its own cable: the robot is told to sit and the camera is asked for a result every frame.</p></li>
+  <li><h3>Follow <span class="tag moves">the head turns</span></h3><p>Each camera position gives the face's bearing, from its place in the 240-pixel image and a field of view of 60 degrees across (not properly measured; one test gave about 57). The camera turns with the head, so the program subtracts how far the head has turned since that position was measured. About 15 times a second the circuit turns the bearing into a turn command, times a gain (default 1); the head turns by it, at most 60 degrees a second and 50 degrees each way, with at most 8 head commands a second.</p></li>
+  <li><h3>No face <span class="tag still">the head holds</span></h3><p>Through the robot a still face sends nothing: a face within 8 degrees of centre stays "seen", one further out counts as lost after 1 second. On its own cable "no face" is reported directly. After 3 seconds lost the head holds where it is; it does not search. If no position at all arrives in 20 seconds, the dashboard asks for a face about 50 cm in front of the camera, then a power cycle.</p></li>
+  <li><h3>Stop <span class="tag moves">the robot rests</span></h3><p>Always, on Stop, Ctrl-C, an error or a lost link, sending every step even if a reply is missing: head back to centre, camera off (through the robot; the robot saves that) or the camera's results stopped (own cable), voice back on, IMU updates back on (through the robot), rest. After a lost link the program reconnects once to do this.</p></li>
+</ol>
+<div class="verdict">
+  <p><b>If the robot's camera could not be switched off</b>, or the head moves by itself after a run: the robot saves which modules are on and restarts them at power-on, the camera with its own head reaction. Switch the robot off, unplug the camera, switch it on, then run <code>uv run fly-pursuit --camera-off --port /dev/cu.usbserial-XXXX</code> (or <code>--ble</code>). That switches the camera off, makes the robot save it, and rests the robot.</p>
+</div>
+<p class="note">Robot options: <code>--camera</code> robot or usb, <code>--camera-port</code>, <code>--gain</code> 1 (0.1 to 2), <code>--camera-fov</code> 60, <code>--head-rate</code> 60 deg/s, <code>--pan-limit</code> 50 deg (at most 120, the firmware's limit), <code>--command-rate</code> 8 per second, <code>--pan-sign</code> 1, <code>--no-usb-restart</code>, <code>--leave-voice-off</code>. The dashboard shows the body fixed, the head's direction, the face at head plus bearing, the bearing the camera measured, how long ago it last reported (and its score on the USB cable), and the link.</p>
+
 <h2>Not yet</h2>
-<p class="sub">This first version only simulates.</p>
+<p class="sub">What is missing, in the simulator and on the robot.</p>
 <div class="two">
   <div class="card"><h3>Not built</h3><ul>
-    <li>No robot link. <code>--port</code> and <code>--ble</code> are refused.</li>
+    <li>On the robot only the head turns; a lost face is not searched for. One run on the robot so far (Bluetooth, camera through the robot); the camera on its own cable has only been tested with fakes.</li>
     <li>No forward walking: the dog only turns in place.</li>
     <li>The ±100° setting stands for a camera on a panning head; the head is not simulated.</li>
   </ul></div>
   <div class="card"><h3>Not in the model</h3><ul>
-    <li>Camera numbers are assumed until measured: frame rate, delay, noise, dropped frames, field of view. The turn limit and lag too.</li>
+    <li>Simulator camera numbers are assumed: frame rate, delay, noise, dropped frames, field of view. The turn limit and lag too. On the robot the field of view is still assumed.</li>
     <li>No direction selectivity: real LC10a respond to small moving objects; here any visible target drives them.</li>
     <li>No elevation, object size or contrast; arousal is a fixed level, not a state that builds up.</li>
   </ul></div>

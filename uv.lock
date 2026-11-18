@@ -186,6 +186,7 @@ version = "0.0.1"
 source = { editable = "demos/fly-pursuit" }
 dependencies = [
     { name = "flybrain-demo-api" },
+    { name = "flybrain-edge" },
     { name = "flybrain-models" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -194,6 +195,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "flybrain-demo-api", editable = "packages/flybrain-demo-api" },
+    { name = "flybrain-edge", editable = "packages/flybrain-edge" },
     { name = "flybrain-models", editable = "packages/flybrain-models" },
     { name = "numpy" },
 ]
