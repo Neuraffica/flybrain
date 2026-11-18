@@ -1,0 +1,53 @@
+firmware/bittle/fly_pursuit/src/fly_pursuit_all.h
+  s_8da33b2ad5b96f::t_0ecb749abc842f 1-481
+packages/flybrain-edge/tests/test_onboard_pursuit.py
+  s_8da33b2ad5b96f::t_f9e4d20f64596c 1-55,57-173
+  s_8da33b2ad5b96f::t_e87e342443c042 56
+firmware/bittle/fly_pursuit/README.md
+  s_8da33b2ad5b96f::t_0ca85351e09316 3,6-8,10-28,40-41,43-46
+  s_8da33b2ad5b96f::t_f1daca344ea4e0 4-5,9,29-39,42
+  s_8da33b2ad5b96f::t_dedd5ccc5c51fa 1-2,47-381
+packages/flybrain-edge/src/flybrain_edge/export/pursuit_equivalence.py
+  s_8da33b2ad5b96f::t_eee62652e0aa78 1-164,166,168-188
+  s_8da33b2ad5b96f::t_7988c313e0f6e9 165,167
+packages/flybrain-edge/NOTES.md
+  s_8da33b2ad5b96f::t_28dcb75022ca29 162,246-257
+  s_8da33b2ad5b96f::t_ee85a2620cf715 259-277
+  s_8da33b2ad5b96f::t_f1daca344ea4e0 278-289
+  s_8da33b2ad5b96f::t_4413312bbbb597 258
+packages/flybrain-edge/src/flybrain_edge/export/pursuit_c.py
+  s_8da33b2ad5b96f::t_b4d040794cced7 1-19,21-97,101-108,110-346
+  s_8da33b2ad5b96f::t_33467ca4ca9f1e 20,98-100,109
+firmware/bittle/fly_pursuit/apply_to_opencat.py
+  s_8da33b2ad5b96f::t_e7baaab13ff10d 174
+  s_8da33b2ad5b96f::t_e3a9a02e0455ee 1-85,87-173,175-187
+  s_8da33b2ad5b96f::t_e87e342443c042 86
+packages/flybrain-edge/tests/export_stubs/pursuit_core_main.cpp
+  s_8da33b2ad5b96f::t_d6611ed3bfbf2d 1-127
+packages/flybrain-edge/src/flybrain_edge/export/cli.py
+  s_8da33b2ad5b96f::t_04b80e303821f0 5,18,25-26,35-41
+firmware/bittle/fly_pursuit/src/flyPursuitCore.h
+  s_8da33b2ad5b96f::t_7f308c697a38c0 1-97,100-347
+  s_8da33b2ad5b96f::t_9e45f26e8d52ed 98-99
+firmware/bittle/fly_pursuit/src/flyPursuit.h
+  s_8da33b2ad5b96f::t_f29fca82e50685 1-20,22-130,133-138,145-480
+  s_8da33b2ad5b96f::t_380a1d8d27c28f 21,131-132,139-144
+firmware/bittle/README.md
+  s_8da33b2ad5b96f::t_bcccef05709ffc 12-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2cc97a8828d78ee10ce014168143e27c0662e7db",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
