@@ -159,8 +159,7 @@ Bluetooth runs above were most likely made with the camera off the I2C bus. That
 detection"; it does not explain the hang.
 
 With the plug in the I2C socket, six boot scans in a row showed `0x62 AI Vision` and
-`GroveVisionQ 1`. `0x28`, `0x79` and `0x7E` were there with and without the camera on the bus,
-so they belong to the board. Then, over USB:
+`GroveVisionQ 1`. Then, over USB:
 
 | Observation | Detail |
 |---|---|
@@ -243,6 +242,50 @@ to 60 deg/s, 8 head commands a second, a person's face about 50 cm away:
 - When the face moves faster than the head can follow, the camera stops reporting for a moment
   (the box leaves the frame or blurs) and the head stops where the corrected bearing reaches
   zero, then catches up on the next position.
+
+### Which I2C addresses are whose (2026-11-18, corrects the above)
+
+A boot scan with the camera unplugged shows only `0x69` (the IMU) and `0x7E`. With the camera in
+the I2C socket and healthy the scan shows `0x28`, `0x62`, `0x69`, `0x79`, `0x7E`. So the camera
+answers at THREE addresses: `0x28`, `0x62` (its SSCMA side, the one the firmware uses) and `0x79`.
+
+That changes the reading of 2026-11-16. The scans then that showed `0x28` and `0x79` but no `0x62`
+were not "the plug in the wrong socket": the camera was on the bus, but its SSCMA side was not
+answering, and it stayed that way across ESP32 restarts until the camera itself lost power. The
+video still shows the plug in the UART2 socket earlier that evening, so both things happened.
+A host or firmware module can recognise this state: `0x28` answers, `0x62` does not; only a power
+cycle of the camera clears it.
+
+### A third failure: the I2C bus stuck after a camera start (2026-11-18)
+
+Started from the Flydeck app over Bluetooth on a freshly restarted board. The robot identified
+itself, then two of the start-up echoes were missing, no camera position ever arrived, and at
+Stop none of `Xc~`, `XA~`, `gU`, `d` was answered. The program reported that the camera might
+still be on, which is the right message.
+
+Over USB afterwards the board restarts but stops at `Scanning I2C network...` and prints nothing
+more, on every restart: the firmware is blocked in its first I2C transaction. An EN restart
+resets only the ESP32; the camera keeps its power from the Grove socket and keeps holding the
+bus. So after this failure the robot does not boot until its power is cycled (which also
+power-cycles the camera) or the camera is unplugged.
+
+This is the same family as "replies go missing": when the camera's I2C side stalls, the main loop
+stalls with it. Two clean runs (USB and Bluetooth) came before it the same day with the same
+commands, so it is intermittent. It is the strongest argument so far for reading the camera on
+its own USB cable, or for a firmware module that does not share the main I2C bus with a blocking
+driver.
+
+### Our own camera module in the firmware (2026-11-18)
+
+The failures above led to `firmware/bittle/fly_pursuit/`: an extension module `P` with its own
+small SSCMA client in its own task, which also runs the pursuit circuit on the board. Flashed to
+this robot (app1, after a verified backup) and run over USB and Bluetooth: 15.4 results a second
+with none missing, "no face" reported every frame, start and stop any number of times in one
+boot, the IMU still answering, every echo back within 0.1 s over Bluetooth, and no error line in
+any run so far. With on-board control (`XPB~`) the head followed a face over +-40 degrees with
+the face a median 1 to 3 degrees from the image centre. Details and the line grammar are in that
+folder's README. The stock camera module `C` is still in the firmware but should not be used on
+this robot any more; do not mix `XC` and `XP` in one power-on.
 
 Still open: how fast joint commands can be sent before the camera task falls behind (needs a
 large, fixed face), and a proper field-of-view measurement.
