@@ -202,7 +202,9 @@ the camera's cable), shuts down as above and exits with code 4 ("could not conne
 
 **Recovery.** With our module there is nothing to recover: the robot saves which modules are
 on, but a start of our module at power-on is passive (result lines only, the robot does not
-move), so if `Xp~` was not confirmed the saved state is harmless. With the stock module
+move), so if `Xp~` was not confirmed the saved state is harmless. The one exception is the
+"follow a face after power-on" setting, which you switch on yourself (see "The robot by
+itself" below); `--camera-off` switches it off too. With the stock module
 (`--camera robot`) it is not: that module starts at every power-on with its own head reaction.
 If the program says the camera could not be switched off, or the head moves by itself after a
 camera run:
@@ -212,9 +214,11 @@ camera run:
 3. switch it on,
 4. run `uv run fly-pursuit --camera-off --port /dev/cu.usbserial-XXXX` (or `--ble`).
 
-`--camera-off` asks `X?~`; with our module it sends `Xp~`; then `Xc~`, `Xa~` and `XA~`
-(switching voice off and on forces the robot to save the module list even when the camera flag
-was only in its saved settings), `gU`, rest, and exits 0. It works when the camera was never
+`--camera-off` asks `X?~`; with our module it sends `Xps~` (module off and the follow after
+power-on setting off; an older build of the module takes it as `Xp~`); then `Xc~`, `Xa~` and
+`XA~` (switching voice off and on forces the robot to save the module list even when the camera
+flag was only in its saved settings), `gU`, rest, and exits 0. It says the setting was cleared
+only when the robot confirms it with `@FP auto 0;`. It works when the camera was never
 started, and does not restart the board.
 
 **Limits.** Short runs only so far (no session longer than a minute, on-board or not). The
@@ -237,14 +241,61 @@ the robot did not boot until its power was cycled. Our module is built to avoid 
 | `--pan-sign 1\|-1` | 1 | 1 if a positive head angle looks left (two readings with the camera robot: positive looks left) |
 | `--no-usb-restart` | off | `--camera robot` over USB: do not restart the board first |
 | `--leave-voice-off` | off | leave the voice module off at the end |
-| `--camera-off` | | only switch the robot's camera off (and our module, if there) and save that, rest, exit |
+| `--camera-off` | | only switch the robot's camera off (and our module and its follow after power-on setting, if there) and save that, rest, exit |
+| `--autostart on\|off` | | only save our module's follow a face after power-on setting, rest, exit (below) |
 
 With `--onboard`, `--controller`, `--arousal`, `--gain`, `--head-rate`, `--pan-limit`,
 `--camera-fov` and `--pan-sign` are ignored (the program says which).
 
 Exit codes: 0 stopped, 1 error or lost link, 2 bad options, 3 model data missing, 4 could not
-connect, the camera did not start, or `--onboard` / `--camera module` without our module in the
-firmware, 5 dashboard port in use.
+connect, the camera did not start, or `--onboard` / `--camera module` / `--autostart` without
+our module in the firmware (for `--autostart`: without its newer build), 5 dashboard port in use.
+
+## The robot by itself
+
+The newer build of our firmware module (`firmware/bittle/fly_pursuit`) can save a "follow a
+face after power-on" setting. With it on, a few seconds after every power-on, and with no
+computer connected, the robot beeps three times, sits and turns its head toward a face by
+itself: the on-board circuit, the same as `--onboard`, with nobody pressing Stop.
+
+**Safety.** Once this is on, the robot moves every time it is switched on. Switch it on only on
+the floor, away from edges, and expect the three beeps, then the sit.
+
+Switch it on or off from the command line:
+
+```bash
+uv run fly-pursuit --ble --autostart on      # or --port /dev/cu.usbserial-XXXX
+uv run fly-pursuit --ble --autostart off
+```
+
+or in Flydeck: pick the robot, set "Robot: follow a face after power-on" to on or off, Start.
+"leave as it is" (the default) is a normal run. Either way the program connects, saves the
+setting, rests the robot and exits; it does not open the dashboard. The last line says what is
+now saved and what the robot will do at the next power-on.
+
+- `on` sends `X?~`, `XPS~` (module on, setting saved on), waits for `@FP auto 1;`, then `Xp~`
+  so that the camera is off again and the robot stays still now. The setting acts at the next
+  power-on.
+- `off` sends `X?~`, `Xps~` (module off, setting saved off) and waits for `@FP auto 0;`.
+- `--camera-off` switches the setting off too.
+
+It needs the newer build. The build of the module flashed on 2026-11-18 does not know this
+setting: it ignores the command and never prints `@FP auto`, and the program then says "this
+robot's module is older and has no autostart", tells you to flash the newer build, and exits 4.
+Without our module at all it exits 4 too, having sent nothing but `?` and `X?~`.
+
+A normal run of the demo (`--onboard`, `--camera module`, `--camera auto`) does not change the
+saved setting. If the robot has already started following a face by itself when the demo
+connects, the demo says so and takes over: a bare `XP~` switches the robot's own control off on
+the newer build, so the laptop can turn the head, and `--onboard` switches it on again with
+`XPB~`. At the end it switches the module off with `Xp~`, which leaves the setting as it was.
+The dashboard's camera module line says whether the setting is on.
+
+Run on a Bittle X on 2026-11-18 with the newer build flashed: `--autostart off` and `on` over
+Bluetooth were both confirmed by the robot, and the demo connected over Bluetooth to the robot
+while it was following by itself and took the head over (no face was in view in that run, so
+the head did not turn). The robot's own start was run after a restart over USB, not after the
+power switch; the firmware folder's README has the numbers and what was not tried.
 
 ## What the dashboard shows
 
@@ -407,7 +458,7 @@ The rewired and random rows are means over 5 and 3 networks; the dashboard runs 
 | `src/fly_pursuit/controllers.py` | the nine controllers, the steering curve, the benchmark numbers for the page |
 | `src/fly_pursuit/camera.py` | camera lines from the robot's output (the stock module's, and our module's `@FP` lines), the bearing, the rule for "no target" (pure) |
 | `src/fly_pursuit/usbcam.py` | the camera on its own USB cable: SSCMA parser, port probing, reader thread |
-| `src/fly_pursuit/robot.py` | the robot: module detection, board restart, start-up, the head loop (or, on-board, reading the robot's own and the shadow model), shut-down, `--camera-off` |
+| `src/fly_pursuit/robot.py` | the robot: module detection, board restart, start-up, the head loop (or, on-board, reading the robot's own and the shadow model), shut-down, `--camera-off`, `--autostart` |
 | `src/fly_pursuit/app.py` | runs the rig (simulation or robot head) in real time, takes the dashboard's commands, publishes frames |
 | `src/fly_pursuit/cli.py` | the command and its flags |
 | `src/fly_pursuit/flydeck.py` | the Flydeck card |

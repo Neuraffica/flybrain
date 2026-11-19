@@ -31,6 +31,14 @@ Camera on its own USB cable (``--camera usb``, see usbcam.py):
   Shut-down: AT+BREAK on the camera's port; head to centre, XA~, rest.
 ``--camera auto`` (the default) sends X?~ after connecting and uses ``module`` if an "@FP"
 status line comes back, ``robot`` otherwise (the CLI does that, see cli.py).
+A robot whose module has the saved "follow after power-on" setting on (``--autostart on``) may
+already be sitting and turning its head by itself when the demo connects. Both module start-ups
+still work: a bare XP~ switches on-board control off on the builds that have the setting, so
+the laptop-computes mode takes the head over, and on-board mode switches it on again with XPB~.
+``--autostart on``: X?~, XPS~ (module on, setting saved on; wait for "@FP auto 1;"), Xp~ (the
+camera off again: the setting acts at the next power-on), rest. ``--autostart off``: X?~, Xps~
+(module off, setting saved off; wait for "@FP auto 0;"), rest. Older builds of the module
+ignore S and s and never print "@FP auto": that is reported, not taken as done.
 Every shut-down step is sent even when an echo is missing (over Bluetooth replies go missing
 while the stock camera module runs). A lost link is reconnected once to shut down.
 
@@ -69,6 +77,7 @@ EN_PULSE_S = 0.15  # USB restart: RTS high this long, with DTR low
 READY_WAIT_S = 20.0  # after the restart, wait this long at most for "Ready!"
 CAMERA_SOURCES = ("auto", "module", "robot", "usb")
 FP_STATUS_WAIT_S = 0.6  # after an echo, wait this long at most for the module's "@FP" status
+AUTOSTART_WAIT_S = 2.0  # after XPS~ / Xps~ and its echo, wait this long at most for "@FP auto"
 ONBOARD_START_TIMEOUT_S = 5.0  # XPB~ sits first (its echo came after 0.85 s over Bluetooth)
 # The firmware module's own constants (firmware/bittle/fly_pursuit/src/flyPursuitCore.h), the
 # same numbers as this program's defaults: used for the shadow model and the display.
@@ -109,6 +118,26 @@ NO_MODULE = (
     "the robot's firmware does not have the fly_pursuit camera module (no '@FP' status line "
     "after X?~). Flash the firmware in " + MODULE_DIR + " (see its README), or run without "
     "--onboard and with --camera robot or --camera usb"
+)
+NO_MODULE_AUTOSTART = (
+    "the robot's firmware does not have the fly_pursuit camera module (no '@FP' status line "
+    "after X?~), so it cannot follow a face after power-on. Flash the newer build from "
+    + MODULE_DIR
+    + " (see its README)"
+)
+OLDER_MODULE = (
+    "this robot's module is older and has no autostart (no '@FP auto' line after {cmd}): flash "
+    "the newer build from " + MODULE_DIR + " (see its README). Nothing was saved"
+)
+AUTOSTART_ON_DONE = (
+    "saved on the robot: follow a face after power-on is ON. At every power-on from now, with "
+    "no computer connected, the robot waits a few seconds, beeps three times, then sits and "
+    "moves its head toward a face by itself. Before switching it on, put it on the floor, away "
+    "from edges. Switch this off with: fly-pursuit --autostart off (or --camera-off)"
+)
+AUTOSTART_OFF_DONE = (
+    "saved on the robot: follow a face after power-on is OFF. At the next power-on the robot "
+    "starts as usual and does not move by itself"
 )
 MODULE_HARMLESS = (
     "the camera module may still be switched on in the robot's saved settings; that is "
@@ -569,6 +598,19 @@ def _wait_status(reader: ModuleReader, seen: int, timeout: float) -> bool:
     return reader.status_count > seen
 
 
+def _wait_auto(reader: ModuleReader, seen: int, timeout: float, want: bool) -> bool:
+    """Wait for an "@FP auto 0/1" line after the ``seen``-th one that reports ``want``; return
+    whether any such line came. MEASURED on the robot (USB, 2026-11-18): XPS~ and Xps~ print the
+    status twice, first from the firmware's own module switch with the OLD value, then from the
+    module with the new one, so the first line after the command is not the answer."""
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        if reader.auto_count > seen and reader.autostart is want:
+            break
+        time.sleep(0.02)
+    return reader.auto_count > seen
+
+
 def detect_module(b: Bittle, reader: ModuleReader) -> bool:
     """X?~: is our camera module (letter P) in the firmware? It prints "@FP on ...;" or
     "@FP off;" on every port after the module list; over USB the list itself also shows P.
@@ -732,7 +774,9 @@ def camera_off(
 
     Xc~ alone saves nothing if the camera flag was only set in flash (a failed start clears it
     in memory only), so voice off and on again forces the module list to be written. With our
-    module in the firmware (asked with X?~) Xp~ is sent first, so it is saved off too."""
+    module in the firmware (asked with X?~) Xps~ is sent first: module off and its "follow after
+    power-on" setting off, both saved (an older build of the module takes it as Xp~). The
+    output says the setting was cleared only when the robot confirms it with "@FP auto 0;"."""
     reader = ModuleReader()
     try:
         b = connect(make_transport(), cfg, reader)
@@ -743,8 +787,15 @@ def camera_off(
     try:
         b.forget_joint_targets()
         module = detect_module(b, reader)
-        steps = [(x_cmd("p"), "X", X_TIMEOUT_S)] if module else []
-        steps += [
+        cleared = False
+        if module:
+            newer = reader.autostart is not None  # X?~ was followed by "@FP auto"
+            seen = reader.auto_count
+            ok &= b.send(x_cmd("ps"), echo="X", timeout=X_TIMEOUT_S) is not None
+            if newer:
+                _wait_auto(reader, seen, FP_STATUS_WAIT_S, want=False)
+            cleared = reader.auto_count > seen and reader.autostart is False
+        steps = [
             (x_cmd("c"), "X", X_TIMEOUT_S),
             (x_cmd("a"), "X", X_TIMEOUT_S),
             (x_cmd("A"), "X", X_TIMEOUT_S),
@@ -761,5 +812,59 @@ def camera_off(
         "fly-pursuit: camera off and saved"
         + (" (and our camera module off)" if module else "")
         + ", voice on, IMU on, robot resting"
+        + (
+            "; follow a face after power-on cleared (the robot confirmed '@FP auto 0;')"
+            if cleared
+            else ""
+        )
     )
     return 0
+
+
+def set_autostart(
+    make_transport: Callable[[], object], cfg: HeadConfig, on: bool
+) -> tuple[int, str]:
+    """``--autostart on|off``: save our module's "follow after power-on" setting, then rest.
+
+    X?~ first (is the module there?). On: XPS~ (module on, setting saved on), wait for
+    "@FP auto 1;", then Xp~ so the camera is off again and the robot stays quiet now (the
+    setting acts at the next power-on; Xp~ does not change it). Off: Xps~ (module off, setting
+    saved off), wait for "@FP auto 0;". Returns (exit code, the final sentence or the reason).
+    If the robot was following a face by itself when asked (the autostart stops the voice module
+    for that power-on), XA~ is sent last so that voice is not left saved off.
+    An older build of the module ignores S / s and prints no "@FP auto": exit 4 and say so."""
+    reader = ModuleReader()
+    try:
+        b = connect(make_transport(), cfg, reader)
+    except Exception as e:  # noqa: BLE001 - no port, no Bluetooth, robot off
+        return 4, f"could not connect to the robot: {e}"
+    rest = True
+    try:
+        b.forget_joint_targets()
+        if not detect_module(b, reader):
+            rest = False  # nothing was sent that moves it
+            return 4, NO_MODULE_AUTOSTART
+        by_itself = bool(reader.control_on)  # it autostarted at this power-on (voice stopped)
+        cmd = "PS" if on else "ps"
+        name = f"X{cmd}~"
+        seen_status, seen_auto = reader.status_count, reader.auto_count
+        echo = b.send(x_cmd(cmd), echo="X", timeout=X_TIMEOUT_S) is not None
+        got = _wait_auto(reader, seen_auto, AUTOSTART_WAIT_S, want=on)
+        value = reader.autostart
+        status_seen = reader.status_count > seen_status
+        if on:  # whatever happened: the camera off again (an older build switched it on)
+            b.send(x_cmd("p"), echo="X", timeout=X_TIMEOUT_S)
+        if by_itself:  # the autostart stopped voice without saving; the commands above saved
+            b.send(x_cmd("A"), echo="X", timeout=X_TIMEOUT_S)  # the list, so put voice back
+        if not got:
+            if echo or status_seen:  # it answered, without "@FP auto": an older build
+                return 4, OLDER_MODULE.format(cmd=name)
+            return 1, f"the robot did not answer {name}: run it again"
+        if value is not on:
+            return 1, (
+                f"the robot reported '@FP auto {int(bool(value))};' after {name}, not "
+                f"'@FP auto {int(on)};': run it again"
+            )
+        return 0, AUTOSTART_ON_DONE if on else AUTOSTART_OFF_DONE
+    finally:
+        b.close(rest=rest)

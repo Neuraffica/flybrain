@@ -168,6 +168,18 @@ def test_apply_script_adds_both_modules_once(tmp_path):
     assert oc.index("flyPursuitBootBusCheck();") < oc.index("Wire.begin();")
     assert mm.count("case EXTENSION_FLY_PURSUIT:") == 2 and mm.count("read_flyPursuit();") == 1
     assert mm.index("read_flyPursuit();") < mm.index("if (idle)")  # polled on every pass
-    assert first["reaction.h"].count("flyPursuitOptions(") == 1
+    rh = first["reaction.h"]
+    assert rh.count("flyPursuitOptions(") == 1
+    # Xp... (XPs~ / Xps~) reaches the options too, through a second case label on the same case
+    lower = "case EXTENSION_FLY_PURSUIT + ('a' - 'A'):"
+    assert rh.count(lower) == 1
+    assert (
+        rh.index("case EXTENSION_FLY_PURSUIT:") < rh.index(lower) < rh.index("flyPursuitOptions(")
+    )
     assert "#define CAMERA" in first["OpenCatEsp32.ino"]  # stock features kept
     assert "fly_pursuit_all.h" in first and "flyPursuitCore.h" in first
+    # a folder patched before the lowercase label existed gets it on the next run, once
+    old = "\n".join(ln for ln in rh.splitlines() if lower not in ln) + "\n"
+    (sk / "src" / "reaction.h").write_text(old)
+    mod.apply(sk)
+    assert (sk / "src" / "reaction.h").read_text() == rh

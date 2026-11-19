@@ -1,7 +1,7 @@
 // Host check of firmware/bittle/fly_pursuit/src/flyPursuitCore.h: the SSCMA reply parser (fed
 // in uneven pieces, with NUL filler, a log frame, an oversized reply and empty results), the
 // head control step (direction, rate limit, pan limit, hold after 3 s, efference copy) and the
-// "@FP" line format. Prints the failed checks; exit code 0 when all pass.
+// "@FP" line format, and the "follow after power-on" decision (fpAutoDue). Prints the failed checks; exit code 0 when all pass.
 #include <cstdio>
 #include <string>
 
@@ -121,6 +121,21 @@ int main() {
   CHECK(holds > 30);
   fpFormatResult(line, sizeof(line), 9, &got[3], &c);
   CHECK(strstr(line, "@FP 9 - t=0.0 p=") == line && strstr(line, " hold;"));
+
+  // ---- follow after power-on: due only when saved, not done, queue empty and 3 s passed ----
+  CHECK(FP_AUTO_DELAY_MS == 3000);
+  CHECK(fpAutoDue(1, 0, 3000, 1) == 1);
+  CHECK(fpAutoDue(1, 0, 60000, 1) == 1);
+  CHECK(fpAutoDue(1, 0, 2999, 1) == 0);  // too early
+  CHECK(fpAutoDue(1, 0, 0, 1) == 0);
+  CHECK(fpAutoDue(0, 0, 5000, 1) == 0);  // not saved
+  CHECK(fpAutoDue(1, 1, 5000, 1) == 0);  // fired or cancelled already
+  CHECK(fpAutoDue(1, 0, 5000, 0) == 0);  // boot task still queued
+  int fired = 0;
+  for (uint32_t ms = 0; ms <= 10000; ms += 10) {  // one-shot as flyPursuit.h uses it
+    if (fpAutoDue(1, fired > 0, ms, ms >= 4000)) fired++;
+  }
+  CHECK(fired == 1);
 
   std::printf("results=%d overflows=%u failures=%d\n", n, (unsigned)P.overflows, failures);
   return failures ? 1 : 0;

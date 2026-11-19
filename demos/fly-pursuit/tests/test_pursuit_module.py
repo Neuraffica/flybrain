@@ -28,6 +28,10 @@ ONBOARD_START = ["?", "X?~", "Xa~", "XP~", "XPB~"]
 ONBOARD_STOP = ["XPb~", "Xp~", "XA~", "d"]
 STOCK_START = ["?", "X?~", "Xa~", "XCr~", "XCP~"]
 STOCK_STOP = ["Xc~", "XA~", "gU", "d"]
+CAMERA_OFF_MODULE = ["?", "X?~", "Xps~", "Xc~", "Xa~", "XA~", "gU", "d"]
+AUTOSTART_ON = ["?", "X?~", "XPS~", "Xp~", "d"]
+AUTOSTART_OFF = ["?", "X?~", "Xps~", "d"]
+FOLLOWING = ["@FP 7 -40 -16 69 76 80 b=10.0 t=30.0 p=5.0;\r\n"]  # an autostarted robot
 
 
 @pytest.fixture(autouse=True)
@@ -36,6 +40,7 @@ def fast(monkeypatch):
     monkeypatch.setattr(R, "JOINT_SETTLE_S", 0.05)
     monkeypatch.setattr(R, "X_TIMEOUT_S", 0.5)
     monkeypatch.setattr(R, "FP_STATUS_WAIT_S", 0.2)
+    monkeypatch.setattr(R, "AUTOSTART_WAIT_S", 0.3)
 
 
 # ---- the line parser ------------------------------------------------------------------------
@@ -512,10 +517,12 @@ def test_onboard_bad_combinations_are_refused_before_connecting(argv):
     assert cli.main(argv, make_transport=no_link) == 2
 
 
-def test_camera_off_with_the_module_sends_xp_first():
-    bot = FakeRobot(module="on", name="ble")
+def test_camera_off_with_the_module_sends_xps_first(capsys):
+    bot = FakeRobot(module="on", name="ble")  # an older build: Xps~ is taken as Xp~
     assert cli.main(["--ble", "--camera-off"], make_transport=factory(bot)) == 0
-    assert bot.commands() == ["?", "X?~", "Xp~", "Xc~", "Xa~", "XA~", "gU", "d"]
+    assert bot.commands() == CAMERA_OFF_MODULE and bot.module == "off"
+    out = capsys.readouterr().out
+    assert "our camera module off" in out and "after power-on" not in out
 
 
 def test_the_card_offers_the_new_choices():
@@ -530,3 +537,174 @@ def test_the_card_offers_the_new_choices():
     assert a.onboard and a.camera == "auto"
     a = cli.build_parser().parse_args(spec.argv("usb", {"camera": "module"}, 8123, robot="/x"))
     assert a.camera == "module" and not a.onboard
+
+
+# ---- the saved "follow a face after power-on" setting (newer builds of the module) ----------
+@pytest.mark.parametrize(
+    ("body", "autostart", "started"),
+    [("auto 0", False, False), ("auto 1", True, False), ("auto start", None, True)],
+)
+def test_auto_lines(body, autostart, started):
+    m = parse_fp(body)
+    assert (m.kind, m.autostart, m.started) == ("auto", autostart, started)
+    assert parse_fp(f" {body} ") == m
+
+
+@pytest.mark.parametrize(
+    "body", ["auto", "auto 2", "auto -1", "auto on", "auto 1 1", "auto start now", "auto Start"]
+)
+def test_malformed_auto_lines_are_ignored(body):
+    assert parse_fp(body) is None
+
+
+def test_status_lines_still_parse_beside_the_auto_line():
+    got = FpStream().feed("@FP on l=1 b=0;\r\n@FP auto 1;\r\n@FP off;@FP auto 0;@FP 3 -;")
+    assert [m.kind for m in got] == ["status", "auto", "status", "auto", "result"]
+    assert (got[0].on, got[0].lines, got[0].control) == (True, True, False)
+    assert got[2].on is False and got[1].autostart is True and got[3].autostart is False
+
+
+def test_module_reader_keeps_the_setting_and_whether_it_fired():
+    r = ModuleReader()
+    h = r.summary()
+    assert h["autostart"] is None and h["autostarted"] is False  # never reported (older build)
+    r.feed(b"@FP on l=1 b=0;\r\n@FP auto 0;\r\n", 1.0)
+    assert r.summary()["autostart"] is False and r.auto_count == 1 and r.status_count == 1
+    r.feed(b"@FP auto 1;", 1.1)
+    assert r.summary()["autostart"] is True and not r.summary()["autostarted"]
+    r = ModuleReader()
+    r.feed(b"@FP on l=1 b=1;@FP auto 1;@FP auto start;", 1.0)
+    h = r.summary()
+    assert h["autostart"] is True and h["autostarted"] is True and h["control_on"] is True
+    assert r.auto_count == 1  # "auto start" is not a report of the setting
+
+
+def test_the_frame_carries_the_setting():
+    rig, reader, clock, _ = _module_rig()
+    assert rig.snapshot()["camera_module"]["autostart"] is None
+    reader.feed(b"@FP on l=1 b=1;@FP auto 1;@FP auto start;", clock.t)
+    _tick(rig, clock)
+    m = json.loads(json.dumps(rig.snapshot()))["camera_module"]
+    assert m["autostart"] is True and m["autostarted"] is True
+    page = resources.files("fly_pursuit").joinpath("static/index.html").read_text()
+    assert "m.autostart === true" in page and "fly-pursuit --autostart off" in page
+
+
+def _action(argv, *robots):
+    return cli.main(["--port", "/dev/fake", *argv], make_transport=factory(*robots))
+
+
+def test_autostart_on_saves_it_and_leaves_the_camera_off(capsys, monkeypatch):
+    monkeypatch.setenv("FLYDECK_STATUS", "1")
+    bot = FakeRobot(module="off", autostart=False)
+    assert _action(["--autostart", "on"], bot) == 0
+    assert bot.commands() == AUTOSTART_ON
+    assert bot.autostart is True and bot.module == "off" and not bot.control
+    out, _ = capsys.readouterr()
+    final = [ln for ln in out.splitlines() if ln.startswith("fly-pursuit:")][-1]
+    assert "is ON" in final and "beeps three times" in final and "floor" in final
+    assert "away from edges" in final and "--autostart off" in final
+    assert not any(e["event"] == "failed" for e in _events(out))
+
+
+def test_autostart_off_saves_it(capsys):
+    bot = FakeRobot(module="on", autostart=True, name="ble")
+    assert cli.main(["--ble", "--autostart", "off"], make_transport=factory(bot)) == 0
+    assert bot.commands() == AUTOSTART_OFF
+    assert bot.autostart is False and bot.module == "off"
+    assert "is OFF" in capsys.readouterr().out
+
+
+def test_autostart_off_on_a_robot_following_by_itself_puts_voice_back():
+    bot = FakeRobot(autostarted=True)
+    assert _action(["--autostart", "off"], bot) == 0
+    assert bot.commands() == [*AUTOSTART_OFF[:-1], "XA~", AUTOSTART_OFF[-1]]
+    assert bot.autostart is False and bot.module == "off" and not bot.control
+
+
+@pytest.mark.parametrize(("value", "sent"), [("on", AUTOSTART_ON), ("off", AUTOSTART_OFF)])
+def test_autostart_on_an_older_module_is_reported_not_taken_as_done(value, sent, capsys):
+    bot = FakeRobot(module="off")  # the build on the robot today: no S / s, no "@FP auto"
+    assert _action(["--autostart", value], bot) == 4
+    assert bot.commands() == sent and bot.module == "off"  # the camera is off again
+    out, err = capsys.readouterr()
+    assert "older" in err and "no autostart" in err and "firmware/bittle/fly_pursuit" in err
+    assert "saved on the robot" not in out
+
+
+def test_autostart_without_the_module_is_refused(capsys):
+    bot = FakeRobot()
+    assert _action(["--autostart", "on"], bot) == 4
+    assert bot.commands() == ["?", "X?~"]  # nothing else sent, not even a rest
+    assert "does not have the fly_pursuit camera module" in capsys.readouterr().err
+
+
+def test_autostart_with_no_answer_is_not_taken_as_an_older_module(capsys):
+    bot = FakeRobot(module="off", autostart=False, mute_from="XPS~")
+    assert _action(["--autostart", "on"], bot) == 1
+    assert bot.commands() == AUTOSTART_ON
+    err = capsys.readouterr().err
+    assert "did not answer XPS~" in err and "older" not in err
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--mock", "--autostart", "on"],
+        ["--port", "/dev/null-robot", "--autostart", "on", "--camera-off"],
+        ["--port", "/dev/null-robot", "--autostart", "off", "--camera-off"],
+    ],
+)
+def test_autostart_bad_combinations_are_refused_before_connecting(argv):
+    def no_link():
+        raise AssertionError("a link was opened")
+
+    assert cli.main(argv, make_transport=no_link) == 2
+
+
+def test_camera_off_clears_the_autostart_and_says_so(capsys):
+    bot = FakeRobot(module="on", autostart=True)
+    assert _action(["--camera-off"], bot) == 0
+    assert bot.commands() == CAMERA_OFF_MODULE
+    assert bot.autostart is False and bot.module == "off"
+    assert "follow a face after power-on cleared" in capsys.readouterr().out
+
+
+def test_an_autostarted_robot_laptop_mode_takes_the_head_over(capsys):
+    bot = FakeRobot(
+        autostarted=True, fp_lines=[FP_FACE_LEFT], following_lines=FOLLOWING, serial_lines=True
+    )
+    assert _run(["--duration", "0.8"], bot) == 0
+    assert bot.non_head() == MODULE_START + MODULE_STOP
+    heads = [(c, ctl) for c, ctl in bot.control_at if c.startswith("i")]
+    assert heads and not any(ctl for _, ctl in heads)  # the robot's own control was off
+    assert dict(bot.control_at)["XP~"] is False  # the bare XP~ switched it off
+    assert bot.autostart is True  # a normal run leaves the saved setting alone
+    out, _ = capsys.readouterr()
+    assert "already turning its head by itself" in out and "leaves that setting" in out
+
+
+def test_an_autostarted_robot_onboard_mode_runs_as_usual():
+    lines = ["@FP 20 -40 -16 69 76 80 b=10.0 t=21.3 p=9.4;\r\n"]
+    bot = FakeRobot(autostarted=True, following_lines=FOLLOWING, onboard_lines=lines)
+    assert _run(["--onboard", "--duration", "0.5"], bot) == 0
+    assert bot.non_head() == ONBOARD_START + ONBOARD_STOP
+    assert _heads(bot.commands()) == ["i0 0"]
+    assert bot.autostart is True and not bot.control and bot.module == "off"
+
+
+def test_the_card_offers_the_autostart_choice():
+    spec = flydeck.SPEC
+    spec.validate()
+    o = next(o for o in spec.options if o.name == "autostart")
+    assert o.type == "choice" and o.default == "leave as it is"
+    assert tuple(o.choices) == ("leave as it is", "on", "off")
+    names = [o.name for o in spec.options]
+    assert names.index("autostart") == names.index("camera_off") + 1
+    argv = spec.argv("ble", {}, 8123)
+    assert "--autostart" not in argv and cli.build_parser().parse_args(argv).autostart is None
+    argv = spec.argv("ble", {"autostart": "leave as it is"}, 8123)
+    assert "--autostart" not in argv
+    for value in ("on", "off"):
+        a = cli.build_parser().parse_args(spec.argv("usb", {"autostart": value}, 1, robot="/x"))
+        assert a.autostart == value and a.port == "/x"

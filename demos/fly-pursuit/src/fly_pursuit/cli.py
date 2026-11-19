@@ -9,6 +9,8 @@ uv run fly-pursuit --ble --open                   # the laptop computes; camera 
 uv run fly-pursuit --port /dev/cu.usbserial-XXXX --open   # the same over USB
 uv run fly-pursuit --ble --camera usb --open      # camera on its own USB cable to the laptop
 uv run fly-pursuit --port /dev/cu.usbserial-XXXX --camera-off   # recovery: camera off, saved
+uv run fly-pursuit --ble --autostart on           # the robot follows a face after power-on
+uv run fly-pursuit --ble --autostart off          # ... and no longer
 
 On the robot: put it on the floor, away from edges, the camera plugged into the Grove socket
 labelled SCL SDA +5V GND. --camera auto (default) uses our camera module if the firmware has it
@@ -28,7 +30,7 @@ from importlib import resources
 from flybrain_demo_api import status
 from flybrain_demo_api.web import DashboardServer, FrameHub
 
-from .flydeck import CAMERAS, CONTROLLERS, FOVS, MOTIONS, SPEC
+from .flydeck import AUTOSTART, CAMERAS, CONTROLLERS, FOVS, MOTIONS, SPEC
 
 # Robot defaults (kept here so that the CLI and the Flydeck card agree; robot.HeadConfig has
 # the same numbers).
@@ -162,7 +164,17 @@ def build_parser() -> argparse.ArgumentParser:
     rb.add_argument(
         "--camera-off",
         action="store_true",
-        help="only switch the camera off (and save that on the robot), rest, exit",
+        help="only switch the camera off (and save that on the robot, with our module's "
+        "follow after power-on setting off too), rest, exit",
+    )
+    rb.add_argument(
+        "--autostart",
+        choices=AUTOSTART[1:],
+        default=None,
+        help="only save our camera module's 'follow a face after power-on' setting, rest, "
+        "exit. on: at every power-on, with no computer connected, the robot beeps three times, "
+        "sits and moves its head toward a face by itself (needs the newer build of "
+        "firmware/bittle/fly_pursuit). off: it no longer does. A normal run does not change it",
     )
     rb.add_argument("--boot-timeout", type=float, default=12.0, help=argparse.SUPPRESS)
     rb.add_argument("--camera-timeout", type=float, default=14.0, help=argparse.SUPPRESS)
@@ -186,6 +198,15 @@ def main(argv: list[str] | None = None, make_transport: Callable[[], object] | N
         return fail(2, "choose USB (--port) or Bluetooth (--ble), not both")
     if a.camera_off and not robot:
         return fail(2, "--camera-off needs a robot: add --port or --ble")
+    if a.autostart and not robot:
+        return fail(2, "--autostart needs a robot: add --port or --ble")
+    if a.autostart and a.camera_off:
+        return fail(
+            2,
+            "--camera-off already switches the follow after power-on setting off: use "
+            "--camera-off or --autostart, one at a time",
+        )
+    action = a.camera_off or a.autostart is not None  # connect, do one thing, exit
     if a.camera_port == "":
         a.camera_port = None  # Flydeck passes an empty field as ""
     if a.camera_port and a.camera != "usb":
@@ -200,7 +221,7 @@ def main(argv: list[str] | None = None, make_transport: Callable[[], object] | N
         )
     if (
         robot
-        and not a.camera_off
+        and not action
         and a.camera == "usb"
         and a.ble is None
         and not a.port
@@ -261,6 +282,16 @@ def main(argv: list[str] | None = None, make_transport: Callable[[], object] | N
             elif code:
                 status.failed("the robot did not confirm every command: run it again")
             return code
+        if robot and a.autostart:
+            from .robot import set_autostart
+
+            status.state("connecting", f"saving follow a face after power-on: {a.autostart}")
+            code, text = set_autostart(make_transport, cfg, a.autostart == "on")
+            if code:
+                return fail(code, text)
+            print(f"fly-pursuit: {text}.", flush=True)
+            status.state("done", text)
+            return 0
         return _run(a, stop, cfg, make_transport)
     finally:
         signal.signal(signal.SIGINT, previous[0])
@@ -430,6 +461,15 @@ def _choose_source(a, cfg, b, rig, make_transport):
         b.close(rest=False)
         return None, fail(4, f"could not ask the robot which camera module it has: {e}")
     if has:
+        if module_reader.control_on or module_reader.autostarted:
+            saved = bool(module_reader.autostart)
+            print(
+                "fly-pursuit: the robot was already turning its head by itself"
+                + (" (its follow a face after power-on setting is on)" if saved else "")
+                + "; this run takes over"
+                + (" and leaves that setting as it is" if saved else ""),
+                flush=True,
+            )
         if cfg.camera_source == "auto":
             print(
                 "fly-pursuit: the firmware has our camera module ('@FP' status after X?~): "

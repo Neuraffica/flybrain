@@ -244,7 +244,9 @@ SEQ_MAX_GAP = 1000  # a larger jump is taken as a restart of the board, not as l
 
 @dataclass(frozen=True)
 class FpMessage:
-    """One message of the module. ``kind``: "result", "status", "cam", "err" or "boot"."""
+    """One message of the module. ``kind``: "result", "status", "cam", "err", "boot" or
+    "auto" (the saved "follow after power-on" setting: ``autostart`` True/False after
+    "auto 1" / "auto 0", ``started`` after "auto start", printed when it fired at boot)."""
 
     kind: str
     seq: int | None = None  # result
@@ -260,6 +262,8 @@ class FpMessage:
     starts: int | None = None  # cam run <n>
     what: str | None = None  # err <what> <count>
     count: int | None = None
+    autostart: bool | None = None  # auto 0 / auto 1
+    started: bool = False  # auto start
 
     @property
     def has_control(self) -> bool:
@@ -311,6 +315,12 @@ def parse_fp(body: str) -> FpMessage | None:
         if head == "err":
             if len(w) == 3 and w[1].isalnum() and w[1].islower() and w[2].isdigit():
                 return FpMessage("err", what=w[1], count=int(w[2]))
+            return None
+        if head == "auto":  # newer builds only: "auto 0", "auto 1", "auto start"
+            if w[1:] == ["start"]:
+                return FpMessage("auto", started=True)
+            if len(w) == 2 and w[1] in ("0", "1"):
+                return FpMessage("auto", autostart=w[1] == "1")
             return None
         if head == "boot":
             return FpMessage("boot")
@@ -391,6 +401,11 @@ class ModuleReader(PositionStore):
         self.cam_running: bool | None = None
         self.cam_starts: int | None = None
         self.errors: dict[str, int] = {}
+        # The saved "follow after power-on" setting ("@FP auto 0/1;", newer builds only): None
+        # until the robot reports it (an older build never does).
+        self.autostart: bool | None = None
+        self.auto_count = 0  # "@FP auto 0/1" lines seen
+        self.autostarted = False  # "@FP auto start;" seen: it fired at boot in this session
         self.results = 0  # result lines
         self.faces = 0  # result lines with a face
         self.missing = 0  # result lines missing between consecutive seq numbers
@@ -420,6 +435,13 @@ class ModuleReader(PositionStore):
                 self.errors[msg.what] = msg.count
                 if msg.what in FP_ATTENTION:
                     self.problem = msg.what
+            elif msg.kind == "auto":
+                if msg.started:
+                    self.autostarted = True
+                    self.autostart = True  # it fired, so it is saved on
+                else:
+                    self.auto_count += 1
+                    self.autostart = msg.autostart
             elif msg.kind == "result":
                 self._result(msg, t)
 
@@ -466,4 +488,6 @@ class ModuleReader(PositionStore):
                 "missing": self.missing,
                 "last_seq": self.last_seq,
                 "problem": self.problem,
+                "autostart": self.autostart,  # saved "follow after power-on"; None: not reported
+                "autostarted": self.autostarted,  # it fired at boot in this session
             }
