@@ -4,14 +4,15 @@ by the camera in its mouth (the legs do not walk).
 
 uv run fly-pursuit --mock --open                  # simulator, dashboard in the browser
 uv run fly-pursuit --mock --controller no-aotu019 --fov 30 --target jumps
-uv run fly-pursuit --port /dev/cu.usbserial-XXXX --open   # the robot over USB
-uv run fly-pursuit --ble --open                   # the robot over Bluetooth
+uv run fly-pursuit --ble --onboard --open         # the robot computes (our firmware module)
+uv run fly-pursuit --ble --open                   # the laptop computes; camera chosen by itself
+uv run fly-pursuit --port /dev/cu.usbserial-XXXX --open   # the same over USB
 uv run fly-pursuit --ble --camera usb --open      # camera on its own USB cable to the laptop
 uv run fly-pursuit --port /dev/cu.usbserial-XXXX --camera-off   # recovery: camera off, saved
 
-On the robot: put it on the floor, away from edges. With --camera robot (default) the camera
-must be plugged into the Grove socket labelled SCL SDA +5V GND, and the robot sits by itself
-when the camera starts; its firmware can start the camera only once per power-on.
+On the robot: put it on the floor, away from edges, the camera plugged into the Grove socket
+labelled SCL SDA +5V GND. --camera auto (default) uses our camera module if the firmware has it
+(firmware/bittle/fly_pursuit), otherwise the stock one, which starts only once per power-on.
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ from importlib import resources
 from flybrain_demo_api import status
 from flybrain_demo_api.web import DashboardServer, FrameHub
 
-from .flydeck import CONTROLLERS, FOVS, MOTIONS, SPEC
+from .flydeck import CAMERAS, CONTROLLERS, FOVS, MOTIONS, SPEC
 
 # Robot defaults (kept here so that the CLI and the Flydeck card agree; robot.HeadConfig has
 # the same numbers).
@@ -38,7 +39,7 @@ COMMAND_HZ = 8.0
 GAIN = 1.0
 START_DELAY_S = 3.0  # on the robot: time to read the safety line (and press Stop) first
 
-FLOOR = "the robot must be on the floor, away from edges (it sits when the camera starts)"
+FLOOR = "the robot must be on the floor, away from edges (it sits when the demo starts)"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -83,10 +84,18 @@ def build_parser() -> argparse.ArgumentParser:
     rb = ap.add_argument_group("robot only")
     rb.add_argument(
         "--camera",
-        choices=("robot", "usb"),
-        default="robot",
-        help="robot: through the robot's Grove socket (no cable to the laptop; one start per "
-        "power-on). usb: the camera's own USB cable plugged into the laptop (default robot)",
+        choices=CAMERAS,
+        default="auto",
+        help="auto: our camera module if the robot's firmware has it, else robot. module: "
+        "through the robot, read by our firmware module (firmware/bittle/fly_pursuit). robot: "
+        "through the robot's stock camera module (one start per power-on). usb: the camera's "
+        "own USB cable plugged into the laptop (default auto)",
+    )
+    rb.add_argument(
+        "--onboard",
+        action="store_true",
+        help="the robot computes: the circuit runs in our firmware module and turns the head; "
+        "the laptop only shows it (needs the module; implies --camera module)",
     )
     rb.add_argument(
         "--camera-port",
@@ -181,6 +190,14 @@ def main(argv: list[str] | None = None, make_transport: Callable[[], object] | N
         a.camera_port = None  # Flydeck passes an empty field as ""
     if a.camera_port and a.camera != "usb":
         return fail(2, "--camera-port is for --camera usb")
+    if a.onboard and not robot:
+        return fail(2, "--onboard needs a robot: add --port or --ble")
+    if a.onboard and a.camera not in ("auto", "module"):
+        return fail(
+            2,
+            "--onboard runs on the robot's own camera module: use it with --camera auto or "
+            "module, not --camera " + a.camera,
+        )
     if (
         robot
         and not a.camera_off
@@ -212,9 +229,12 @@ def main(argv: list[str] | None = None, make_transport: Callable[[], object] | N
             boot_timeout_s=a.boot_timeout,
             camera_timeout_s=a.camera_timeout,
             gain=a.gain,
-            camera_source=a.camera,
+            camera_source="module" if a.onboard else a.camera,
+            onboard=a.onboard,
             usb_restart=not a.no_usb_restart,
         )
+        if a.onboard:
+            _onboard_settings(a, cfg)
         err = cfg.check()
         if err:
             return fail(2, err)
@@ -245,6 +265,37 @@ def main(argv: list[str] | None = None, make_transport: Callable[[], object] | N
     finally:
         signal.signal(signal.SIGINT, previous[0])
         signal.signal(signal.SIGTERM, previous[1])
+
+
+def _onboard_settings(a: argparse.Namespace, cfg) -> None:
+    """On-board, the firmware's own numbers apply; say which flags are ignored."""
+    from .robot import ONBOARD_HEAD_RATE_DEG_S, ONBOARD_PAN_LIMIT_DEG
+
+    ignored = [
+        name
+        for name, given, default in (
+            ("--controller", a.controller, "connectome"),
+            ("--arousal", a.arousal, 1.0),
+            ("--gain", a.gain, GAIN),
+            ("--head-rate", a.head_rate, HEAD_RATE_DEG_S),
+            ("--pan-limit", a.pan_limit, PAN_LIMIT_DEG),
+            ("--camera-fov", a.camera_fov, CAMERA_FOV_DEG),
+            ("--pan-sign", a.pan_sign, 1),
+        )
+        if given != default
+    ]
+    if ignored:
+        print(
+            "fly-pursuit: --onboard: the robot's firmware has its own settings (connectome, "
+            "arousal 1, gain 1, 60 deg/s, +-50 deg, field of view 60 deg); ignored: "
+            + ", ".join(ignored),
+            flush=True,
+        )
+    cfg.gain = 1.0
+    cfg.head_rate_deg_s = ONBOARD_HEAD_RATE_DEG_S
+    cfg.pan_limit_deg = ONBOARD_PAN_LIMIT_DEG
+    cfg.camera_fov_deg = CAMERA_FOV_DEG
+    a.controller, a.arousal = "connectome", 1.0
 
 
 def _real_transport(a: argparse.Namespace) -> Callable[[], object]:
@@ -278,14 +329,20 @@ def _run(a: argparse.Namespace, stop: threading.Event, cfg, make_transport) -> i
         from .controllers import benchmark_summary
 
         if robot:
-            from .camera import CameraReader
+            from .camera import CameraReader, ModuleReader
             from .robot import HeadRig
             from .usbcam import UsbCameraReader
 
-            kind = UsbCameraReader if cfg.camera_source == "usb" else CameraReader
+            kind = {"usb": UsbCameraReader, "robot": CameraReader}.get(
+                cfg.camera_source, ModuleReader
+            )
             reader = kind(fov_deg=cfg.camera_fov_deg)
 
             def attention(text):
+                if text is None:  # the reason went away
+                    print("fly-pursuit: the camera answers again", flush=True)
+                    status.state("running", "on the robot: the camera answers again")
+                    return
                 print(f"fly-pursuit: {text}", flush=True)
                 status.state("attention", text)
 
@@ -353,31 +410,89 @@ def _run_sim(a, stop, app, sim, url) -> int:
     return code
 
 
+SOURCE_TEXT = {
+    "module": "camera read by our firmware module, the laptop computes",
+    "robot": "camera through the robot's stock camera module",
+    "usb": "camera on its own USB cable",
+}
+
+
+def _choose_source(a, cfg, b, rig, make_transport):
+    """``--camera auto`` / ``module`` / ``--onboard``: ask the firmware (X?~) whether our
+    camera module is there. Returns (the link to use, None) or (None, exit code)."""
+    from .camera import CameraReader
+    from .robot import NO_MODULE, ONCE_PER_BOOT, RestartingTransport, connect, detect_module
+
+    module_reader = rig.module
+    try:
+        has = detect_module(b, module_reader)
+    except Exception as e:  # noqa: BLE001 - link lost while asking
+        b.close(rest=False)
+        return None, fail(4, f"could not ask the robot which camera module it has: {e}")
+    if has:
+        if cfg.camera_source == "auto":
+            print(
+                "fly-pursuit: the firmware has our camera module ('@FP' status after X?~): "
+                "using it (--camera module)",
+                flush=True,
+            )
+        cfg.camera_source = "module"
+        return b, None
+    if cfg.camera_source == "module":  # --camera module or --onboard
+        b.close(rest=False)  # nothing was moved
+        return None, fail(4, NO_MODULE + ".")
+    print(
+        "fly-pursuit: the firmware does not have our camera module (no '@FP' status after "
+        "X?~): using the robot's stock camera module (--camera robot). For a camera that "
+        "starts any number of times, flash firmware/bittle/fly_pursuit.",
+        flush=True,
+    )
+    cfg.camera_source = "robot"
+    stock = CameraReader(fov_deg=cfg.camera_fov_deg)
+    rig.use_reader(stock)
+    if getattr(b.transport, "name", "") == "usb" and cfg.usb_restart:
+        b.close(rest=False)  # the stock camera needs a fresh boot: reconnect with a restart
+        try:
+            b = connect(RestartingTransport(make_transport()), cfg, stock)
+        except Exception as e:  # noqa: BLE001
+            return None, fail(4, f"could not reconnect to the robot: {e}")
+    else:
+        b.add_rx_listener(stock.feed)
+        print(f"fly-pursuit: NOTE: {ONCE_PER_BOOT}.", flush=True)
+    return b, None
+
+
 def _run_robot(a, stop, cfg, make_transport, app, rig, reader, url) -> int:
     from . import usbcam
     from .robot import (
         CAMERA_CHECK,
         LINK_LABELS,
+        MODULE_HARMLESS,
         ONCE_PER_BOOT,
         LinkLost,
         RestartingTransport,
         connect,
         shut_down,
         start_camera,
+        start_module,
         start_robot_for_usb_camera,
     )
 
     usb_cam = cfg.camera_source == "usb"
+    if cfg.onboard:
+        how = "the robot computes: the circuit in its firmware turns the head"
+    else:
+        how = SOURCE_TEXT.get(cfg.camera_source, "camera chosen after connecting")
+        how += (
+            f" | controller {a.controller} | gain {cfg.gain:g} | camera field of view "
+            f"{cfg.camera_fov_deg:g} deg (assumed) | head up to {cfg.head_rate_deg_s:g} deg/s, "
+            f"+-{cfg.pan_limit_deg:g} deg | {cfg.command_hz:g} head commands/s"
+        )
     print(
-        "fly-pursuit: head only, the legs do not walk | camera "
-        + ("on its own USB cable" if usb_cam else "through the robot")
-        + f" | controller {a.controller} | gain {cfg.gain:g} | camera field of view "
-        f"{cfg.camera_fov_deg:g} deg (assumed) | head up to {cfg.head_rate_deg_s:g} deg/s, "
-        f"+-{cfg.pan_limit_deg:g} deg | {cfg.command_hz:g} head commands/s | Ctrl-C stops and "
-        "rests the robot",
+        f"fly-pursuit: head only, the legs do not walk | {how} | Ctrl-C stops and rests the robot",
         flush=True,
     )
-    if not usb_cam and (a.ble is not None or not cfg.usb_restart):
+    if cfg.camera_source == "robot" and (a.ble is not None or not cfg.usb_restart):
         print(f"fly-pursuit: NOTE: {ONCE_PER_BOOT}.", flush=True)
         status.state("starting", "switch the robot off and on first if its camera was used")
     if stop.wait(START_DELAY_S):
@@ -398,11 +513,18 @@ def _run_robot(a, stop, cfg, make_transport, app, rig, reader, url) -> int:
     status.state("connecting", FLOOR)
     try:
         t = make_transport()
-        if not usb_cam and cfg.usb_restart and getattr(t, "name", "") == "usb":
+        if cfg.camera_source == "robot" and cfg.usb_restart and getattr(t, "name", "") == "usb":
             t = RestartingTransport(t)
         b = connect(t, cfg, reader)
     except Exception as e:  # noqa: BLE001 - no port, no Bluetooth, robot off: all exit 4
         return fail(4, f"could not connect to the robot: {e}")
+    if cfg.camera_source in ("auto", "module"):
+        status.state("connecting", "asking the robot which camera module it has")
+        b, code = _choose_source(a, cfg, b, rig, make_transport)
+        if b is None:
+            return code
+    reader = rig.reader
+    source = cfg.camera_source
     link = LINK_LABELS.get(getattr(b.transport, "name", ""), "robot")
     print(f"fly-pursuit: connected over {link}: {b.transport.description}", flush=True)
 
@@ -423,6 +545,13 @@ def _run_robot(a, stop, cfg, make_transport, app, rig, reader, url) -> int:
                 except Exception as e:  # noqa: BLE001 - port busy or gone
                     why = f"cannot open {camera_port}: {e}"
                     cam = None
+        elif source == "module":
+            status.state(
+                "starting",
+                "voice off, camera module on; the robot sits"
+                + (" and its own circuit turns the head" if cfg.onboard else ""),
+            )
+            why, notes = start_module(b, reader, cfg.onboard)
         else:
             status.state("starting", "switching the camera on; the robot sits by itself")
             why, notes = start_camera(b, cfg)
@@ -434,7 +563,15 @@ def _run_robot(a, stop, cfg, make_transport, app, rig, reader, url) -> int:
         elif not stop.is_set():
             rig.bittle = b
             status.ready(url)
-            status.state("running", f"on the robot over {link}: the head follows the face")
+            status.state(
+                "running",
+                f"on the robot over {link}: "
+                + (
+                    "the robot's own circuit turns the head toward the face"
+                    if cfg.onboard
+                    else "the head follows the face"
+                ),
+            )
             if a.open and not a.no_open:
                 webbrowser.open(url)
             app.run(stop, duration=a.duration)
@@ -445,19 +582,26 @@ def _run_robot(a, stop, cfg, make_transport, app, rig, reader, url) -> int:
     finally:
         if problem:
             print(f"fly-pursuit: {problem}", file=sys.stderr, flush=True)
-        print("fly-pursuit: stopping: head to centre, camera off, resting", flush=True)
-        status.state("stopping", "head to centre, camera off, resting")
+        steps = "head to centre, camera off, resting"
+        if cfg.onboard:
+            steps = "on-board control off, " + steps
+        print(f"fly-pursuit: stopping: {steps}", flush=True)
+        status.state("stopping", steps)
         if cam is not None and not cam.stop():
             print("fly-pursuit: could not send AT+BREAK to the camera", flush=True)
         off = shut_down(b, cfg, reconnect)
     if not off:
         code = code or 1
-        problem = (problem + " " if problem else "") + (
-            "The camera may still be on: switch the robot off, unplug the camera, switch it "
-            "on, run fly-pursuit --camera-off."
-            if not usb_cam
-            else "The robot may not be resting: switch it off."
-        )
+        if source == "robot":
+            text = (
+                "The camera may still be on: switch the robot off, unplug the camera, switch "
+                "it on, run fly-pursuit --camera-off."
+            )
+        elif source == "module":
+            text = f"The robot may not be resting: switch it off. Note: {MODULE_HARMLESS}."
+        else:
+            text = "The robot may not be resting: switch it off."
+        problem = (problem + " " if problem else "") + text
     if problem:
         status.failed(problem)
     st = rig.stats()
@@ -471,6 +615,24 @@ def _run_robot(a, stop, cfg, make_transport, app, rig, reader, url) -> int:
         ),
         flush=True,
     )
+    mod = rig.module
+    if mod is not None:
+        h = mod.summary()
+        errs = ", ".join(f"{k} {v}" for k, v in sorted(h["errors"].items())) or "none"
+        print(
+            f"fly-pursuit: camera module: {h['results']} result lines, {h['missing']} missing "
+            f"between sequence numbers, errors: {errs}.",
+            flush=True,
+        )
+    ob = rig.onboard_info()
+    if ob is not None and ob["results"]:
+        print(
+            f"fly-pursuit: on-board: {ob['results']} results with the robot's turn command; "
+            "the same circuit recomputed on the laptop from the robot's bearing differed by "
+            f"{ob['mean_abs_difference_deg_s']:g} deg/s on average (largest "
+            f"{ob['max_abs_difference_deg_s']:g}).",
+            flush=True,
+        )
     return code
 
 

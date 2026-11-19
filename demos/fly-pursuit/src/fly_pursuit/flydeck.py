@@ -16,13 +16,15 @@ CONTROLLERS = (
 )
 FOVS = (30, 60, 100)
 MOTIONS = ("still", "sweep", "walk", "jumps", "hidden")
+CAMERAS = ("auto", "module", "robot", "usb")  # = robot.CAMERA_SOURCES (a test keeps them equal)
 
 SPEC = DemoSpec(
     id="fly-pursuit",
     title="Fly pursuit",
     summary="A circuit of 265 neurons from the fly connectome turns a robot dog toward a "
     "target: the whole dog in the simulator, the head toward a face seen by the camera in its "
-    "mouth on the robot (the legs do not walk).",
+    "mouth on the robot (the legs do not walk). With our firmware module the robot can run "
+    "the circuit (264 of its neurons) on its own board.",
     module="fly_pursuit.cli",
     needs=(
         (
@@ -32,8 +34,14 @@ SPEC = DemoSpec(
         ),
         "The robot on the floor, away from edges: it sits when the demo starts",
         (
-            "Camera through the robot over Bluetooth: switch the robot off and on first if its "
-            "camera was used since; the firmware starts its camera only once per power-on"
+            "Optional but recommended: our camera module in the robot's firmware "
+            "(firmware/bittle/fly_pursuit, see its README). It reads the camera every frame, "
+            "starts any number of times and is needed for 'onboard'. Without it, camera: auto "
+            "uses the stock camera module"
+        ),
+        (
+            "Stock camera module over Bluetooth: switch the robot off and on first if its "
+            "camera was used since; it starts only once per power-on"
         ),
     ),
     moves_robot=True,  # the head; the firmware makes the robot sit
@@ -70,16 +78,26 @@ SPEC = DemoSpec(
             mock_only=True,
         ),
         Option(
+            "onboard",
+            "bool",
+            False,
+            label="Robot: the robot computes (on-board)",
+            help="The circuit runs in our firmware module on the robot's board and turns the "
+            "head by itself; the dashboard shows the robot's numbers and recomputes the "
+            "circuit's activity from them. Needs firmware/bittle/fly_pursuit. Controller, "
+            "arousal and gain are then fixed (connectome, 1, 1).",
+        ),
+        Option(
             "camera",
             "choice",
-            "robot",
+            "auto",
             label="Robot: camera connection",
-            choices=("robot", "usb"),
-            help="robot: through the robot's Grove socket. No cable to the laptop, but one "
-            "start per power-on, positions only when they change, and no IMU or infrared "
-            "sensor while it runs. usb: the camera's own USB cable into this computer: 15 "
-            "results a second with a score and a real 'lost', any number of starts, but a "
-            "cable from the dog's mouth.",
+            choices=CAMERAS,
+            help="auto: our firmware module if the robot has it, else the stock one. module: "
+            "through the robot, read by our module: a result every frame with a score and a "
+            "real 'no face', any number of starts. robot: the stock camera module: one start "
+            "per power-on, positions only when they change, no IMU while it runs. usb: the "
+            "camera's own USB cable into this computer (a cable from the dog's mouth).",
         ),
         Option(
             "camera_port",
@@ -143,8 +161,8 @@ SPEC = DemoSpec(
             "bool",
             False,
             label="Robot over USB: do not restart the board first",
-            help="With the camera through the robot, the board is restarted before each run "
-            "because its camera starts only once per power-on.",
+            help="With the stock camera module, the board is restarted before each run "
+            "because that camera starts only once per power-on. Our module needs no restart.",
         ),
         Option(
             "leave_voice_off",
@@ -159,7 +177,8 @@ SPEC = DemoSpec(
             "bool",
             False,
             label="Robot: only switch the camera off",
-            help="Recovery: switch the camera off and save that on the robot, rest, exit.",
+            help="Recovery: switch the camera off (both the stock module and ours) and save "
+            "that on the robot, rest, exit.",
         ),
     ),
     guide="guide.html",

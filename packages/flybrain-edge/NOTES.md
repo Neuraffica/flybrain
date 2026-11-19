@@ -287,6 +287,16 @@ the face a median 1 to 3 degrees from the image centre. Details and the line gra
 folder's README. The stock camera module `C` is still in the firmware but should not be used on
 this robot any more; do not mix `XC` and `XP` in one power-on.
 
+The fly-pursuit demo reads this module since the same day (`--camera module`, `--onboard`). Over
+Bluetooth, 45 s each: with the robot computing, 703 result lines with 1 missing, and the same
+circuit recomputed on the laptop from the robot's bearing differed from the robot's turn command
+by 0.56 deg/s on average (largest 25, where the laptop times a step differently). With the laptop
+computing, 701 lines with none missing, 246 head commands with every echo back, the face seen
+90 % of the time and 3.2 degrees off centre on average. Started from Flydeck, both modes ran
+too, but the first two starts after the app had been rebuilt and relaunched failed with a
+Bluetooth connect timeout; after one scan from the app the next three starts connected in about
+20 s each. Not explained.
+
 Still open: how fast joint commands can be sent before the camera task falls behind (needs a
 large, fixed face), and a proper field-of-view measurement.
 

@@ -1,8 +1,11 @@
 """Fakes for the robot-mode tests (not shipped). No hardware is touched.
 
 ``FakeRobot`` is a robot link: it records every command written, answers like the firmware
-(echoes, the identify reply), can drop chosen echoes, refuse to start the camera, drop the link,
-and lets a test feed camera lines. ``FakeCamera`` is the camera's own USB serial port (SSCMA AT
+(echoes, the identify reply, the module list of X?), can drop chosen echoes, refuse to start the
+camera, drop the link, and lets a test feed camera lines. With ``module`` set it has our camera
+module P (firmware/bittle/fly_pursuit): "@FP" status lines after X? and every X change, "cam run"
+after XP~, and "@FP" result lines on demand (``fp_lines`` after XP~, ``onboard_lines`` after
+XPB~, or ``feed`` at any time). ``FakeCamera`` is the camera's own USB serial port (SSCMA AT
 protocol); ``FakePorts`` hands them out by device name."""
 
 import json
@@ -14,6 +17,9 @@ from flybrain_edge.bittle import TransportError
 from flybrain_edge.bittle.transport import Transport
 
 FACE_LEFT = "-72.00\t-16.00\tsize = 69\t76\t\r\n"  # measured: a face on the dog's left
+FP_FACE_LEFT = "@FP 1 -72 -16 69 76 80;\r\n"  # the same face through our module: 18 deg left
+STOCK_MODULES = "S,\tA,\tT,\tL,\tD,\tI,\tB,\tU,\tG,\tC,\tQ,\tE,\t"
+OUR_MODULES = STOCK_MODULES + "P,\t"
 
 
 class FakeEnLines:
@@ -57,7 +63,17 @@ class FakeRobot(Transport):
         drop_echo=(),  # commands whose echo never arrives, e.g. ("XCP~", "Xc~")
         mute_from=None,  # from this command on, the robot answers nothing at all
         serial_lines=False,  # give it DTR/RTS lines (a USB serial port)
+        module=None,  # None: stock firmware; "off" / "on": our camera module P, in that state
+        fp_lines=(),  # "@FP" lines sent right after XP~
+        onboard_lines=(),  # "@FP" lines sent right after XPB~
+        status_after_echo=False,  # X?~: the "@FP" status line comes after the X echo
     ):
+        self.module = module
+        self.fp_lines = list(fp_lines)
+        self.onboard_lines = list(onboard_lines)
+        self.status_after_echo = status_after_echo
+        self.control = False
+        self.cam_runs = 0
         self.name = name
         self.camera = camera
         self.face_on_start = face_on_start  # a camera line sent right after XCP~
@@ -118,11 +134,61 @@ class FakeRobot(Transport):
         if cmd not in self.drop_echo:
             self._say(token + "\r\n")
 
+    def _status(self):
+        if self.module == "on":
+            self._say(f"@FP on l=1 b={int(self.control)};\r\n")
+        elif self.module is not None:
+            self._say("@FP off;\r\n")
+
+    def _module(self, cmd, code):
+        """Our module's commands (README of firmware/bittle/fly_pursuit, "Commands")."""
+        if code == "?":
+            letters = OUR_MODULES if self.module else STOCK_MODULES
+            flags = "".join(("1" if k in "A" else "0") + ",\t" for k in letters[::3])
+            self._say(letters + "\r\n" + flags + "\r\n")
+            if not self.status_after_echo:
+                self._status()
+            self._echo(cmd, "X")
+            if self.status_after_echo:
+                self._status()
+            return True
+        if self.module is None:
+            return False
+        if code.startswith("P"):
+            was_on = self.module == "on"
+            self.module = "on"
+            if "B" in code:
+                self._say("sit\r\n")
+                self.control = True
+            if "b" in code:
+                self.control = False
+            self._status()
+            self._echo(cmd, "X")
+            if not was_on:
+                self.cam_runs += 1
+                self._say(f"@FP cam run {self.cam_runs};\r\n")
+                for ln in self.fp_lines:
+                    self._say(ln)
+            if "B" in code:
+                for ln in self.onboard_lines:
+                    self._say(ln)
+            return True
+        if code == "p":
+            if self.module == "on":
+                self._say("@FP cam stop;\r\n")
+            self.module, self.control = "off", False
+            self._status()
+            self._echo(cmd, "X")
+            return True
+        return False
+
     def _reply(self, cmd):
         if cmd == "?":
             self._say("Bittle X\r\nB10_251121\r\n?\r\n")
         elif cmd.startswith("X"):
             code = cmd[1:].rstrip("~")
+            if self._module(cmd, code):
+                return
             if code == "Cr":
                 if self.camera == "fail":
                     self._say("+ enable\tCamera\r\nFail to start\r\n")
@@ -133,6 +199,7 @@ class FakeRobot(Transport):
                     self._echo(cmd, "X")
                 self._say("Camera task activated.\r\n")
                 return
+            self._status()  # the firmware prints its status after every X change
             self._echo(cmd, "X")
             if code == "CP" and self.face_on_start:
                 self._say(self.face_on_start)

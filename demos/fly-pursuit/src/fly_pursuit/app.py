@@ -19,7 +19,8 @@ Commands (POST /api/command, JSON):
     {"action": "reset"}                      restart the running numbers
 
 Each reply is {"ok": true} or {"ok": false, "error": "..."}. On the robot, target, nudge,
-motion and fov are refused: the target is the face the camera sees.
+motion and fov are refused: the target is the face the camera sees. On-board (the robot
+computes), controller and arousal are refused too: the circuit runs in the firmware.
 """
 
 from __future__ import annotations
@@ -60,6 +61,8 @@ FRAME_DEFAULTS: dict[str, Any] = {
     "camera_source": None,
     "camera_error": None,
     "attention": None,
+    "camera_module": None,  # our firmware module's health (robot, --camera module / --onboard)
+    "onboard": None,  # --onboard: the robot's own turn, pan and bearing, and the shadow model's
 }
 
 

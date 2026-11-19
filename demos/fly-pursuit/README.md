@@ -4,7 +4,8 @@ A robot dog turns toward a target. The turn comes from a circuit of 265 neurons 
 fly connectome: the pathway a male fly uses to keep a moving female in front of him. It runs in
 the simulator (a simulated dog, a simulated camera and one target) or on the robot, where only
 the **head** turns, toward a face seen by the camera in the dog's mouth (see
-[On the robot](#on-the-robot)). A guide for the room is in [guide.html](guide.html).
+[On the robot](#on-the-robot)); with our firmware module the circuit can also run on the
+robot's own board. A guide for the room is in [guide.html](guide.html).
 
 The camera reports where the target is (its bearing, left or right of the dog's nose). The
 circuit turns that bearing into a turn command. The dog turns, the bearing changes, and the loop
@@ -32,28 +33,60 @@ noise, dropouts, random walk). Without `--mock` it runs on the robot: see below.
 The camera sits in the dog's mouth and turns with the head, so the head is the body the circuit
 turns. The legs do not walk. Version 1: head only.
 
-**Two ways to connect the camera** (`--camera robot|usb`, default `robot`)
+**Four ways to run it**, in the order to try them. The first two need our camera module in the
+robot's firmware (`firmware/bittle/fly_pursuit`, extension letter `P`; flashing it is described
+in its README); the last two work with the stock firmware.
 
-| | `--camera robot`: through the robot | `--camera usb`: its own USB cable |
-|---|---|---|
-| Cable | Grove socket labelled **SCL SDA +5V GND** (the I2C one; not the one by TX2/RX2) | the camera's USB-C port into the laptop, a cable from the dog's mouth |
-| Starts | **once per power-on** (see below) | any number of times |
-| Positions | only when the face moves (about 4 a second with a moving face, none for a still one), no score, no "lost" message | every frame, about 15 a second, with a score; an empty result means no face |
-| While it runs | the robot's IMU is off, and the infrared sensor cannot be used | the robot's sensors are untouched |
+| | 1. On-board (`--onboard`) | 2. Module, laptop computes (`--camera module`) | 3. Stock module (`--camera robot`) | 4. Own USB cable (`--camera usb`) |
+|---|---|---|---|---|
+| Who computes | the robot's board: the circuit (264 of its 265 neurons; the one left out cannot change the turn) runs in the firmware and moves the head | the laptop, any controller, arousal and gain switchable live | the laptop | the laptop |
+| Camera read by | our module | our module | the stock camera module `C` | the laptop, over the camera's USB-C port |
+| Needs | our firmware module | our firmware module | stock firmware | a cable from the dog's mouth to the laptop |
+| Camera results | every frame (about 15 a second), with a score and a real "no face" | the same | only when the face moves, no score, no "no face" | every frame, with a score and "no face" |
+| Starts | any number of times | any number of times | **once per power-on** | any number of times |
+| While it runs | the IMU keeps working | the IMU keeps working | the IMU is off, the infrared sensor cannot be used | the robot's sensors are untouched |
 
-Choose `robot` for a demo without a cable; choose `usb` for steadier tracking, for repeated
-runs, or when the robot's camera module misbehaves.
+`--camera auto` (the default) asks the robot after connecting (`X?~`): if an `@FP` status line
+comes back, the firmware has our module and it uses `module`; if not, it uses `robot` and says
+so. `--onboard` needs the module; without it the program stops with a message naming
+`firmware/bittle/fly_pursuit`.
+
+**Measured on the robot** (firmware module README, "Run on the robot", 2026-11-18, a Bittle X
+with firmware B10_251121). These runs used the module's own commands; **this program's
+`--onboard` and `--camera module` have so far been tested only with a fake robot**, and no
+session has been longer than a minute.
+
+- USB, passive (`XP~`): `@FP cam run 1;` 0.15 s after the command; 196 results in 12.7 s (15.4
+  a second), none skipped, median gap 54 ms, longest 112 ms, no error line. `Xp~` then `XP~`
+  again in the same boot: `@FP cam stop;`, then `@FP cam run 2;` and 15.5 results a second.
+- USB, on-board (`XPB~`), a person's face about 50 cm away moving side to side: 481 results in
+  31.2 s (15.4 a second), none skipped, a face in 385 of them (80 %). Head pan between -36 and
+  +41 degrees for a face between -42 and +43 degrees from straight ahead. Face offset from the
+  image centre while seen: median 3.0, mean 4.0, 90th percentile 8.0, largest 19.8 degrees.
+- Bluetooth: echoes `XP~` 0.08 s, `XPB~` 0.85 s (it sits first), `XPb~` 0.04 s, `Xp~` 0.06 s,
+  none missing. Passive, 6 s: 89 results (15.5 a second), none missing. On-board, 30 s, a face
+  moving side to side: 463 results (15.4 a second), none missing, a face in 378 (82 %); offset
+  from the image centre median 1.2, 90th percentile 9.8 degrees; head pan between -25 and +50
+  degrees. No error line.
+- Not measured: how long one on-board control step takes, the IMU's read rate while the camera
+  runs, a session longer than a minute, and what happens when the camera's own side stalls.
+
+The line format (`@FP <seq> <x> <y> <w> <h> <score> [b=] t= p= [hold];`, status, `cam run`,
+`cam stop`, `err <kind> <count>`) is in the module's README, "Host lines"; this program follows
+it (`camera.py`, `parse_fp`).
 
 **Before you start**
 
-- The robot **on the floor**, away from edges, battery on. With `--camera robot` the firmware
-  makes it sit when the camera starts; with `--camera usb` the program tells it to sit.
+- The robot **on the floor**, away from edges, battery on. It sits when the demo starts (with
+  `--onboard` and `--camera robot` the firmware does it; otherwise the program sends `ksit`).
+- The camera in the Grove socket labelled **SCL SDA +5V GND** (the I2C one; not the one by
+  TX2/RX2), except with `--camera usb`.
 - `--camera robot` **over Bluetooth**: switch the robot off and on before each run if its
-  camera was used since it was switched on. The firmware can start its camera only once per
-  power-on: a second start in the same boot still answers, but its camera task cannot be made,
-  and it then reports only the last old position, which looks exactly like a still face.
-  Nothing says so over Bluetooth. Over USB the program restarts the board itself first (an EN
-  pulse, as when the reset button is pressed; `--no-usb-restart` skips it).
+  camera was used since it was switched on. The stock firmware can start its camera only once
+  per power-on: a second start still answers, but it then reports only the last old position,
+  which looks exactly like a still face. Over USB the program restarts the board itself first
+  (an EN pulse, as when the reset button is pressed; `--no-usb-restart` skips it). Our module
+  needs none of this. Do not use the stock camera module and ours in the same power-on.
 - `--camera usb`: the camera is found by opening each port with the camera's USB IDs and asking
   its name (`AT+NAME?`). The robot's own USB port has the same IDs, so when the robot is on USB
   too, give `--port` (the robot) or `--camera-port` (the camera); the robot's port is never
@@ -63,66 +96,102 @@ runs, or when the robot's camera module misbehaves.
 **Run it**
 
 ```bash
-# camera through the robot
-uv run fly-pursuit --port /dev/cu.usbserial-XXXX --open   # USB (without --port: auto-detect)
-uv run fly-pursuit --ble --open                           # Bluetooth (or --ble BittleC2)
-# camera on its own USB cable, robot over Bluetooth
+# 1. on-board: the robot computes
+uv run fly-pursuit --ble --onboard --open                          # Bluetooth (or --ble BittleC2)
+uv run fly-pursuit --port /dev/cu.usbserial-XXXX --onboard --open  # USB
+# 2. our module, the laptop computes (--camera auto picks it by itself when the module is there)
+uv run fly-pursuit --ble --camera module --open
+uv run fly-pursuit --port /dev/cu.usbserial-XXXX --camera module --open
+# 3. the stock camera module
+uv run fly-pursuit --ble --camera robot --open
+# 4. the camera on its own USB cable, robot over Bluetooth
 uv run fly-pursuit --ble --camera usb --open
 uv run fly-pursuit --ble --camera usb --camera-port /dev/cu.usbmodemXXXX --open
 ```
 
-On macOS, Bluetooth from a terminal needs the helper app: `uv run flybrain-bittle ble-run --
-uv run fly-pursuit --ble --open` (see `packages/flybrain-edge/NOTES.md`, "macOS permission").
-In Flydeck, pick the robot (USB or Bluetooth) instead of **Try in simulator** and choose the
-camera connection on the card. Stop with Ctrl-C or Flydeck's Stop; a second Ctrl-C is ignored
-so the shut-down cannot be cut short.
+Without `--port` or `--ble` the robot's USB port is found by itself. On macOS, Bluetooth from a
+terminal needs the helper app: `uv run flybrain-bittle ble-run -- uv run fly-pursuit --ble
+--onboard --open` (see `packages/flybrain-edge/NOTES.md`, "macOS permission"). In Flydeck,
+pick the robot (USB or Bluetooth) instead of **Try in simulator**, then tick **the robot
+computes (on-board)** or choose the camera connection on the card. Stop with Ctrl-C or
+Flydeck's Stop; a second Ctrl-C is ignored so the shut-down cannot be cut short.
 
 **What it does**
 
-1. Start, `--camera robot`: [USB: restart the board, wait for `Ready!`], connect, `Xa~` (voice
-   module off: sounds could make the robot move), `XCr~` (camera on, the camera's own head
-   reaction off; the robot sits; waits up to 14 s for the robot's `X` reply, and goes on
-   without it, saying so), `XCP~` (print the face's position whenever it changes). A missing
-   reply is not a failure: over Bluetooth replies go missing while the camera runs although the
-   command was carried out. "Fail to start", or a module list with the camera off, is.
-   Start, `--camera usb`: find the camera's port, connect to the robot, `Xa~`, `ksit` (sit);
-   no `XC` command at all; then `AT+INVOKE=-1,0,1` on the camera's port.
-2. Bearing from a position, positive to the dog's left: through the robot
-   `-x / 240 x field of view` (x from the image centre; negative x is the dog's left);
-   on the USB cable `(120 - x) / 240 x field of view` (x from the image's left edge), taking the
-   box with the highest score. The field of view is 60 deg across by default
-   (`--camera-fov`); not properly measured: one head step gave about 57.
+1. Start, every robot run: connect (the robot answers `?`). With `--camera auto`, `module` or
+   `--onboard`: `X?~`, to see whether the firmware has our module.
+   - `--onboard`: `Xa~` (voice module off: sounds could make the robot move), `XP~` (module on,
+     passive), `XPB~` (on-board control on; the firmware makes the robot sit). From then on the
+     laptop sends **no head command**: it reads each result line's `t=` (the robot's head turn
+     command, deg/s), `p=` (its pan target), `b=` (the bearing its circuit got) and `hold`.
+   - `--camera module`: `Xa~`, `XP~` (passive: the module does not move the robot), `ksit`. No
+     `XC`, no `gU`, no board restart.
+   - `--camera robot`: [USB: restart the board, wait for `Ready!`], `Xa~`, `XCr~` (camera on,
+     the camera's own head reaction off; the robot sits; waits up to 14 s for the robot's `X`
+     reply, and goes on without it, saying so), `XCP~` (print the face's position whenever it
+     changes). A missing reply is not a failure: over Bluetooth replies go missing while the
+     stock camera runs although the command was carried out. "Fail to start", or a module list
+     with the camera off, is.
+   - `--camera usb`: find the camera's port, connect to the robot, `Xa~`, `ksit`; no `XC`
+     command at all; then `AT+INVOKE=-1,0,1` on the camera's port.
+2. Bearing from a position, positive to the dog's left: through the robot (both modules)
+   `-x / 240 x field of view` (x from the image centre; negative x is the dog's left); on the
+   USB cable `(120 - x) / 240 x field of view` (x from the image's left edge), taking the box
+   with the highest score. The field of view is 60 deg across by default (`--camera-fov`); not
+   properly measured: one head step gave about 57. The firmware module assumes the same 60.
 3. **The head's own turn is taken out.** The camera turns with the head, so every position is
    stored with the head angle at that moment, and the circuit gets
    `bearing measured - (head angle now - head angle then)`. Without this, an old position
    keeps pulling the head past the face (the first robot run swung between about +19 and -17
    deg). The dashboard shows the corrected bearing, and the measured one in small print.
-4. No target: through the robot, positions come only when the face moves, so the last one is
-   kept. If none came for more than 1 s and the corrected bearing is more than 8 deg off
-   centre, the face counts as lost; within 8 deg it is kept (a still, centred face is silent).
-   A position of x = -121 with size 0 (nothing found) is lost at once. On the USB cable an
-   empty result is lost at once, and no result for 1 s (cable out) is lost too.
-5. About 15 times a second the selected controller is stepped with the bearing (or no target).
-   Its turn command, times `--gain` (default 1, for tuning on the robot), is clipped to the
-   head's rate limit (`--head-rate`, default 60 deg/s, this program's choice), added up into a
-   head angle, kept within the pan limit (`--pan-limit`, default +-50 deg; never beyond the
-   firmware's 120) and sent as a head joint command, at most `--command-rate` times a second
-   (default 8: head commands compete with the camera on the robot's board).
+   On-board, the firmware does the same correction itself.
+4. No target: with our module and on the USB cable a result comes every frame, so "no face"
+   is lost at once, and no result line at all for 1 s is lost too. Through the stock module,
+   positions come only when the face moves, so the last one is kept: if none came for more than
+   1 s and the corrected bearing is more than 8 deg off centre, the face counts as lost; within
+   8 deg it is kept (a still, centred face is silent). A position of x = -121 with size 0
+   (nothing found) is lost at once.
+5. Laptop computing: about 15 times a second the selected controller is stepped with the
+   bearing (or no target). Its turn command, times `--gain` (default 1, for tuning on the
+   robot), is clipped to the head's rate limit (`--head-rate`, default 60 deg/s, this
+   program's choice), added up into a head angle, kept within the pan limit (`--pan-limit`,
+   default +-50 deg; never beyond the firmware's 120) and sent as a head joint command, at most
+   `--command-rate` times a second (default 8). On-board, the firmware does this once per
+   camera result with the same numbers (60 deg/s, +-50 deg, hold after 3 s), and the circuit is
+   fixed: connectome, mirror-averaged, arousal 1, gain 1.
 6. When the face has been lost for 3 s, the head **holds where it is**. There is no search.
-7. If no camera position at all arrives in the first 20 s, the dashboard and Flydeck show a
-   warning: show a face about 50 cm in front of the camera; if the head still does not react,
-   switch the robot off and on and start again.
+7. Warnings on the dashboard and in Flydeck: no camera result at all in the first 20 s (show a
+   face about 50 cm in front of the camera; then a power cycle). With our module also:
+   `err silent` or `err busheld` ("power-cycle the camera: switch the robot off and on"), and
+   `err nocam` ("the camera is not plugged into the I2C socket"). They clear when the camera
+   answers again.
 
-Controllers, arousal and the steering curve work as in the simulator and can be switched
-while it runs (the curve is drawn times the gain). The target presets, dragging the target and
-the field-of-view buttons do not apply on the robot.
+Controllers, arousal and the steering curve work as in the simulator and can be switched while
+the laptop computes (the curve is drawn times the gain). On-board they cannot: the dashboard
+says so and disables them. The target presets, dragging the target and the field-of-view
+buttons do not apply on the robot.
+
+**On-board, the circuit panel is a shadow.** The robot does not send its neurons' activity. The
+panel runs the same Python circuit on the laptop, once per result line, with the bearing the
+robot reports (`b=`, or "no target" for a frame without a face), timed by when the lines arrive.
+It is labelled as recomputed on the laptop, for display. The robot's own turn command is the one
+its firmware prints (`t=`); the dashboard shows it next to the recomputed one and their
+difference, so a mismatch is visible.
+
+**Camera module health** (with our module): a line on the dashboard with whether the camera is
+running (`cam run <n>` / `cam stop`), how many result lines came and how many had a face, how
+many are missing between consecutive sequence numbers (lost on the link, or skipped by the robot
+while busy), and the latest count of each `err` kind. The same numbers are printed at the end.
 
 **Shut-down, always** (Stop, Ctrl-C, an error, a camera that does not start, a lost link).
 Every step is sent even when a reply is missing.
 
+- `--onboard`: `XPb~` (on-board control off), head to centre, `Xp~` (module off), `XA~` (voice
+  back on; `--leave-voice-off` skips it), rest (`d`).
+- `--camera module`: head to centre, `Xp~`, `XA~`, rest.
 - `--camera robot`: head to centre, `Xc~` (camera off; the robot also saves its module list),
-  `XA~` (voice back on; `--leave-voice-off` skips it), `gU` (IMU updates back on), rest (`d`).
-  `Xc~` counts as not done only if neither its reply nor any later reply arrives.
+  `XA~`, `gU` (IMU updates back on), rest. `Xc~` counts as not done only if neither its reply
+  nor any later reply arrives.
 - `--camera usb`: `AT+BREAK` on the camera's port, head to centre, `XA~`, rest. No `Xc~`, no
   `gU`.
 
@@ -131,35 +200,51 @@ After a lost link it reconnects once to do this (without restarting the board).
 **If the camera does not start**, it says what to check (the socket, the robot switched on, or
 the camera's cable), shuts down as above and exits with code 4 ("could not connect").
 
-**Recovery** (`--camera robot`). The robot saves which modules are on and starts them at every
-power-on, the camera with its own head reaction on. If the program says the camera could not
-be switched off, or the head moves by itself after a camera run:
+**Recovery.** With our module there is nothing to recover: the robot saves which modules are
+on, but a start of our module at power-on is passive (result lines only, the robot does not
+move), so if `Xp~` was not confirmed the saved state is harmless. With the stock module
+(`--camera robot`) it is not: that module starts at every power-on with its own head reaction.
+If the program says the camera could not be switched off, or the head moves by itself after a
+camera run:
 
 1. switch the robot off,
 2. unplug the camera,
 3. switch it on,
 4. run `uv run fly-pursuit --camera-off --port /dev/cu.usbserial-XXXX` (or `--ble`).
 
-`--camera-off` sends `Xc~`, then `Xa~` and `XA~` (switching voice off and on forces the robot to
-save the module list even when the camera flag was only in its saved settings), `gU`, rest, and
-exits 0. It works when the camera was never started, and does not restart the board.
+`--camera-off` asks `X?~`; with our module it sends `Xp~`; then `Xc~`, `Xa~` and `XA~`
+(switching voice off and on forces the robot to save the module list even when the camera flag
+was only in its saved settings), `gU`, rest, and exits 0. It works when the camera was never
+started, and does not restart the board.
+
+**Limits.** Short runs only so far (no session longer than a minute, on-board or not). The
+stock camera module has measured problems on this robot (`packages/flybrain-edge/NOTES.md`,
+"Petoi AI Vision camera"): it starts once per power-on, reports a position only when it
+changes, stops the IMU, loses replies over Bluetooth, and once left the I2C bus stuck so that
+the robot did not boot until its power was cycled. Our module is built to avoid each of these
+(its README, "The six failures").
 
 | Robot option | Default | |
 |---|---|---|
-| `--camera robot\|usb` | robot | how the camera is connected (above) |
+| `--onboard` | off | the robot computes (needs our module; implies `--camera module`) |
+| `--camera auto\|module\|robot\|usb` | auto | how the camera is read (above) |
 | `--camera-port PATH` | found by probing | `--camera usb`: the camera's serial device |
-| `--gain G` | 1.0 | scales the turn command on the robot, 0.1 to 2 |
+| `--gain G` | 1.0 | scales the turn command on the robot, 0.1 to 2 (not on-board) |
 | `--camera-fov DEG` | 60 | field of view across the image; not properly measured (about 57 from one step) |
-| `--head-rate DEG_S` | 60 | fastest head turn; this program's choice |
-| `--pan-limit DEG` | 50 | furthest the head turns each way; at most 120 (firmware) |
-| `--command-rate HZ` | 8 | head commands per second |
+| `--head-rate DEG_S` | 60 | fastest head turn; this program's choice (on-board: the firmware's 60) |
+| `--pan-limit DEG` | 50 | furthest the head turns each way; at most 120 (on-board: the firmware's 50) |
+| `--command-rate HZ` | 8 | head commands per second (not on-board: the laptop sends none) |
 | `--pan-sign 1\|-1` | 1 | 1 if a positive head angle looks left (two readings with the camera robot: positive looks left) |
 | `--no-usb-restart` | off | `--camera robot` over USB: do not restart the board first |
 | `--leave-voice-off` | off | leave the voice module off at the end |
-| `--camera-off` | | only switch the robot's camera off and save that, rest, exit |
+| `--camera-off` | | only switch the robot's camera off (and our module, if there) and save that, rest, exit |
+
+With `--onboard`, `--controller`, `--arousal`, `--gain`, `--head-rate`, `--pan-limit`,
+`--camera-fov` and `--pan-sign` are ignored (the program says which).
 
 Exit codes: 0 stopped, 1 error or lost link, 2 bad options, 3 model data missing, 4 could not
-connect or the camera did not start, 5 dashboard port in use.
+connect, the camera did not start, or `--onboard` / `--camera module` without our module in the
+firmware, 5 dashboard port in use.
 
 ## What the dashboard shows
 
@@ -181,8 +266,10 @@ connect or the camera did not start, 5 dashboard port in use.
   10 deg, share of time in view. Below them, the offline benchmark's numbers for the same
   controller and camera.
 - A note that this is a simulation with assumed camera and robot numbers (on the robot: that
-  it runs on the robot, that the field of view is assumed and that the camera reports a
-  position only when it changes).
+  it runs on the robot, who computes, that the field of view is assumed, and how the camera in
+  use reports "no face").
+- On the robot with our module: the camera module line (above), and on-board the robot's turn
+  command, pan target and bearing next to the recomputed circuit.
 
 Controls: the controller, arousal (0..1, circuit controllers only), the field of view (+-30,
 +-60, +-100 deg) and the target motion (still, slow sweep of +-40 deg every 10 s, random walk,
@@ -298,10 +385,12 @@ The rewired and random rows are means over 5 and 3 networks; the dashboard runs 
   dropped frames, and the field of view. The 90 deg/s turn limit and 150 ms lag are assumed
   too. On the robot the camera's field of view is still assumed (60 deg across), and the
   delay between a face moving and the head command is not measured.
-- **Robot mode has had one run on the robot** (Bluetooth, camera through the robot, before the
-  head-turn correction). The camera on its own USB cable has not been run on the robot by this
-  program; its tests use fakes. Which command rate leaves the robot's camera enough time is
-  being measured.
+- **This program on the robot**: with the stock camera module, runs over USB and Bluetooth
+  (`packages/flybrain-edge/NOTES.md`). `--onboard` and `--camera module` have been tested only
+  with a fake robot; the firmware module itself has been run on the robot with its own commands
+  (above), never longer than a minute. The camera on its own USB cable has not been run on the
+  robot by this program either. Which head command rate leaves the camera enough time is not
+  measured.
 - **+-100 deg** stands for a camera on a panning head. The head and its own control loop are
   not simulated; the camera simply reports the bearing over +-100 deg.
 - **No direction selectivity.** Real LC10a respond to small moving objects; here any visible
@@ -316,14 +405,14 @@ The rewired and random rows are means over 5 and 3 networks; the dashboard runs 
 |---|---|
 | `src/fly_pursuit/sim.py` | the world: heading, target, camera, turn limit and lag (plain class, no threads) |
 | `src/fly_pursuit/controllers.py` | the nine controllers, the steering curve, the benchmark numbers for the page |
-| `src/fly_pursuit/camera.py` | camera lines from the robot's output, the bearing, the rule for "no target" (pure) |
+| `src/fly_pursuit/camera.py` | camera lines from the robot's output (the stock module's, and our module's `@FP` lines), the bearing, the rule for "no target" (pure) |
 | `src/fly_pursuit/usbcam.py` | the camera on its own USB cable: SSCMA parser, port probing, reader thread |
-| `src/fly_pursuit/robot.py` | the robot: board restart, start-up, the head loop, shut-down, `--camera-off` |
+| `src/fly_pursuit/robot.py` | the robot: module detection, board restart, start-up, the head loop (or, on-board, reading the robot's own and the shadow model), shut-down, `--camera-off` |
 | `src/fly_pursuit/app.py` | runs the rig (simulation or robot head) in real time, takes the dashboard's commands, publishes frames |
 | `src/fly_pursuit/cli.py` | the command and its flags |
 | `src/fly_pursuit/flydeck.py` | the Flydeck card |
 | `src/fly_pursuit/static/index.html` | the dashboard |
-| `tests/` | simulation, commands, frame, spec, CLI, robot mode on a fake robot and a fake camera port (`pursuit_fakes.py`), one end-to-end run (`uv run pytest demos/fly-pursuit`) |
+| `tests/` | simulation, commands, frame, spec, CLI, robot mode on a fake robot (with or without our module) and a fake camera port (`pursuit_fakes.py`), one end-to-end run (`uv run pytest demos/fly-pursuit`) |
 
 ### Dashboard protocol
 
@@ -341,6 +430,12 @@ The page gets one JSON frame about 20 times a second from `/api/stream` (the lat
 ```
 
 Each reply is `{"ok": true}` or `{"ok": false, "error": "..."}`. Angles are in degrees,
-positive to the left. On the robot, `target`, `nudge`, `motion` and `fov` are refused, and the
-frame's `mode` is `"robot"`, with the head angle (`head_deg`), the camera's age and state, and
-the link's numbers. `/api/benchmark` gives the offline benchmark's numbers per controller.
+positive to the left. On the robot, `target`, `nudge`, `motion` and `fov` are refused (on-board
+also `controller` and `arousal`), and the frame's `mode` is `"robot"`, with the head angle
+(`head_deg`), the camera's age and state, and the link's numbers. With our module the frame also
+has `camera_module` (`present`, `on`, `lines_on`, `control_on`, `camera` running or stopped,
+`starts`, `errors` per kind, `results`, `faces`, `missing`, `last_seq`, `problem`), and
+on-board `onboard` (`turn_deg_s`, `pan_deg`, `bearing_deg` and `hold` as the robot printed
+them, `shadow_turn_deg_s`, `shadow_cmd_deg_s`, `difference_deg_s`, the mean and largest
+difference, `results`, `age_s`); both are `null` otherwise. `/api/benchmark` gives the offline
+benchmark's numbers per controller.

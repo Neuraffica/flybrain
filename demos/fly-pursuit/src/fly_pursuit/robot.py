@@ -6,7 +6,20 @@ see ``camera.camera_input``); its turn command times ``gain`` is clipped to the 
 limit, integrated into a pan angle, clamped to the pan limit and sent with ``Bittle.set_joint``.
 The legs do not walk.
 
-Camera through the robot (``--camera robot``):
+Four ways to run (``--camera`` and ``--onboard``; the firmware module's README is
+firmware/bittle/fly_pursuit/README.md):
+
+On-board (``--onboard``, needs our firmware module P): the ROBOT computes.
+  Start-up: X?~ (is the module there?), Xa~ (voice off), XP~ (module on, passive), XPB~
+  (on-board control on; the firmware makes the robot sit). The laptop sends no head command
+  while it runs; it reads each result line's b= t= p= hold and shows them, and recomputes the
+  circuit's activity from the robot's bearing for display (a shadow model).
+  Shut-down: XPb~ (on-board control off), head to centre, Xp~ (module off), XA~, rest.
+Camera through our module, laptop computes (``--camera module``):
+  Start-up: X?~, Xa~, XP~ (passive: the module does not move the robot), ksit (sit). No XC,
+  no gU, no board restart.
+  Shut-down: head to centre, Xp~, XA~ (voice back on, unless asked not to), rest.
+Camera through the stock module (``--camera robot``):
   Start-up: [USB only: restart the board with an EN pulse, wait for Ready!; the firmware can
   start its camera only once per power-on], Xa~ (voice off), XCr~ (camera on, its own reaction
   off; the robot sits by itself; wait for the X echo, but go on without it), XCP~ (print the
@@ -16,8 +29,10 @@ Camera through the robot (``--camera robot``):
 Camera on its own USB cable (``--camera usb``, see usbcam.py):
   Start-up: Xa~, ksit (sit). No XC command at all. Then AT+INVOKE on the camera's port.
   Shut-down: AT+BREAK on the camera's port; head to centre, XA~, rest.
+``--camera auto`` (the default) sends X?~ after connecting and uses ``module`` if an "@FP"
+status line comes back, ``robot`` otherwise (the CLI does that, see cli.py).
 Every shut-down step is sent even when an echo is missing (over Bluetooth replies go missing
-while the firmware's camera runs). A lost link is reconnected once to shut down.
+while the stock camera module runs). A lost link is reconnected once to shut down.
 
 Measurements behind these steps: packages/flybrain-edge/NOTES.md, "Petoi AI Vision camera".
 """
@@ -35,9 +50,13 @@ from flybrain_edge.bittle import protocol as P
 from .camera import (
     CENTRE_DEG,
     DEFAULT_FOV_DEG,
+    FP_ATTENTION,
     HOLD_AFTER_S,
     STALE_S,
+    FpMessage,
+    ModuleReader,
     PositionStore,
+    bearing_rad,
     parse_line,
 )
 from .controllers import CONTROLLERS, is_circuit
@@ -48,7 +67,18 @@ X_TIMEOUT_S = 4.0  # the other X commands
 FIRST_REPORT_S = 20.0  # no camera position at all by then: ask the user to check
 EN_PULSE_S = 0.15  # USB restart: RTS high this long, with DTR low
 READY_WAIT_S = 20.0  # after the restart, wait this long at most for "Ready!"
-CAMERA_SOURCES = ("robot", "usb")
+CAMERA_SOURCES = ("auto", "module", "robot", "usb")
+FP_STATUS_WAIT_S = 0.6  # after an echo, wait this long at most for the module's "@FP" status
+ONBOARD_START_TIMEOUT_S = 5.0  # XPB~ sits first (its echo came after 0.85 s over Bluetooth)
+# The firmware module's own constants (firmware/bittle/fly_pursuit/src/flyPursuitCore.h), the
+# same numbers as this program's defaults: used for the shadow model and the display.
+ONBOARD_HEAD_RATE_DEG_S = 60.0
+ONBOARD_PAN_LIMIT_DEG = 50.0
+ONBOARD_HOLD_AFTER_S = 3.0
+ONBOARD_DT_MIN_S, ONBOARD_DT_MAX_S = 0.001, 0.5
+ONBOARD_RESET_GAP_S = 1.0  # no result for this long: the firmware resets its circuit
+ONBOARD_FIRST_DT_S = 1.0 / 15.0
+MODULE_DIR = "firmware/bittle/fly_pursuit"
 JOINT_SETTLE_S = 0.4  # after forgetting the head target: lets a head command in flight finish
 PAN_FIRMWARE_LIMIT_DEG = float(min(abs(v) for v in P.FIRMWARE_ANGLE_LIMITS[P.JOINT_HEAD_PAN]))
 
@@ -70,6 +100,23 @@ NO_REPORT = (
 )
 NO_REPORT_USB = (
     "no result from the camera on its USB cable in {s:g} s: check its cable, then start again"
+)
+NO_REPORT_MODULE = (
+    "no result line from the robot's camera module in {s:g} s: check that the camera is "
+    "plugged into the Grove socket labelled SCL SDA +5V GND, then switch the robot off and on"
+)
+NO_MODULE = (
+    "the robot's firmware does not have the fly_pursuit camera module (no '@FP' status line "
+    "after X?~). Flash the firmware in " + MODULE_DIR + " (see its README), or run without "
+    "--onboard and with --camera robot or --camera usb"
+)
+MODULE_HARMLESS = (
+    "the camera module may still be switched on in the robot's saved settings; that is "
+    "harmless: after a power-on it only prints result lines and does not move the robot"
+)
+ONBOARD_LOCKED = (
+    "on-board mode: the controller is the circuit in the robot's firmware (connectome, "
+    "arousal 1, gain 1); it cannot be changed from here"
 )
 ONCE_PER_BOOT = (
     "the robot's firmware can start its camera only once per power-on. Over Bluetooth this "
@@ -97,7 +144,8 @@ class HeadConfig:
     camera_timeout_s: float = CAMERA_START_TIMEOUT_S
     boot_timeout_s: float = 12.0
     gain: float = 1.0  # scales the controller's turn command on the robot (for tuning)
-    camera_source: str = "robot"  # robot | usb
+    camera_source: str = "robot"  # auto | module | robot | usb
+    onboard: bool = False  # the robot's firmware module computes (needs the module)
     usb_restart: bool = True  # robot camera over USB: restart the board first
     first_report_s: float = FIRST_REPORT_S
 
@@ -116,7 +164,9 @@ class HeadConfig:
         if not 0.1 <= self.gain <= 2.0:
             return "--gain must be between 0.1 and 2"
         if self.camera_source not in CAMERA_SOURCES:
-            return "--camera must be robot or usb"
+            return "--camera must be auto, module, robot or usb"
+        if self.onboard and self.camera_source not in ("auto", "module"):
+            return "--onboard uses the robot's camera module: use it with --camera auto or module"
         return None
 
 
@@ -155,14 +205,39 @@ class HeadRig:
         self.holding = False
         self.sent_deg: int | None = None
         self.arousal = 1.0
+        # On-board mode: the robot computes; self.model is the shadow model (the firmware's
+        # circuit, recomputed here from the bearing the robot reports, for display only).
+        self.onboard = bool(self.cfg.onboard)
+        self._locked = False
+        self.shadow_turn = 0.0  # rad/s, shadow model's command before the head's rate limit
+        self.shadow_cmd = 0.0  # rad/s, after the limit (0 while the robot holds)
+        self.shadow_steps = 0
+        self._shadow_t: float | None = None
+        self._fw_t: float | None = None  # host time of the last on-board result
+        if self.onboard:
+            controller, arousal = "connectome", 1.0
         self.set_arousal(arousal)
         err = self.set_controller(controller)
         if err:
             raise ValueError(err)
+        self._locked = self.onboard
         self.reset_stats()
+
+    def use_reader(self, reader: PositionStore) -> None:
+        """Switch the camera source (``--camera auto`` falling back to the stock module)."""
+        reader.pan = self.pan
+        self.reader = reader
+        self.input = reader.input(self.clock(), self.pan)
+        self.reset_stats()
+
+    @property
+    def module(self) -> ModuleReader | None:
+        return self.reader if isinstance(self.reader, ModuleReader) else None
 
     # ---- settings (each returns an error string or None, as PursuitSim) ------------------
     def set_controller(self, key: str) -> str | None:
+        if self._locked:
+            return ONBOARD_LOCKED
         if key not in CONTROLLERS:
             return f"unknown controller {key!r}"
         if key not in self._models:
@@ -174,6 +249,8 @@ class HeadRig:
         return None
 
     def set_arousal(self, value) -> str | None:
+        if self._locked:
+            return ONBOARD_LOCKED
         if isinstance(value, bool) or not isinstance(value, int | float):
             return "arousal must be between 0 and 1"
         if not (math.isfinite(value) and 0.0 <= value <= 1.0):
@@ -196,6 +273,9 @@ class HeadRig:
         self._sum_err = 0.0  # sum of |measured bearing| over those positions, degrees
         self._within = 0  # how many of them were within 10 degrees
         self._lines_seen = self.reader.lines
+        self._diff_n = 0  # on-board results compared with the shadow model
+        self._diff_sum = 0.0
+        self._diff_max = 0.0
 
     # ---- one tick ---------------------------------------------------------------------
     def advance(self, seconds: float) -> None:
@@ -203,6 +283,72 @@ class HeadRig:
         if self.bittle is not None and not self.bittle.connected:
             raise LinkLost("the link to the robot was lost")
         dt = max(1e-3, float(seconds))
+        if self.onboard:
+            self._advance_onboard(dt)
+        else:
+            self._advance_laptop(dt)
+        self.t += dt
+        self.stats_t += dt
+        self._update_attention()
+        if self.input.bearing is not None:
+            self._with += dt
+        # The error is counted on what the camera MEASURED, once per new position. The bearing
+        # fed to the controller is corrected for the head's own motion and so tends to zero by
+        # construction; averaging that would flatter the result.
+        last = self.reader.last
+        if self.reader.lines != self._lines_seen:
+            self._lines_seen = self.reader.lines
+            if last is not None and last.bearing is not None:
+                e = abs(math.degrees(last.bearing))
+                self._n += 1
+                self._sum_err += e
+                self._within += e <= 10.0
+
+    def _advance_onboard(self, dt: float) -> None:
+        """The robot computes: take its head turn and pan target from the result lines, and
+        step the shadow model once per on-board result with the bearing the robot used."""
+        now = self.clock()
+        for t, msg in self.module.take_control():
+            self._shadow_step(t, msg)
+        fw = self.module.last_control
+        if fw is not None:
+            pan = math.radians(fw.pan_deg)
+            self.rate = (pan - self.pan) / dt
+            self.pan = pan
+            self.cmd = math.radians(fw.turn_deg_s)
+            self.holding = fw.hold
+        else:
+            self.rate = 0.0
+        self.reader.pan = self.pan
+        self.input = self.reader.input(now, self.pan)
+        self.turn = self.shadow_turn
+
+    def _shadow_step(self, t: float, msg: FpMessage) -> None:
+        """One step of the shadow model, as flyPursuitCore.h's fpControlStep does it (dt from
+        the time between results, here as received; circuit reset after a 1 s gap)."""
+        if self._shadow_t is None:
+            dt = ONBOARD_FIRST_DT_S
+        else:
+            gap = t - self._shadow_t
+            if gap > ONBOARD_RESET_GAP_S:
+                self.model.reset()
+            dt = min(ONBOARD_DT_MAX_S, max(ONBOARD_DT_MIN_S, gap))
+        self._shadow_t = t
+        self._fw_t = t
+        bearing = None
+        if msg.box is not None:  # b= always comes with a box when control is on (grammar)
+            b = msg.bearing_deg
+            bearing = bearing_rad(msg.box[0], self.reader.fov_deg) if b is None else math.radians(b)
+        self.shadow_turn = self.model.step(bearing, dt, arousal=1.0).turn
+        vmax = math.radians(ONBOARD_HEAD_RATE_DEG_S)
+        self.shadow_cmd = 0.0 if msg.hold else min(vmax, max(-vmax, self.shadow_turn))
+        self.shadow_steps += 1
+        d = abs(math.degrees(self.shadow_cmd) - msg.turn_deg_s)
+        self._diff_n += 1
+        self._diff_sum += d
+        self._diff_max = max(self._diff_max, d)
+
+    def _advance_laptop(self, dt: float) -> None:
         cfg = self.cfg
         inp = self.input = self.reader.input(self.clock(), self.pan)  # efference copy
         self.turn = cfg.gain * self.model.step(inp.bearing, dt, arousal=self.arousal).turn
@@ -218,26 +364,23 @@ class HeadRig:
             self.sent_deg = self.bittle.set_joint(
                 P.JOINT_HEAD_PAN, cfg.pan_sign * math.degrees(self.pan)
             )
-        self.t += dt
-        self.stats_t += dt
-        if self.attention is None and self.t >= cfg.first_report_s and self.reader.lines == 0:
-            text = NO_REPORT_USB if self.reader.source == "usb" else NO_REPORT
-            self.attention = text.format(s=cfg.first_report_s)
+
+    def _update_attention(self) -> None:
+        """A problem the user must act on: the module's own report (camera to power-cycle, or
+        not plugged in), else no camera line at all in the first ``first_report_s``. Cleared
+        when the reason goes away; ``on_attention(None)`` says so."""
+        text = None
+        mod = self.module
+        if mod is not None and mod.problem in FP_ATTENTION:
+            text = FP_ATTENTION[mod.problem]
+        elif self.t >= self.cfg.first_report_s and self.reader.lines == 0:
+            source = self.reader.source
+            text = {"usb": NO_REPORT_USB, "module": NO_REPORT_MODULE}.get(source, NO_REPORT)
+            text = text.format(s=self.cfg.first_report_s)
+        if text != self.attention:
+            self.attention = text
             if self.on_attention is not None:
-                self.on_attention(self.attention)
-        if inp.bearing is not None:
-            self._with += dt
-        # The error is counted on what the camera MEASURED, once per new position. The bearing
-        # fed to the controller is corrected for the head's own motion and so tends to zero by
-        # construction; averaging that would flatter the result.
-        last = self.reader.last
-        if self.reader.lines != self._lines_seen:
-            self._lines_seen = self.reader.lines
-            if last is not None and last.bearing is not None:
-                e = abs(math.degrees(last.bearing))
-                self._n += 1
-                self._sum_err += e
-                self._within += e <= 10.0
+                self.on_attention(text)
 
     # ---- what the dashboard shows -------------------------------------------------------
     def stats(self) -> dict:
@@ -271,6 +414,10 @@ class HeadRig:
         cfg, inp = self.cfg, self.input
         head = deg(self.pan)
         b = inp.bearing
+        if self.onboard:  # the bearing the robot's own circuit got (b=), while a face is seen
+            fw = self.module.last_control if self.module is not None else None
+            seen = fw is not None and fw.bearing_deg is not None and inp.state == "seen"
+            b = math.radians(fw.bearing_deg) if seen else None
         cam = self.camera
         return {
             "mode": "robot",
@@ -317,6 +464,31 @@ class HeadRig:
             },
             "link": self.link(),
             "stats": self.stats(),
+            "camera_module": None if self.module is None else self.module.summary(),
+            "onboard": self.onboard_info(),
+        }
+
+    def onboard_info(self) -> dict | None:
+        """On-board mode: what the robot printed, and the shadow model's numbers beside it."""
+        if not self.onboard:
+            return None
+        deg = math.degrees
+        fw = self.module.last_control if self.module is not None else None
+        n = self._diff_n
+        return {
+            "results": self.shadow_steps,  # results with on-board control fields
+            "age_s": None if self._fw_t is None else round(max(0.0, self.clock() - self._fw_t), 2),
+            "turn_deg_s": None if fw is None else fw.turn_deg_s,  # t=: the robot's command
+            "pan_deg": None if fw is None else fw.pan_deg,  # p=
+            "bearing_deg": None if fw is None else fw.bearing_deg,  # b=: None without a face
+            "hold": False if fw is None else fw.hold,
+            "shadow_turn_deg_s": round(deg(self.shadow_turn), 2),
+            "shadow_cmd_deg_s": round(deg(self.shadow_cmd), 2),
+            "difference_deg_s": None
+            if fw is None
+            else round(deg(self.shadow_cmd) - fw.turn_deg_s, 2),
+            "mean_abs_difference_deg_s": round(self._diff_sum / n, 2) if n else None,
+            "max_abs_difference_deg_s": round(self._diff_max, 2) if n else None,
         }
 
 
@@ -362,15 +534,17 @@ class RestartingTransport:
 
 
 def connect(transport, cfg: HeadConfig, reader=None) -> Bittle:
-    """Open the link (raises TransportError or BittleError) and attach the camera reader
-    (a robot-source reader parses the robot's output)."""
+    """Open the link (raises TransportError or BittleError) and attach the camera reader(s)
+    that read the robot's output (``reader``: one reader, a list of them, or None)."""
     b = Bittle(
         transport,
         joint_rate_hz=cfg.command_hz,
         joint_limits={P.JOINT_HEAD_PAN: (-cfg.pan_limit_deg, cfg.pan_limit_deg)},
     )
-    if reader is not None and hasattr(reader, "feed_line"):
-        b.add_rx_listener(reader.feed)
+    readers = reader if isinstance(reader, list | tuple) else [reader]
+    for r in readers:
+        if r is not None and getattr(r, "from_robot", False):
+            b.add_rx_listener(r.feed)
     try:
         b.connect(boot_timeout=cfg.boot_timeout_s)
     except BaseException:
@@ -385,6 +559,50 @@ def connect(transport, cfg: HeadConfig, reader=None) -> Bittle:
 def lines_since(b: Bittle, t0: float) -> list[str]:
     """Robot output lines received since host time ``t0`` (camera positions left out)."""
     return [txt for t, txt in list(b.recent_lines) if t >= t0 and parse_line(txt) is None]
+
+
+def _wait_status(reader: ModuleReader, seen: int, timeout: float) -> bool:
+    """Wait for an "@FP on/off" status line after the ``seen``-th one."""
+    end = time.monotonic() + timeout
+    while reader.status_count <= seen and time.monotonic() < end:
+        time.sleep(0.02)
+    return reader.status_count > seen
+
+
+def detect_module(b: Bittle, reader: ModuleReader) -> bool:
+    """X?~: is our camera module (letter P) in the firmware? It prints "@FP on ...;" or
+    "@FP off;" on every port after the module list; over USB the list itself also shows P.
+    X? exists in the stock firmware and changes nothing there."""
+    seen = reader.status_count
+    lines = b.send(x_cmd("?"), echo="X", timeout=X_TIMEOUT_S)
+    if _wait_status(reader, seen, FP_STATUS_WAIT_S):
+        return True
+    modules = P.parse_module_list(lines or [])
+    return bool(modules) and "P" in modules
+
+
+def start_module(b: Bittle, reader: ModuleReader, onboard: bool) -> tuple[str | None, list[str]]:
+    """Voice off, our camera module on (passive), then either sit (the laptop computes) or
+    on-board control on (the firmware sits the robot itself). Returns (an error in plain
+    words or None, notes). A missing echo is a note, not an error."""
+    notes: list[str] = []
+    if b.send(x_cmd("a"), echo="X", timeout=X_TIMEOUT_S) is None:
+        notes.append("no reply to Xa~ (voice off); continuing")
+    seen = reader.status_count
+    if b.send(x_cmd("P"), echo="X", timeout=X_TIMEOUT_S) is None:
+        notes.append("no reply to XP~; continuing")
+    if _wait_status(reader, seen, FP_STATUS_WAIT_S):
+        if reader.module_on is False:
+            return "the robot did not switch its camera module on", notes
+        if reader.lines_on is False:  # switched off earlier in this power-on with XPp~
+            b.send(x_cmd("PP"), echo="X", timeout=X_TIMEOUT_S)
+            notes.append("the module's result lines were off: XPP~ sent")
+    if onboard:
+        if b.send(x_cmd("PB"), echo="X", timeout=ONBOARD_START_TIMEOUT_S) is None:
+            notes.append("no reply to XPB~ (on-board control on); continuing")
+    elif not b.skill(P.SKILL_SIT, timeout=5.0):
+        notes.append("no reply to ksit; continuing")
+    return None, notes
 
 
 def start_camera(b: Bittle, cfg: HeadConfig) -> tuple[str | None, list[str]]:
@@ -427,20 +645,28 @@ def _alive(b: Bittle) -> None:
 
 
 def shut_down_steps(b: Bittle, cfg: HeadConfig, say: Callable[[str], None] = print) -> bool:
-    """Head to centre, [camera off], voice on, [IMU on], rest; every step is sent even if an
-    echo is missing. Returns True if the camera is off: its echo came, or any later reply did
-    (then the robot was answering after Xc~). Raises LinkLost / TransportError if the link
-    dies on the way."""
+    """[On-board control off], head to centre, [camera off], voice on, [IMU on], rest; every
+    step is sent even if an echo is missing. Returns True if the camera is off: its echo came,
+    or any later reply did (then the robot was answering after Xc~). With our module the
+    answer is always True (its saved state is harmless; a note is printed if Xp~ was not
+    confirmed). Raises LinkLost / TransportError if the link dies on the way."""
     robot_cam = cfg.camera_source == "robot"
+    module = cfg.camera_source == "module"
     _alive(b)
+    if module and cfg.onboard:
+        b.send(x_cmd("Pb"), echo="X", timeout=X_TIMEOUT_S)  # the robot stops moving the head
+        _alive(b)
     b.forget_joint_targets()
     time.sleep(JOINT_SETTLE_S)  # a head command already on its way goes out first
     b.send(P.encode_joint(P.JOINT_HEAD_PAN, 0, b.joint_token), echo=b.joint_token, timeout=1.0)
     _alive(b)
     off = True
+    t_off = time.monotonic()
     if robot_cam:
-        t_off = time.monotonic()
         off = b.send(x_cmd("c"), echo="X", timeout=X_TIMEOUT_S) is not None
+        _alive(b)
+    elif module:
+        off = b.send(x_cmd("p"), echo="X", timeout=X_TIMEOUT_S) is not None
         _alive(b)
     if cfg.voice_on_at_exit:
         b.send(x_cmd("A"), echo="X", timeout=X_TIMEOUT_S)
@@ -448,6 +674,10 @@ def shut_down_steps(b: Bittle, cfg: HeadConfig, say: Callable[[str], None] = pri
         b.send(b"gU\n", echo="g", timeout=1.5)  # IMU updates back on (the camera stopped them)
     _alive(b)
     b.close(rest=True)
+    if module:
+        if not off:
+            say(f"fly-pursuit: no reply to Xp~; {MODULE_HARMLESS}")
+        return True
     if robot_cam and not off:
         off = bool(lines_since(b, t_off))  # e.g. the 'g' or 'd' echo: the robot was answering
         if off:
@@ -464,8 +694,8 @@ def shut_down(
     say: Callable[[str], None] = print,
 ) -> bool:
     """Always leave the robot with the camera off, the head centred and resting. After a lost
-    link, ``reconnect()`` is tried once. Returns True if the camera is off (or was never the
-    robot's); if not, the recovery steps have been printed."""
+    link, ``reconnect()`` is tried once. Returns True if that was done (the camera off, or
+    never the stock module's); if not, what to do has been printed."""
     for attempt in (1, 2):
         if b is not None:
             try:
@@ -488,6 +718,8 @@ def shut_down(
             break
     if cfg.camera_source == "robot":
         say(RECOVERY)
+    elif cfg.camera_source == "module":
+        say(f"fly-pursuit: could not rest the robot: switch it off. ({MODULE_HARMLESS}.)")
     else:
         say("fly-pursuit: could not rest the robot: switch it off")
     return False
@@ -499,26 +731,35 @@ def camera_off(
     """``--camera-off``: switch the camera off and make the robot save that, then rest.
 
     Xc~ alone saves nothing if the camera flag was only set in flash (a failed start clears it
-    in memory only), so voice off and on again forces the module list to be written."""
+    in memory only), so voice off and on again forces the module list to be written. With our
+    module in the firmware (asked with X?~) Xp~ is sent first, so it is saved off too."""
+    reader = ModuleReader()
     try:
-        b = connect(make_transport(), cfg)
+        b = connect(make_transport(), cfg, reader)
     except Exception as e:  # noqa: BLE001 - no port, no Bluetooth, robot off
         say(f"fly-pursuit: could not connect: {e}")
         return 4
     ok = True
     try:
         b.forget_joint_targets()
-        for data, echo, timeout in (
+        module = detect_module(b, reader)
+        steps = [(x_cmd("p"), "X", X_TIMEOUT_S)] if module else []
+        steps += [
             (x_cmd("c"), "X", X_TIMEOUT_S),
             (x_cmd("a"), "X", X_TIMEOUT_S),
             (x_cmd("A"), "X", X_TIMEOUT_S),
             (b"gU\n", "g", 1.5),
-        ):
+        ]
+        for data, echo, timeout in steps:
             ok &= b.send(data, echo=echo, timeout=timeout) is not None
     finally:
         b.close(rest=True)
     if not ok:
         say("fly-pursuit: some commands were not confirmed by the robot; run --camera-off again")
         return 1
-    say("fly-pursuit: camera off and saved, voice on, IMU on, robot resting")
+    say(
+        "fly-pursuit: camera off and saved"
+        + (" (and our camera module off)" if module else "")
+        + ", voice on, IMU on, robot resting"
+    )
     return 0

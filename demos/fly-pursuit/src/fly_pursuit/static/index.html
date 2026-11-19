@@ -184,6 +184,7 @@ footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--i
     </div>
     <p class="note sim-only">Drag the target around the ring, or click the arena and press <kbd>←</kbd> <kbd>→</kbd> (Shift: 15°). The shaded wedge is what the camera can see.</p>
     <p class="note robot-only hidden">The body stays still and the head turns. The shaded wedge is what the camera sees (its width is assumed), the dashed lines are the head's turn limit, and the marker is where the camera last reported the face. It cannot be dragged: move in front of the robot instead.</p>
+    <p class="note robot-only hidden" id="module-note"></p>
     <p class="note robot-only hidden" id="link-note"></p>
   </section>
 
@@ -196,6 +197,7 @@ footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--i
       <dt>AOTU025</dt><dd>Excites the same side's steering neuron. Driven by lateral targets.</dd>
       <dt>DNa02</dt><dd>Steering neurons, shown as change from their resting rate. The difference, left minus right, sets the turn.</dd>
     </dl>
+    <p class="note hidden" id="onboard-note"></p>
     <p class="note" id="circuit-note"></p>
   </section>
 
@@ -215,7 +217,7 @@ footer { max-width: 1500px; margin: 0 auto; padding: 0 24px 24px; color: var(--i
     <h2 id="h-hist">Last 20 seconds</h2>
     <div class="legend">
       <span><i class="ln ink"></i>Bearing error</span>
-      <span><i class="ln"></i>Turn command</span>
+      <span><i class="ln"></i><span id="lg-cmd">Turn command</span></span>
       <span><i class="band"></i><span id="lg-band">Camera does not see the target (thin: a dropped frame)</span></span>
     </div>
     <canvas id="hist" aria-label="Bearing error and turn command over the last 20 seconds"></canvas>
@@ -347,17 +349,36 @@ const CAMERA = {
   waiting: ["", "Camera starting"],
 };
 
-// On the robot the camera reports a position only when it changes: see robot.py / camera.py.
+// On the robot: through the stock module the camera reports a position only when it changes;
+// through our firmware module and on its own USB cable it reports every frame (camera.py).
 function robotCamera(f) {
   if (f.camera_error) return ["bad", "Camera stopped: " + f.camera_error];
+  const mod = f.camera_module;
+  if (f.attention && mod && mod.problem) return ["bad", "Attention: " + f.attention];
   if (f.attention && f.camera_lines === 0) return ["warn", f.attention];
   const age = f.camera_age_s == null ? "" : f.camera_age_s.toFixed(1) + " s ago";
   const score = f.camera_score == null ? "" : ", score " + Math.round(f.camera_score);
   if (f.camera === "seen") return ["ok", "The camera sees the face (last report " + age + score + ")"];
   if (f.camera === "centred") return ["ok", "Seen " + age + ", centred: a still face sends nothing"];
-  if (f.camera === "lost") return ["warn", "Lost" + (age ? " (last report " + age + ")" : "") +
+  if (f.camera === "lost") return ["warn", (f.camera_source !== "robot" && f.camera_age_s != null && f.camera_age_s < 1
+      ? "No face in the camera's latest frame" : "Lost" + (age ? " (last report " + age + ")" : "")) +
     (f.hold ? ": the head holds where it is" : ": the circuit gets no target")];
   return ["", "Waiting for the camera's first report: move in front of it"];
+}
+
+const SOURCE = {
+  usb: "on its own USB cable",
+  robot: "through the robot's stock camera module",
+  module: "through the robot, read by our firmware module",
+};
+// The firmware module's health (README of firmware/bittle/fly_pursuit, "Host lines").
+function moduleText(m) {
+  const errs = Object.entries(m.errors || {}).map(([k, v]) => k + " " + v).join(", ");
+  return "Camera module: " + (m.camera === "running" ? "camera running" : m.camera === "stopped" ? "camera stopped" : "camera not started yet") +
+    (m.starts ? " (start " + m.starts + " since power-on)" : "") +
+    " · " + m.results + " result lines, " + m.faces + " with a face · " + m.missing +
+    " missing between sequence numbers (lost on the link, or skipped by the robot)" +
+    " · errors since power-on: " + (errs || "none") + ".";
 }
 
 function renderArena() {
@@ -374,9 +395,12 @@ function renderArena() {
   $("ro-rate").innerHTML = sgn(r) + "<small>°/s</small>";
   $("ro-rate-side").textContent = (Math.abs(r) < 1 ? "still" : r > 0 ? "turning left" : "turning right") +
     (robot ? ", head at " + sgn(frame.head_deg) + "°" : "");
+  const mod = frame.camera_module;
+  $("module-note").classList.toggle("hidden", !robot || !mod);
+  if (robot && mod) $("module-note").textContent = moduleText(mod);
   if (robot && frame.link) {
     const k = frame.link;
-    $("link-note").textContent = "Camera: " + (frame.camera_source === "usb" ? "on its own USB cable" : "through the robot") +
+    $("link-note").textContent = "Camera: " + (SOURCE[frame.camera_source] || frame.camera_source) +
       ". Link: " + k.label + (k.description ? " (" + k.description + ")" : "") +
       (k.firmware ? ", firmware " + k.firmware : "") + (k.connected ? "" : ", DISCONNECTED") +
       ". Commands sent " + k.commands + ", without echo " + k.echo_timeouts +
@@ -430,10 +454,10 @@ function edge(g, x1, y1, x2, y2, excites, faint) {
 }
 
 // The turn command as a bar: left turns to the left of centre; ticks at the robot's limit.
-function turnBar(g, w, y, turn, cmd, limit, limitName) {
+function turnBar(g, w, y, turn, cmd, limit, limitName, title) {
   const L = 12, half = w / 2 - L, T = 2 * limit, cx = w / 2;
   const X = (v) => cx - clamp(v, -T, T) / T * half;
-  text(g, "Turn command", L, y - 18, "left", css["--ink"], "600 11px " + MONO);
+  text(g, title || "Turn command", L, y - 18, "left", css["--ink"], "600 11px " + MONO);
   const side = Math.abs(cmd) < 1 ? "none" : cmd > 0 ? "left" : "right";
   text(g, side === "none" ? "0°/s" : sgn(turn) + "°/s" + (Math.abs(turn) > limit ? " → " + sgn(cmd) : "") + " " + side,
     w - L, y - 18, "right", css["--ink"]);
@@ -515,12 +539,26 @@ function drawCircuit() {
   node(g, a25R[0], a25R[1], "AOTU025 R", A.aotu025[1], false, off25);
   node(g, dnL[0], dnL[1], "DNa02 L", A.dna02[0], true, false, "left");
   node(g, dnR[0], dnR[1], "DNa02 R", A.dna02[1], true, false, "right");
-  turnBar(g, w, y3, frame.turn_deg_s, frame.cmd_deg_s, limit, frame.mode === "robot" ? "head limit" : "");
+  const ob = frame.onboard;
+  if (ob) turnBar(g, w, y3, ob.shadow_turn_deg_s, ob.shadow_cmd_deg_s, limit, "head limit", "Turn command, recomputed on the laptop");
+  else turnBar(g, w, y3, frame.turn_deg_s, frame.cmd_deg_s, limit, frame.mode === "robot" ? "head limit" : "");
 }
 
+const num = (v, d) => v == null ? "—" : sgn(v, d === undefined ? 1 : d);
 function renderCircuitNote() {
-  const A = frame.activity;
+  const A = frame.activity, ob = frame.onboard;
   $("stages").classList.toggle("hidden", !A);
+  $("onboard-note").classList.toggle("hidden", !ob);
+  $("h-circuit").textContent = ob ? "The circuit, recomputed on the laptop from the robot's input" : "The circuit, from eye to turn";
+  if (ob) {
+    $("onboard-note").textContent = "The robot runs this circuit (264 of its 265 neurons; the one left out cannot change the turn) on its own board. " +
+      "This panel is the same circuit recomputed on the laptop from the bearing the robot reports (b=), for display: the activity is not read from the robot. " +
+      "The robot's own turn command is the one its firmware prints: t= " + num(ob.turn_deg_s) + "°/s" + (ob.hold ? " (holding: no face for 3 s)" : "") +
+      ", pan target p= " + num(ob.pan_deg) + "°, bearing b= " + (ob.bearing_deg == null ? "none (no face)" : num(ob.bearing_deg) + "°") +
+      ". Recomputed here: " + num(ob.shadow_cmd_deg_s) + "°/s; difference " + num(ob.difference_deg_s) + "°/s" +
+      (ob.mean_abs_difference_deg_s == null ? "" : ", mean " + ob.mean_abs_difference_deg_s.toFixed(1) + " and largest " + ob.max_abs_difference_deg_s.toFixed(1) + "°/s over " + ob.results + " results") +
+      ". They differ a little because the laptop times the steps by when the lines arrive.";
+  }
   let note = "";
   if (A) {
     note = "Brightness and % are a share of the largest steady response of the connectome circuit. Lines: arrow excites, bar inhibits.";
@@ -664,8 +702,10 @@ function renderMode() {
     : "A circuit of 265 neurons from the fly connectome turns a simulated robot dog toward a target";
   $("lg-turn").textContent = robot ? "Turn the head makes (°/s)" : "Turn the robot makes (°/s)";
   $("lg-limit").textContent = robot ? "Head's turn limit" : "Robot's turn limit";
-  $("lg-band").textContent = robot ? "No fresh camera report (a still face, or none)" : "Camera does not see the target (thin: a dropped frame)";
+  $("lg-band").textContent = !robot ? "Camera does not see the target (thin: a dropped frame)"
+    : frame.camera_source === "robot" ? "No fresh camera report (a still face, or none)" : "The camera sees no face";
   $("k-view").textContent = robot ? "With a bearing" : "In view";
+  $("lg-cmd").textContent = frame.onboard ? "Turn command (the robot's own, t=)" : "Turn command";
   $("stats-note").textContent = robot
     ? "Since the last reset. Mean and within 10° are counted while the circuit has a bearing; the error is the face's bearing from the head."
     : "Since the last reset, counted only while there is a target.";
@@ -675,24 +715,31 @@ function renderControls() {
   renderMode();
   const ctl = $("ctl");
   if (document.activeElement !== ctl && ctl.value !== frame.controller) ctl.value = frame.controller;
-  const ar = $("arousal");
+  const ar = $("arousal"), onboard = !!frame.onboard;
   if (document.activeElement !== ar) { ar.value = frame.arousal; $("arousal-out").textContent = frame.arousal.toFixed(2); }
-  ar.disabled = !frame.circuit;
-  ar.title = frame.circuit ? "0: AOTU019 silenced. 1: unchanged." : "Arousal only acts on the circuit controllers";
+  ctl.disabled = onboard;
+  ctl.title = onboard ? "On-board: the controller is the circuit in the robot's firmware" : "";
+  ar.disabled = onboard || !frame.circuit;
+  ar.title = onboard ? "On-board: the robot's circuit runs at arousal 1" : frame.circuit ? "0: AOTU019 silenced. 1: unchanged." : "Arousal only acts on the circuit controllers";
   for (const b of document.querySelectorAll("[data-fov]")) b.setAttribute("aria-pressed", String(Number(b.dataset.fov) === frame.fov_deg));
   for (const b of document.querySelectorAll("[data-motion]")) b.setAttribute("aria-pressed", String(b.dataset.motion === frame.target.motion));
-  $("ctl-note").textContent = frame.controller_label + ": " + frame.controller_note;
+  $("ctl-note").textContent = onboard
+    ? "On-board: the robot computes. The controller is the circuit in its firmware (connectome, mirror-averaged, arousal 1, gain 1); it cannot be switched here, and the laptop sends the head no commands."
+    : frame.controller_label + ": " + frame.controller_note;
   const rg = frame.rig;
   if (frame.mode === "robot") {
-    $("notice-title").textContent = "Running on the robot.";
-    const viaRobot = frame.camera_source !== "usb";
+    const src = frame.camera_source;
+    $("notice-title").textContent = frame.onboard ? "Running on the robot: the robot computes." : "Running on the robot.";
     $("rig-text").textContent = "Only the head turns. The camera's field of view (" + rg.camera_fov_deg +
-      "° across) is not properly measured. " + (viaRobot
-        ? "Through the robot the camera reports a position only when it changes, so a still face sends nothing: " +
+      "° across) is not properly measured. " + (src === "robot"
+        ? "Through the stock camera module the camera reports a position only when it changes, so a still face sends nothing: " +
           "a bearing within ±" + rg.centre_deg + "° is kept, a larger one counts as lost after " + rg.stale_s + " s"
-        : "On its own USB cable the camera reports every frame and says when it sees no face: that is lost at once") +
+        : (src === "module" ? "Read by our firmware module, the camera" : "On its own USB cable the camera") +
+          " reports every frame and says when it sees no face: that is lost at once, and so is no report for " + rg.stale_s + " s") +
       ", and after " + rg.hold_after_s + " s lost the head holds where it is. Head limits: " + rg.max_turn_deg_s +
-      "°/s, ±" + frame.pan_limit_deg + "°, turn gain " + rg.gain + ". The bearing is corrected for how far the head turned since the camera measured it.";
+      "°/s, ±" + frame.pan_limit_deg + "°, turn gain " + rg.gain + ". " + (frame.onboard
+        ? "The robot's board runs the circuit and moves the head itself, correcting the bearing for its own head turn; the laptop only listens."
+        : "The bearing is corrected for how far the head turned since the camera measured it.");
   } else {
     $("notice-title").textContent = "This is a simulation.";
     $("rig-text").textContent = "The camera and robot numbers (" + rg.rate_hz + " Hz, " + Math.round(rg.delay_s * 1000) +
@@ -703,7 +750,7 @@ function renderControls() {
     ". The dot is the bearing now.";
   const k = frame.link;
   $("conn-dot").className = "dot " + (k && !k.connected ? "bad" : "ok");
-  $("conn-text").textContent = (frame.mode === "robot" ? "robot over " + (k ? k.label : "?") : "simulator") + " · " + Math.floor(frame.t) + " s";
+  $("conn-text").textContent = (frame.mode === "robot" ? "robot over " + (k ? k.label : "?") + (frame.onboard ? ", on-board" : "") : "simulator") + " · " + Math.floor(frame.t) + " s";
 }
 
 async function send(cmd) {

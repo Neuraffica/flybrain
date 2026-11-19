@@ -278,9 +278,10 @@ def _events(out):
     return [json.loads(ln[8:]) for ln in out.splitlines() if ln.startswith("FLYDECK ")]
 
 
-def _run(argv, *robots):
+def _run(argv, *robots, camera="robot"):
+    """The program on fake robots; these tests are about the stock camera module."""
     return cli.main(
-        ["--port", "/dev/fake", "--no-open", "--http-port", "0", *argv],
+        ["--port", "/dev/fake", "--no-open", "--http-port", "0", "--camera", camera, *argv],
         make_transport=factory(*robots),
     )
 
@@ -386,7 +387,7 @@ def test_bluetooth_says_once_per_power_on(capsys, monkeypatch):
     bot = FakeRobot(name="ble")
     assert (
         cli.main(
-            ["--ble", "--no-open", "--http-port", "0", "--duration", "0.3"],
+            ["--ble", "--no-open", "--http-port", "0", "--duration", "0.3", "--camera", "robot"],
             make_transport=factory(bot),
         )
         == 0
@@ -421,7 +422,13 @@ def test_no_robot_is_exit_4(capsys):
 def test_camera_off_maintenance():
     bot = FakeRobot()
     assert _run(["--camera-off"], bot) == 0
-    assert bot.commands() == ["?", "Xc~", "Xa~", "XA~", "gU", "d"]
+    assert bot.commands() == ["?", "X?~", "Xc~", "Xa~", "XA~", "gU", "d"]
+
+
+def test_camera_off_also_switches_our_module_off():
+    bot = FakeRobot(module="on")
+    assert _run(["--camera-off"], bot, camera="auto") == 0
+    assert bot.commands() == ["?", "X?~", "Xp~", "Xc~", "Xa~", "XA~", "gU", "d"]
 
 
 def test_camera_off_over_bluetooth_and_refused_on_the_simulator():
