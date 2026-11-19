@@ -17,7 +17,9 @@ already patched folder only refreshes the copied headers. fly_escape is applied 
   ``@FP on/off`` line in ``showModuleStatus()``, and ``read_flyPursuit()`` on every pass of
   ``readSignal()`` (next to the voice module's poll, so camera lines are printed while the robot
   is busy too);
-* in ``src/reaction.h``: the ``XPP``/``XPp``/``XPB``/``XPb`` options in the ``X`` command;
+* in ``src/reaction.h``: the module's options in the ``X`` command, for ``XP...`` and (a second
+  case label, lowercase P) ``Xp...``, so that ``XPs~`` and ``Xps~`` work with the module off;
+  a folder patched before that label existed gets it on the next run;
 * ``#define FLY_PURSUIT`` in ``OpenCatEsp32.ino``.
 
 Written against OpenCatEsp32 ``f5aba6b``; the anchors are the same ones fly_escape's script
@@ -36,6 +38,7 @@ HERE = Path(__file__).resolve().parent
 ESCAPE = HERE.parent / "fly_escape" / "apply_to_opencat.py"
 FILES = ("flyPursuit.h", "flyPursuitCore.h", "fly_pursuit_all.h")
 MARK = "EXTENSION_FLY_PURSUIT"
+LOWER = "case EXTENSION_FLY_PURSUIT + ('a' - 'A')"  # the Xp... case label
 
 
 def _escape_module():
@@ -59,6 +62,7 @@ def apply_pursuit(sketch: Path) -> bool:
         shutil.copy(HERE / "src" / f, src / f)
     oc = (src / "OpenCat.h").read_text()
     if MARK in oc:
+        _lowercase_case(src)  # a folder patched before the Xp... options existed
         return False
 
     oc = _sub1(
@@ -146,7 +150,23 @@ def apply_pursuit(sketch: Path) -> bool:
         "reaction.h: the X command switch",
     )
     (src / "reaction.h").write_text(rh)
+    _lowercase_case(src)
     return True
+
+
+def _lowercase_case(src: Path) -> None:
+    """Let ``Xp...`` reach ``flyPursuitOptions`` too (for ``XPs~``/``Xps~``): a second case label,
+    lowercase P, on the module's case in reaction.h's X command switch. Idempotent."""
+    rh = (src / "reaction.h").read_text()
+    if LOWER in rh:
+        return
+    rh = _sub1(
+        r"(\n(\s*)case EXTENSION_FLY_PURSUIT:\n)",
+        lambda m: m.group(1) + m.group(2) + LOWER + ":  // Xp...: XPs / Xps\n",
+        rh,
+        "reaction.h: the fly_pursuit case in the X command switch",
+    )
+    (src / "reaction.h").write_text(rh)
 
 
 def apply(sketch: Path, slim: bool = False) -> None:

@@ -319,6 +319,18 @@ static inline float fpControlStep(FpControl *c, uint8_t has_face, int16_t x, uin
   return c->pan_deg;
 }
 
+/* ===================================================================== follow after power-on */
+#define FP_AUTO_DELAY_MS 3000  // CHOSEN: the saved autostart waits at least this long after the
+                               // main loop's first pass, so a host has time to take over
+
+/* Is the saved "follow after power-on" (XPS~) due now? saved: the flag read from flash;
+ * done: it already fired, or a host command cancelled it, in this power-on; since_first_ms:
+ * milliseconds since the main loop's first pass; queue_empty: the firmware's task queue is
+ * empty (the boot rest or calibration task has been run). Returns 1 exactly when it is due. */
+static inline int fpAutoDue(int saved, int done, uint32_t since_first_ms, int queue_empty) {
+  return saved && !done && queue_empty && since_first_ms >= FP_AUTO_DELAY_MS;
+}
+
 /* ===================================================================== host line format */
 /* "@FP <seq> <x> <y> <w> <h> <score>[ b=<deg>] t=<deg/s> p=<deg>[ hold];"  (README grammar)
  * The control fields are added only when on-board control is on. */

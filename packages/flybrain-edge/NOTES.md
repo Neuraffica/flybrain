@@ -297,6 +297,16 @@ too, but the first two starts after the app had been rebuilt and relaunched fail
 Bluetooth connect timeout; after one scan from the app the next three starts connected in about
 20 s each. Not explained.
 
+Later the same day the module got a saved "follow after power-on" (`XPS~` on, `Xps~` off) and
+this robot was flashed with it (backup `...-flypursuit-20261118-2121.bin`). After a restart over
+USB with the setting saved and no command sent, the robot printed `@FP auto start;` 4.3 s after
+`Ready!`, switched voice off, sat and ran the camera for 31 s (493 results, no error line). A
+bare `XP~` then took the head back. The setting is left ON on this robot: it sits and moves its
+head by itself after every power-on until `fly-pursuit --autostart off`. Opening the USB port
+restarts the board, so a USB session now also triggers it unless a module command arrives in the
+first seconds. Not tried: a start after the power switch, and a start without the camera. The
+numbers are in `firmware/bittle/fly_pursuit/README.md`.
+
 Still open: how fast joint commands can be sent before the camera task falls behind (needs a
 large, fixed face), and a proper field-of-view measurement.
 

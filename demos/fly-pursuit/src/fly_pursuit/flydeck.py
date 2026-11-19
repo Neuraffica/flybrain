@@ -1,6 +1,9 @@
 """How fly-pursuit appears in Flydeck. Kept import-light: no numpy, no models."""
 
+from typing import Any
+
 from flybrain_demo_api import DemoSpec, Option
+from flybrain_demo_api.spec import default_argv
 
 # = controllers.CONTROLLER_KEYS, sim.FOV_CHOICES and sim.MOTIONS (a test keeps them equal)
 CONTROLLERS = (
@@ -17,6 +20,23 @@ CONTROLLERS = (
 FOVS = (30, 60, 100)
 MOTIONS = ("still", "sweep", "walk", "jumps", "hidden")
 CAMERAS = ("auto", "module", "robot", "usb")  # = robot.CAMERA_SOURCES (a test keeps them equal)
+AUTOSTART = ("leave as it is", "on", "off")  # the card's choice; on / off = cli --autostart
+KEEP = AUTOSTART[0]
+
+
+def build_argv(
+    spec: DemoSpec,
+    transport: str,
+    options: dict[str, Any],
+    http_port: int,
+    robot: str | None,
+    space_confirmed: bool,
+) -> list[str]:
+    """default_argv, except that "autostart: leave as it is" passes no flag at all."""
+    if options.get("autostart") == KEEP:
+        options = {k: v for k, v in options.items() if k != "autostart"}
+    return default_argv(spec, transport, options, http_port, robot, space_confirmed)
+
 
 SPEC = DemoSpec(
     id="fly-pursuit",
@@ -178,10 +198,24 @@ SPEC = DemoSpec(
             False,
             label="Robot: only switch the camera off",
             help="Recovery: switch the camera off (both the stock module and ours) and save "
-            "that on the robot, rest, exit.",
+            "that on the robot, with our module's 'follow a face after power-on' off too, "
+            "rest, exit.",
+        ),
+        Option(
+            "autostart",
+            "choice",
+            KEEP,
+            label="Robot: follow a face after power-on",
+            choices=AUTOSTART,
+            help="on / off: only save this on the robot, rest, exit (no dashboard). With it "
+            "on, at every power-on and with no computer connected, the robot beeps three times, "
+            "sits and moves its head toward a face by itself: switch it on only on the floor, "
+            "away from edges. Needs the newer build of firmware/bittle/fly_pursuit. leave as "
+            "it is: a normal run, the saved setting is not changed.",
         ),
     ),
     guide="guide.html",
     legs_move=lambda o: False,  # nothing in this demo makes the legs walk
+    build_argv=build_argv,
     http_port=8769,
 )

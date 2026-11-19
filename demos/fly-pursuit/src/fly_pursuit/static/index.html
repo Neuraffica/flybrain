@@ -378,7 +378,15 @@ function moduleText(m) {
     (m.starts ? " (start " + m.starts + " since power-on)" : "") +
     " · " + m.results + " result lines, " + m.faces + " with a face · " + m.missing +
     " missing between sequence numbers (lost on the link, or skipped by the robot)" +
-    " · errors since power-on: " + (errs || "none") + ".";
+    " · errors since power-on: " + (errs || "none") + "." + autostartText(m);
+}
+// The module's saved "follow a face after power-on" setting ("@FP auto 0/1;", newer builds only).
+function autostartText(m) {
+  if (m.autostart === true) return " After power-on this robot follows a face by itself: it beeps three times, sits and moves its head." +
+    (m.autostarted ? " It did so at this power-on." : "") +
+    " Switch this off with fly-pursuit --autostart off, or in Flydeck: Robot: follow a face after power-on: off.";
+  if (m.autostart === false) return " Follow a face after power-on: off.";
+  return "";
 }
 
 function renderArena() {

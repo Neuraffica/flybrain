@@ -5,6 +5,10 @@
 > minute yet. The first build in this folder's history came from `f5aba6b` and must not be
 > flashed (its `DATE` would make the firmware re-initialise the board); the numbers under
 > "Build" marked `f5aba6b` are from that build.
+>
+> The saved "follow after power-on" (`XPS~`, `XPs~`, `Xps~`) and the bare `XP~` switching
+> on-board control off were added later the same day, flashed and run: see "Follow after
+> power-on on the robot" below, which also lists what was not tried.
 
 ## Run on the robot (2026-11-18, USB and Bluetooth)
 
@@ -45,6 +49,36 @@ own side stalls (it did not).
 Seen on this robot and unrelated to the module: lying still, the IMU's yaw runs away at about
 34 degrees a second with the module off and the camera unplugged; pitch and roll are steady.
 
+### Follow after power-on on the robot (2026-11-18, evening)
+
+The build under "Build with follow after power-on" was flashed to the same Bittle X (`app1`,
+after a verified backup of the whole flash). Every start below was a restart over USB (the EN
+pin), not the power switch, so the camera kept its power.
+
+| Step | Result |
+|---|---|
+| Boot, setting never saved | boots as before; `@FP off;` then `@FP auto 0;` |
+| `XPS~`, `XPs~`, `XPS~`, `Xps~` over USB | `@FP auto 1;`, `0;`, `1;`, `0;`; the camera started and stopped as before; the robot did not move |
+| Restart with the setting saved, no command sent | `@FP auto 1;` at boot; `@FP auto start;` 4.3 s after `Ready!`; module P enabled, "Turn off the audio response", `sit`; 0.86 s later `@FP on l=0 b=1;` and `@FP cam run 1;` |
+| The next 31 s, still no command | no result line and no error line; the camera's counter reached 493 (15.7 results a second) |
+| Bare `XP~` | `@FP on l=1 b=0;`; 93 result lines in 6.0 s, none missing, a face in 89, a median 3 degrees from the image centre |
+| `XPB~` | `sit`, `@FP on l=1 b=1;`, 143 lines in 10.1 s with the control fields, none missing |
+| The same restart a second time | the same lines, `@FP auto start;` again 4.3 s after `Ready!` |
+| `fly-pursuit --ble --autostart off`, then `on` (Bluetooth) | the robot confirmed `@FP auto 0;`, then `@FP auto 1;` |
+| The demo connecting over Bluetooth to the robot while it followed by itself | first frame 16 s after launch, as on a resting robot; control off, result lines back, 394 lines in 25 s with 2 missing, every command answered. No face was in view in that run, so the laptop turning the head was not seen in it |
+
+One thing the host must know: a command that changes the setting prints the status twice,
+first from the firmware's own module switch with the old value (`@FP auto 0;`), then from this
+module with the new one (`@FP auto 1;`). Wait for the value you asked for, not for the first
+`@FP auto` line.
+
+Not tried: a start after the power switch (the camera then boots at the same time as the
+board), a start with no camera plugged in, the cancel by a host command in the first seconds,
+the cancel when the boot goes into calibration, and whether the three beeps are heard. Whether
+the head followed the face during the 31 s without a host was not recorded, because the robot
+prints no result lines then; the only number is the face being 3 degrees from the centre when
+`XP~` took over.
+
 What it is: an OpenCatEsp32 extension module, letter **P** (free: `S A T L D I B U G C Q E` are
 taken), that talks to the Petoi AI Vision camera (Seeed Grove Vision AI V2, SSCMA firmware) on
 the Grove I2C socket with a small client of its own, in its own FreeRTOS task, and reports
@@ -75,18 +109,70 @@ for its serial timeout).
 
 | Command | Effect |
 |---|---|
-| `XP~` | Module on, **passive**: the camera starts continuous detection, a line per result. The robot does not move. |
+| `XP~` | Module on, **passive**: the camera starts continuous detection, a line per result. The robot does not move. A bare `XP~` (no option letter) always restores this passive state: on-board control off (the head stays where it is) and result lines on; if either changed, the status is printed. |
 | `Xp~` | Module off: `AT+BREAK` to the camera, task idles. Also `X~` (all modules off), or enabling another module. |
 | `XPP~` / `XPp~` | Result lines on (default) / off. Status and error lines are always printed. |
-| `XPB~` | On-board control on: the robot does `sit` (as the stock camera module does), then every result turns the head. |
+| `XPB~` | On-board control on: the robot does `sit` (as the stock camera module does), then every result turns the head. Does not change the result lines flag. |
 | `XPb~` | On-board control off; the head stays where it is. |
-| `X?` | Module list, then `@FP on ...;` or `@FP off;` |
+| `XPS~` | Module on (as any `XP...`), and save "follow after power-on" = on. Does not start control now. |
+| `XPs~` | Save "follow after power-on" = off. The module stays on. |
+| `Xps~` | Save "follow after power-on" = off, and module off (as `Xp~`). Works whether the module is on or off. |
+| `X?` | Module list, then `@FP on ...;` or `@FP off;`, then `@FP auto 0;` or `@FP auto 1;` |
 
 As with fly_escape: `XP...` is first handled by the firmware as "enable P" (a no-op when it is on;
 like any `X<letter>` it switches off the other sensor modules except voice), then the options are
-read. So `XPB~` or `XPp~` sent while the module is off switches it on. The module state is saved
-to flash by the firmware; on-board control is NOT saved and is off after every start, including
-a start at boot (requirement 6).
+read. So `XPB~` or `XPp~` sent while the module is off switches it on. `Xp...` is first handled
+as "disable P", then its options are read; only `s` is read there. The letters `P p B b` act
+only while the module is on; `S` and `s` act either way.
+
+What is saved in flash: the module state (on/off), saved by the firmware as for every module, and
+the "follow after power-on" flag (Preferences key `fpAuto` in the firmware's `config` namespace,
+false when missing), saved only by `XPS~`, `XPs~` and `Xps~`, and written only when it changes.
+On-board control itself is not saved: after a start it is off, unless "follow after power-on"
+is saved, which starts it (next section).
+
+A host program should send `XP~` first. On a robot where "follow after power-on" has started
+control with result lines off, that switches control off and the lines on again, so a host that
+steers the head itself does not fight the on-board control, and a host that then sends `XPB~`
+gets its result lines; neither needs to know about the autostart.
+
+## Follow after power-on (`XPS~`)
+
+For a robot switched on with no host at all. Saved with `XPS~`; off with `XPs~` or `Xps~` (the
+demo's `--camera-off` sends `Xps~`). With it saved, on every power-on:
+
+1. The firmware boots as usual (rest posture, or calibration if the IMU finds the robot lifted
+   or tilted). The module waits until at least 3 s (CHOSEN) after the main loop's first pass
+   AND the firmware's task queue is empty.
+2. If a host sent any `X` command other than `X?` before then (`XP...`, `Xp...`, `X~`, `XE~`,
+   ...), nothing happens in this power-on: the host is in charge. Nothing happens either if
+   the robot is then in calibration mode (`c`), or in the servo follow or feedback mode.
+3. Three short rising beeps (`beep(14|19|24, 100 ms, 80 ms pause)`, CHOSEN; about 0.5 s, the
+   only blocking wait). The beeps are silent when the boot sound is muted (the firmware's
+   `soundState`). Then `@FP auto start;`.
+4. Module P on through the firmware's own path (`reconfigureTheActiveModule("P")`), if it is not
+   on already: other sensor modules (the stock camera `C`, fly_escape `E`, ...) are switched
+   off, and the firmware saves the module list.
+5. The voice module, if active, is stopped for this power-on: `voiceStop()` (tells the voice
+   chip to stop its audio response and closes its serial port) and its flag cleared in RAM.
+   The module writes nothing to flash for this. But the firmware saves the WHOLE module list on
+   the next module change (any `X` command that changes a module), and then voice is saved as
+   off: it then stays off after later power-ons too, until `XA~`. The voice module is stopped
+   because it can make the robot perform skills on sounds, and an unattended robot must not walk.
+6. Result lines off, then on-board control on, exactly as `XPB~`: the robot sits, and the head
+   follows a face. Status: `@FP on l=0 b=1;` then `@FP auto 1;`. Result lines are off because
+   with no host nobody reads them, and a host that connects over Bluetooth waits for 1.5 s of
+   quiet before it identifies the robot: 15 lines a second would make every such connect wait
+   for its full timeout. Error and `cam` lines are still printed (they are rare). A bare `XP~`
+   turns the result lines on again (and control off); `XPP~` turns only the lines on. With no
+   camera plugged in, the robot just sits and `@FP err nocam <n>;` repeats every 2 s.
+
+**Safety.** With "follow after power-on" saved, the robot sits and moves its head by itself a
+few seconds after EVERY power-on, with nobody sending anything. Put it on the floor, away from
+table edges, before switching it on. The three beeps come first. To stop it: `Xp~` (module
+off), `XPb~` (control off) or `XP~` (passive); within the first 3 s, any `X` command other than
+`X?` cancels it for that power-on. To stop it for good: `Xps~` (or `XPs~`), or the demo's
+`--camera-off`.
 
 `E` and `P` cannot be active at the same time (enabling one switches the other off). Do not use
 the stock camera module (`XC`) in the same power-on as this one: both talk to 0x62.
@@ -103,6 +189,8 @@ result   = "@FP " seq " " ( box | "-" ) [ control ] ";"
 box      = x " " y " " w " " h " " score
 control  = [ " b=" bearing ] " t=" cmd " p=" pan [ " hold" ]
 status   = "@FP on l=" ("0"|"1") " b=" ("0"|"1") ";"  |  "@FP off;"
+auto     = "@FP auto " ("0"|"1") ";"                     (right after every status line)
+start    = "@FP auto start;"                             (the follow after power-on fires)
 camera   = "@FP cam run " starts ";"  |  "@FP cam stop;"
 error    = "@FP err " what " " count ";"
 boot     = "@FP boot bus sda=" d " scl=" d " now sda=" d " scl=" d ";"     (USB only)
@@ -120,6 +208,8 @@ boot     = "@FP boot bus sda=" d " scl=" d " now sda=" d " scl=" d ";"     (USB 
 | `p=` | (on-board control) pan target, degrees, positive = left, within +-50. |
 | `hold` | (on-board control) no face for 3 s: the head holds still. |
 | `l= b=` | Result lines on/off, on-board control on/off. |
+| `auto 0` / `auto 1` | "Follow after power-on" as saved in flash. Printed right after every status line: after `X?`, after every module change, after `XPS~`, `XPs~`, `Xps~`. The status line itself is unchanged, so a host that reads only `@FP on ...;` / `@FP off;` is not affected (the released host ignores unknown `@FP` lines). |
+| `auto start` | The saved follow after power-on fires now: printed after the beeps, before the robot moves. |
 | `cam run <n>` | The camera confirmed `AT+INVOKE`; `n` = starts since power-on (more than 1 after a recovery or a stall). |
 | `cam stop` | The module was switched off and `AT+BREAK` was sent. |
 | `count` | How many errors of that kind since power-on (a line is printed whenever it grows). |
@@ -289,7 +379,7 @@ when it starts; the passive state never changes posture.
 | c | Prints a position only when it changes, never says "no face" | One line per camera result, `@FP <seq> -;` when there is no box, with a sequence number. |
 | d | Replies go missing and the main loop stalls when the camera's I2C side stalls | The main loop never touches the camera or waits for it; every I2C operation has a timeout; failures are counted and reported. |
 | e | I2C bus left stuck; the firmware stopped in its boot scan until power was cycled | Bounded transactions; bus recovery after 5 failures; `AT+BREAK` before every start; and `flyPursuitBootBusCheck()` just before the firmware's `Wire.begin()`: if SDA or SCL is low at boot it clocks SCL 9 times and sends a STOP, and prints `@FP boot bus ...;` on USB. This helps only if the camera holds SDA; if it holds SCL low, only a power cycle helps. The cause of the 2026-11-18 hang is not known. |
-| f | Saves "camera on" and restarts at boot with its own body-leaning reaction | The module state is saved by the firmware as for every module, but a start at boot is the passive state: lines only, on-board control off, no posture change. This module has no reaction of its own. |
+| f | Saves "camera on" and restarts at boot with its own body-leaning reaction | The module state is saved by the firmware as for every module; a start at boot is the passive state: lines only, on-board control off, no posture change. On-board control starts at power-on only when the owner saved it explicitly with `XPS~`; then the robot beeps 3 times, sits and follows a face about 3 s after the boot, unless a host sent an `X` command first (see "Follow after power-on"). `XPs~` / `Xps~` switch that off. This module has no reaction of its own. |
 
 Plus the case reported on 2026-11-18: 0x28 present and 0x62 missing (the camera's AI side not
 answering, until the camera loses power) is recognised at every start attempt and reported as
@@ -315,8 +405,10 @@ arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs --build-
 `apply_to_opencat.py` reuses `fly_escape/apply_to_opencat.py` unchanged (only if E is not there
 yet) and then adds P. It relies on two anchors fly_escape's script does not use: the voice
 module's `read_voice()` block in `readSignal()` and the `  Wire.begin();` line in `initRobot()`.
-Both are in `f5aba6b`; they have not been checked on `32a1fcb`. If the script stops with "did not
-match the expected layout", that is where.
+Both are in `f5aba6b` and in `32a1fcb` (the robot's build applied without a fix). For `Xp...`
+it adds a second case label, `EXTENSION_FLY_PURSUIT + ('a' - 'A')` (lowercase p), on the module's
+case in `reaction.h`'s `X` switch; a folder patched before that label existed gets it on the
+next run. If the script stops with "did not match the expected layout", that is where.
 
 ### Numbers from this session's build (OpenCatEsp32 `f5aba6b`, NOT the robot's commit)
 
@@ -336,6 +428,16 @@ numbers (the fly_escape build there was 1,777,808 bytes before this module).
 Image of this session (compile only; **do not flash**, see the status at the top):
 `data/tools/fw/bittlex-flyescape-flypursuit-f5aba6b-COMPILE-ONLY-9c9274b3.bin`, SHA-256
 `9c9274b3e27253c992b019f201552b90bb6a5ecc8c02246536d4b9f91564c090`.
+
+### Build with "follow after power-on" (flashed to the robot on 2026-11-18)
+
+`32a1fcb` with fly_escape and fly_pursuit applied, all stock features kept, same settings as
+the robot's image: program 1,789,905 bytes (+832), static RAM 83,660 (+8), app image 1,795,648
+bytes (170,432 free in the 1,966,080-byte slot), SHA-256
+`4b4615624a6191062bb3047abff8bc977cd51f6177c6a728c42a7a1bfbd4c0c1`
+(`data/tools/fw/build-auto/OpenCatEsp32.ino.bin`). Bootloader and partition table are
+byte-identical to the robot's build. No compiler warning in this module's files at the default
+warning level (the same 6 warnings as before, all in the vendored `Seeed_Arduino_SSCMA`).
 
 ## Equivalence of the C circuit with the Python model
 
@@ -369,8 +471,8 @@ Run time per step on the board is NOT measured: per result, two copies x about 7
    waited more than 500 ms). Watch for `@FP err lock`.
 6. Over Bluetooth with lines on: are command echoes still answered, and how many `@FP` lines
    arrive per second? If too many, `XPp~`.
-7. Save and restart: with `P` on, restart the board (EN). It must come up passive: lines only,
-   no movement, `l=1 b=0`.
+7. Save and restart: with `P` on and `@FP auto 0;`, restart the board (EN). It must come up
+   passive: lines only, no movement, `l=1 b=0`.
 8. `XPB~` with a face about 50 cm away: the robot sits, the head turns toward the face, no
    oscillation; the `t=` and `p=` fields look sane; with the face gone, `hold` after 3 s.
    Positive `p=` must be the dog's left.
@@ -379,3 +481,28 @@ Run time per step on the board is NOT measured: per result, two copies x about 7
 10. If 0x62 ever disappears while 0x28 and 0x79 stay (the 2026-11-17 state): expect
     `@FP err silent <n>;` and power-cycle the camera.
 11. Measure how long one control step takes (not measured) if the head looks late.
+
+Follow after power-on (robot on the floor, away from edges, for every power cycle). Run so
+far, with a restart over USB in place of the power switch (see "Follow after power-on on the
+robot"): 12, the USB half of 13, 17 without its last sentence, and the commands of 18 with a
+restart after `Xps~`. In 15 voice showed as off after the autostart, but no spoken command was
+tried. Not run: 14, 16, and anything with the power switch.
+
+12. `X?~` -> `@FP off;` (or `@FP on ...;`) followed by `@FP auto 0;`.
+13. `XPS~` with the camera plugged in -> `@FP on l=1 b=0;` and `@FP auto 1;`; the robot does not
+    move. Switch the robot off and on, nothing connected to it: about 3 s after the boot, three
+    rising beeps, then it sits and the head follows a face. Repeat with USB connected and
+    logging from the start: `@FP auto start;`, `@FP on l=0 b=1;`, `@FP auto 1;`, and NO result
+    lines (only `@FP cam run 1;` and any error lines). Connect over Bluetooth while it runs: the
+    host must identify the robot without waiting for its timeout.
+14. The same with the camera unplugged: beeps, it sits, the head stays, `@FP err nocam <n>;`
+    every 2 s. No other movement for a minute.
+15. With the voice module active (`XA~`) and `XPS~` saved: power-cycle. After the beeps, voice
+    shows as off in `X?~`, and a spoken command must not make the robot move. `XA~` restores it.
+16. Cancel: power-cycle with USB connected and send `Xp~` within the first 3 s after the boot
+    banner: no beeps, no `@FP auto start;`, no movement. Repeat with `X~`.
+17. With control running after an autostart (`l=0 b=1`), send `XP~`: `@FP on l=1 b=0;`, the
+    head stops where it is, result lines start. `XPB~` starts control again and the lines stay
+    on (`@FP on l=1 b=1;`). `XP~` again, with control off and lines on: no status line.
+18. `Xps~` -> `@FP off;` and `@FP auto 0;`. Power-cycle: no beeps, no movement. `XPs~` with the
+    module on -> `@FP on ...;` and `@FP auto 0;`, the module stays on.

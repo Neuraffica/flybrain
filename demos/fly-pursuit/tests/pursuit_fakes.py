@@ -5,7 +5,10 @@
 camera, drop the link, and lets a test feed camera lines. With ``module`` set it has our camera
 module P (firmware/bittle/fly_pursuit): "@FP" status lines after X? and every X change, "cam run"
 after XP~, and "@FP" result lines on demand (``fp_lines`` after XP~, ``onboard_lines`` after
-XPB~, or ``feed`` at any time). ``FakeCamera`` is the camera's own USB serial port (SSCMA AT
+XPB~, or ``feed`` at any time). With ``autostart`` set (True / False) it is the newer build
+with the saved "follow after power-on" setting: "@FP auto <0|1>;" after every status line,
+XPS~ / XPs~ / Xps~, and a bare XP~ switches on-board control off; ``autostarted`` makes it a
+robot that has just started following a face by itself. ``FakeCamera`` is the camera's own USB serial port (SSCMA AT
 protocol); ``FakePorts`` hands them out by device name."""
 
 import json
@@ -67,13 +70,22 @@ class FakeRobot(Transport):
         fp_lines=(),  # "@FP" lines sent right after XP~
         onboard_lines=(),  # "@FP" lines sent right after XPB~
         status_after_echo=False,  # X?~: the "@FP" status line comes after the X echo
+        autostart=None,  # None: older build of the module (no S / s); True / False: newer
+        autostarted=False,  # it followed a face by itself after power-on (control on)
+        following_lines=(),  # "@FP" result lines with control fields sent after X?~
     ):
+        self.autostart = autostart
+        self.autostarted = autostarted
+        self.following_lines = list(following_lines)
+        self.control_at: list[tuple[str, bool]] = []  # (command, on-board control after it)
         self.module = module
         self.fp_lines = list(fp_lines)
         self.onboard_lines = list(onboard_lines)
         self.status_after_echo = status_after_echo
         self.control = False
         self.cam_runs = 0
+        if autostarted:  # it beeped, sat and follows a face: module on, control on
+            self.module, self.control, self.autostart, self.cam_runs = "on", True, True, 1
         self.name = name
         self.camera = camera
         self.face_on_start = face_on_start  # a camera line sent right after XCP~
@@ -97,6 +109,8 @@ class FakeRobot(Transport):
         self._open = True
         self.opens += 1
         self._out.put(b"Ready!\r\n")
+        if self.autostarted:
+            self._say("@FP on l=1 b=1;\r\n@FP auto 1;\r\n@FP auto start;\r\n")
 
     @property
     def is_open(self):
@@ -111,6 +125,7 @@ class FakeRobot(Transport):
             self.muted = True
         if not self.muted:
             self._reply(cmd)
+        self.control_at.append((cmd, self.control))
         heads = sum(c.startswith(b"i") for c in self.writes)
         if self.lose_after_heads is not None and heads >= self.lose_after_heads:
             self.lost = True
@@ -139,6 +154,8 @@ class FakeRobot(Transport):
             self._say(f"@FP on l=1 b={int(self.control)};\r\n")
         elif self.module is not None:
             self._say("@FP off;\r\n")
+        if self.module is not None and self.autostart is not None:
+            self._say(f"@FP auto {int(self.autostart)};\r\n")
 
     def _module(self, cmd, code):
         """Our module's commands (README of firmware/bittle/fly_pursuit, "Commands")."""
@@ -151,12 +168,24 @@ class FakeRobot(Transport):
             self._echo(cmd, "X")
             if self.status_after_echo:
                 self._status()
+            for ln in self.following_lines if self.control else ():
+                self._say(ln)
             return True
         if self.module is None:
             return False
         if code.startswith("P"):
             was_on = self.module == "on"
             self.module = "on"
+            if not was_on and self.autostart is not None:
+                self._status()  # as the robot: the firmware's own switch prints the status
+                # first, with the OLD setting; the module's options print it again below
+            if self.autostart is not None:  # the newer build; an older one ignores S and s
+                if code == "P":
+                    self.control = False  # a bare XP~ is passive
+                if "S" in code:
+                    self.autostart = True
+                if "s" in code:
+                    self.autostart = False
             if "B" in code:
                 self._say("sit\r\n")
                 self.control = True
@@ -173,10 +202,15 @@ class FakeRobot(Transport):
                 for ln in self.onboard_lines:
                     self._say(ln)
             return True
-        if code == "p":
+        if code in ("p", "ps"):  # an older build takes Xps~ as Xp~
             if self.module == "on":
                 self._say("@FP cam stop;\r\n")
+            was_on = self.module == "on"
             self.module, self.control = "off", False
+            if self.autostart is not None and code == "ps":
+                if was_on:
+                    self._status()  # as the robot: first the status with the OLD setting
+                self.autostart = False
             self._status()
             self._echo(cmd, "X")
             return True

@@ -6,14 +6,22 @@
  * `uv run flybrain-export pursuit --single-header --out firmware/bittle/fly_pursuit/src`.
  *
  * Commands (the firmware's X command; capital letters, so end each with '~'):
- *   XP~   module on, passive: camera lines only, the robot does not move
+ *   XP~   module on, passive: camera lines only, the robot does not move. If on-board control
+ *         was on, it is switched off (the head stays where it is); result lines are switched on
  *   Xp~   module off (also stops the camera's continuous detection)
  *   XPP~  result lines on (default)      XPp~  result lines off
  *   XPB~  on-board control on: the robot sits, then the head follows the face
  *   XPb~  on-board control off (the head stays where it is)
+ *   XPS~  module on, and save "follow after power-on" = on (flash key "fpAuto")
+ *   XPs~  save "follow after power-on" = off     Xps~  the same, and module off
+ * With "follow after power-on" saved, the robot beeps 3 times, then sits and follows a face by
+ * itself about 3 s after every power-on, unless an X command came from a host before then. It
+ * starts with result lines off ("@FP on l=0 b=1;"); a bare XP~ turns them on again.
  * Host lines (all ports, one per line, each ends with ';'): see README.md, "Host lines".
  *
- * Not run on hardware yet. Requirements and how each is met: README.md.
+ * Run on a Bittle X over USB and Bluetooth, the follow after power-on after a restart over USB
+ * (README.md, "Run on the robot"). NOT run yet: a start after the power switch, a start with
+ * no camera, and the cancel by a host command. Requirements and how each is met: README.md.
  */
 #ifndef FLY_PURSUIT_MODULE_H
 #define FLY_PURSUIT_MODULE_H
@@ -86,8 +94,25 @@ static uint8_t fpIo[FP_CHUNK + 8];      // one transaction's bytes
 /* main-loop state */
 static FpShared fpSeen;                 // what the main loop has already reported
 static bool fpLinesQ = true;            // XPP / XPp
-static bool fpControlQ = false;         // XPB / XPb; never saved, off after every start
+static bool fpControlQ = false;         // XPB / XPb; off after every start (but see fpAuto*)
 static FpControl fpCtl;
+
+/* "follow after power-on": saved in the firmware's Preferences ("config" namespace, opened in
+ * initRobot() before the modules start). Read lazily on first use, written only on a change. */
+#define FP_AUTO_KEY "fpAuto"            // Preferences key (at most 15 characters)
+#define FP_AUTO_BEEP_TONES {14, 19, 24} // CHOSEN: three rising beeps before the robot moves
+#define FP_AUTO_BEEP_MS 100             // CHOSEN: each beep's length
+#define FP_AUTO_BEEP_GAP_MS 80          // CHOSEN: silence after each beep
+static bool fpAutoLoaded = false;
+static bool fpAutoSaved = false;        // the value in flash (false when the key is missing)
+static bool fpAutoDone = false;         // fired, or cancelled by a host, in this power-on
+static bool fpPassSeen = false;         // read_flyPursuit() has run once
+static uint32_t fpFirstPassMs = 0;      // millis() at its first run
+
+/* defined in moduleManager.h after this file is included */
+int8_t indexOfModule(char moduleName);
+void stopModule(char moduleCode);
+void reconfigureTheActiveModule(char *moduleCode);
 
 void fpSay(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 void fpSay(const char *fmt, ...) {
@@ -365,11 +390,26 @@ static void fpTaskMain(void *) {
 }
 
 /* ==================================================================== main loop side */
+static void fpAutoLoad() {
+  if (fpAutoLoaded) return;
+  fpAutoSaved = config.getBool(FP_AUTO_KEY, false);
+  fpAutoLoaded = true;
+}
+
+static void fpAutoSave(bool want) {  // writes to flash only when the value changes
+  fpAutoLoad();
+  if (want == fpAutoSaved) return;
+  config.putBool(FP_AUTO_KEY, want);
+  fpAutoSaved = want;
+}
+
 void flyPursuitStatus(bool on) {  // after the module list (X?, and after every X change)
+  fpAutoLoad();
   if (on)
     fpSay("@FP on l=%d b=%d;", fpLinesQ ? 1 : 0, fpControlQ ? 1 : 0);
   else
     fpSay("@FP off;");
+  fpSay("@FP auto %d;", fpAutoSaved ? 1 : 0);
 }
 
 static void fpMoveHead(float pan_deg) {
@@ -401,20 +441,45 @@ void flyPursuitStop() {  // stopModule(): Xp~, X~, or another module enabled
   if (fpTask) xTaskNotifyGive(fpTask);
 }
 
-void flyPursuitOptions(const char *cmd, bool on) {  // "P..." of an "XP..." command
+/* On-board control on, as XPB~ (and the follow after power-on) start it. Returns false if it
+ * was on already. */
+static bool fpControlStart() {
+  if (fpControlQ) return false;
+  loadBySkillName("sit");  // as the stock camera module does when it starts
+  fpControlReset(&fpCtl, millis(), FP_PAN_SIGN * (float)currentAng[0]);
+  fpMoveHead(fpCtl.pan_deg);
+  fpControlQ = true;
+  return true;
+}
+
+/* "P..." of an "XP..." command, or "p..." of an "Xp..." command; reaction.h calls it after the
+ * firmware has switched the module on or off. */
+void flyPursuitOptions(const char *cmd, bool on) {
+  fpAutoDone = true;  // a host is in charge: no follow after power-on in this power-on
+  char opts[16];      // a copy: loadBySkillName() overwrites newCmd, which cmd points into
+  uint8_t n = 0;
+  for (const char *o = cmd + 1; *o && *o != '~' && n + 1 < sizeof(opts); o++) opts[n++] = *o;
+  opts[n] = '\0';
+  bool upper = cmd[0] == 'P';
   bool said = false;
-  for (const char *o = cmd + 1; *o && *o != '~'; o++) {
-    if (!on) break;
-    if (*o == 'P' || *o == 'p') {
-      fpLinesQ = *o == 'P';
+  if (upper && n == 0 && on && (fpControlQ || !fpLinesQ)) {
+    fpControlQ = false;  // bare XP~: the documented passive state, also after the follow after
+    fpLinesQ = true;     // power-on (control off, result lines on); the head stays where it is
+    said = true;
+  }
+  for (uint8_t i = 0; i < n; i++) {
+    char o = opts[i];
+    if (o == 's' || (o == 'S' && upper)) {  // XPS / XPs / Xps, whether or not the module is on
+      fpAutoSave(o == 'S');
       said = true;
-    } else if (*o == 'B' && !fpControlQ) {
-      loadBySkillName("sit");  // as the stock camera module does when it starts
-      fpControlReset(&fpCtl, millis(), FP_PAN_SIGN * (float)currentAng[0]);
-      fpMoveHead(fpCtl.pan_deg);
-      fpControlQ = true;
+    } else if (!on || !upper) {
+      break;  // the other letters only while the module is on
+    } else if (o == 'P' || o == 'p') {
+      fpLinesQ = o == 'P';
       said = true;
-    } else if (*o == 'b') {
+    } else if (o == 'B') {
+      said = fpControlStart() || said;
+    } else if (o == 'b') {
       fpControlQ = false;
       said = true;
     }
@@ -422,8 +487,64 @@ void flyPursuitOptions(const char *cmd, bool on) {  // "P..." of an "XP..." comm
   if (said) flyPursuitStatus(on);
 }
 
-/* Called on every pass of the main loop (readSignal), whether or not the robot is idle. */
+/* The saved follow after power-on, when it is due: beeps, then module P on through the
+ * firmware's own path, the voice module stopped for this power-on, then control as XPB~. */
+static void fpAutoStart() {
+  static const float tones[] = FP_AUTO_BEEP_TONES;
+  for (uint8_t i = 0; i < sizeof(tones) / sizeof(tones[0]); i++)
+    beep(tones[i], FP_AUTO_BEEP_MS, FP_AUTO_BEEP_GAP_MS);  // blocks about 0.5 s, once
+  fpSay("@FP auto start;");
+  int8_t me = indexOfModule(EXTENSION_FLY_PURSUIT);
+  if (me < 0) return;
+  if (!moduleActivatedQ[me]) {
+    char code[] = "P~";
+    reconfigureTheActiveModule(code);  // other sensor modules off, list saved, status printed
+  }
+#ifdef VOICE
+  /* The voice module can make the robot perform skills on sounds: stop it for this power-on.
+   * voiceStop() only tells the voice chip to stop and closes its serial port; the flag below is
+   * in RAM only. The firmware saves the whole module list on the next module change. */
+  int8_t v = indexOfModule(EXTENSION_VOICE);
+  if (v >= 0 && moduleActivatedQ[v]) {
+    stopModule(EXTENSION_VOICE);
+    moduleActivatedQ[v] = false;
+  }
+#endif
+  if (!moduleActivatedQ[me]) return;
+  /* No result lines: with no host nobody reads them, and a host connecting over Bluetooth waits
+   * for 1.5 s of quiet before it identifies the robot. Error and cam lines stay. A bare XP~
+   * turns them on again. */
+  fpLinesQ = false;
+  fpControlStart();
+  flyPursuitStatus(true);  // "@FP on l=0 b=1;"
+}
+
+/* One-shot, on every main-loop pass until it fires or is cancelled. */
+static void fpAutoTick() {
+  uint32_t now = millis();
+  if (!fpPassSeen) {
+    fpPassSeen = true;
+    fpFirstPassMs = now;
+    fpAutoLoad();
+  }
+  if (fpAutoDone) return;
+  if (newCmdIdx) {  // a command arrived in this pass; reaction() runs it after this
+    if (token == T_EXTENSION && newCmd[0] != '?') fpAutoDone = true;  // a host set the modules
+    return;  // never start in such a pass: "sit" would overwrite newCmd
+  }
+  if (token == T_SERVO_CALIBRATE || token == T_SERVO_FOLLOW || token == T_SERVO_FEEDBACK) {
+    fpAutoDone = true;  // e.g. the boot found the robot lifted and queued calibration: stay still
+    return;
+  }
+  if (!fpAutoDue(fpAutoSaved, fpAutoDone, now - fpFirstPassMs, tQueue->cleared())) return;
+  fpAutoDone = true;
+  fpAutoStart();
+}
+
+/* Called on every pass of the main loop (readSignal), whether or not the robot is idle. The
+ * main loop calls readSignal() only while the task queue is empty. */
 void read_flyPursuit() {
+  fpAutoTick();
   FpShared s;
   portENTER_CRITICAL(&fpMux);
   s = fpShared;

@@ -177,7 +177,7 @@ def test_spec_is_valid_and_matches():
     a = cli.build_parser().parse_args(spec.argv("ble", {"leave_voice_off": True}, 8123))
     assert a.ble == "" and a.leave_voice_off
     for o in spec.options:  # the card's defaults are the program's
-        if o.name not in ("fov", "target", "controller", "camera_port"):
+        if o.name not in ("fov", "target", "controller", "camera_port", "autostart"):
             assert getattr(cli.build_parser().parse_args([]), o.name) == o.default, o.name
     a = cli.build_parser().parse_args(spec.argv("ble", {"camera": "usb", "gain": 0.5}, 8123))
     assert a.camera == "usb" and a.gain == 0.5 and a.camera_port == ""

@@ -428,7 +428,7 @@ def test_camera_off_maintenance():
 def test_camera_off_also_switches_our_module_off():
     bot = FakeRobot(module="on")
     assert _run(["--camera-off"], bot, camera="auto") == 0
-    assert bot.commands() == ["?", "X?~", "Xp~", "Xc~", "Xa~", "XA~", "gU", "d"]
+    assert bot.commands() == ["?", "X?~", "Xps~", "Xc~", "Xa~", "XA~", "gU", "d"]
 
 
 def test_camera_off_over_bluetooth_and_refused_on_the_simulator():
