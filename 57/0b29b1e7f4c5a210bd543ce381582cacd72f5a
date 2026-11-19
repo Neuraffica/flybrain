@@ -1,0 +1,81 @@
+demos/fly-pursuit/tests/pursuit_fakes.py
+  s_8da33b2ad5b96f::t_c0b6900fab57e4 8-11,73-75,77-80,87-88,112-113,128,157-158,171-172,182-188,205,210,213
+  s_8da33b2ad5b96f::t_3056cba4f55dca 179-181,208,211-212
+firmware/bittle/fly_pursuit/apply_to_opencat.py
+  s_8da33b2ad5b96f::t_bb06bd1bea03ee 20-22,41,65,153,157-169
+  s_8da33b2ad5b96f::t_3d66cc8b35897f 170-171
+demos/fly-pursuit/src/fly_pursuit/camera.py
+  s_8da33b2ad5b96f::t_5b2fe4f6cb6efb 247-249,265-266,319-324,404-408,438-444,491-492
+packages/flybrain-edge/NOTES.md
+  s_8da33b2ad5b96f::t_de72ff5eeadd8b 300-309
+firmware/bittle/fly_pursuit/src/flyPursuitCore.h
+  s_8da33b2ad5b96f::t_909b6c3d6e4762 322-333
+demos/fly-pursuit/src/fly_pursuit/flydeck.py
+  s_8da33b2ad5b96f::t_86b8e475d40074 3-4,6,23-39,201-214,219
+demos/fly-pursuit/src/fly_pursuit/cli.py
+  s_8da33b2ad5b96f::t_86b8e475d40074 465,467-470
+  s_8da33b2ad5b96f::t_babb7a64adb00b 12-13,33,167-177,201-209,224,285-294,464,466,471-472
+demos/README.md
+  s_8da33b2ad5b96f::t_612992a8e532dc 8
+firmware/bittle/fly_pursuit/src/flyPursuit.h
+  s_8da33b2ad5b96f::t_225c15b0470a9b 393-405,407,412
+  s_8da33b2ad5b96f::t_15ac4997856e16 10
+  s_8da33b2ad5b96f::t_5f4e72eab8b17c 513-519
+  s_8da33b2ad5b96f::t_4e886e46129dc1 444-463,468-473,475-478,480-482,490-512,520-545,547
+  s_8da33b2ad5b96f::t_93e809e6bdebc2 22-24
+  s_8da33b2ad5b96f::t_ea41c8ede5bc75 18-19
+  s_8da33b2ad5b96f::t_256a4f0a4a0456 97,100-115
+  s_8da33b2ad5b96f::t_4471a560e05256 465-467
+  s_8da33b2ad5b96f::t_31f704b75c8d77 9,15-17
+  s_8da33b2ad5b96f::t_77184c03d25cd8 116
+demos/fly-pursuit/src/fly_pursuit/robot.py
+  s_8da33b2ad5b96f::t_d2d746b1fa7605 601-605,607-609,796,852
+  s_8da33b2ad5b96f::t_9ec5d80f266d0e 34-41,80,122-141,606,610-613,777-779,790-795,797-798,815-819,822-832,835-846,848-851,853-856,859-870
+  s_8da33b2ad5b96f::t_6a3dd5c8ee819f 833-834,847,857-858
+packages/flybrain-edge/tests/test_onboard_pursuit.py
+  s_8da33b2ad5b96f::t_bd62d0cb164167 171-175,181-185
+  s_8da33b2ad5b96f::t_eece5eb2dbf753 176-178
+demos/fly-pursuit/tests/test_pursuit_module.py
+  s_8da33b2ad5b96f::t_6a3dd5c8ee819f 618-624
+  s_8da33b2ad5b96f::t_420b3275798b26 31-34,43,520-521,523-525,540-617,625-710
+demos/fly-pursuit/src/fly_pursuit/static/index.html
+  s_8da33b2ad5b96f::t_9ade566eb522da 381-389
+firmware/bittle/fly_pursuit/README.md
+  s_8da33b2ad5b96f::t_93e809e6bdebc2 9-11,52-81,432
+  s_8da33b2ad5b96f::t_60b2db1273686e 117-120,124-133,138-161,168-175,192-193,211-212,382,433-434,438-441,474-475,484,490-494,498-503,507-508
+  s_8da33b2ad5b96f::t_eece5eb2dbf753 112,115,134-137,162-167,495-497,504-506
+  s_8da33b2ad5b96f::t_a640d8dcd48872 435-437
+  s_8da33b2ad5b96f::t_5b9a807dabbc21 485-489
+  s_8da33b2ad5b96f::t_d12dbdbd7c0ded 8
+  s_8da33b2ad5b96f::t_d224fcdaf8fa9b 408-411
+packages/flybrain-edge/tests/export_stubs/pursuit_core_main.cpp
+  s_8da33b2ad5b96f::t_609a69fcb0bea3 4
+  s_8da33b2ad5b96f::t_fe157bfe8c32fb 125-139
+demos/fly-pursuit/README.md
+  s_8da33b2ad5b96f::t_30bbca18c85025 205-207,217-221,244-245,251-293
+  s_8da33b2ad5b96f::t_93e809e6bdebc2 294-298
+  s_8da33b2ad5b96f::t_612992a8e532dc 461
+demos/fly-pursuit/guide.html
+  s_8da33b2ad5b96f::t_30bbca18c85025 256-269
+  s_8da33b2ad5b96f::t_93e809e6bdebc2 270
+demos/fly-pursuit/tests/test_pursuit_app.py
+  s_8da33b2ad5b96f::t_c0c2c8885f95b7 180
+demos/fly-pursuit/tests/test_pursuit_robot.py
+  s_8da33b2ad5b96f::t_a6b32e51bb79c0 431
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "570b29b1e7f4c5a210bd543ce381582cacd72f5a",
+  "prompts": {},
+  "sessions": {
+    "s_8da33b2ad5b96f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d0339-e916-4ebe-98a8-c9a9f5d74817",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "tgorka <tgorka@users.noreply.github.com>"
+    }
+  }
+}
