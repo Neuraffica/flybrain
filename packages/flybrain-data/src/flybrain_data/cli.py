@@ -15,13 +15,19 @@ def main(argv: list[str] | None = None) -> int:
     d.add_argument("--data-dir", type=Path, default=None)
     d.add_argument(
         "--only",
-        choices=["connections", "annotations", "neuropil_pre", "neuropil_post"],
+        choices=[
+            "connections",
+            "annotations",
+            "neuropil_pre",
+            "neuropil_post",
+            "column_assignment",
+        ],
         default=None,
     )
     d.add_argument(
         "--required-only",
         action="store_true",
-        help="skip the optional per-neuron neuropil count files (~250 MB)",
+        help="skip the optional files (per-neuron neuropil counts ~250 MB, eye columns 0.5 MB)",
     )
 
     b = sub.add_parser("build-pack", help="extract a circuit pack from the raw files")

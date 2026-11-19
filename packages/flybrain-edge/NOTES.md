@@ -115,6 +115,196 @@ centre, 240-wide frame) and its size. It **cannot** get images, choose the model
 or know which way +x points relative to the robot without testing. `protocol.parse_camera()`
 is an EXPERIMENTAL parser for that line; nothing in the demo uses it.
 
+### Tried on a real Bittle X (firmware B10_251121, Bluetooth, 2026-11-16)
+
+The camera sat in the dog's mouth, plugged into the I2C Grove socket (marked SCL, SDA, +5V, GND).
+Two runs, one worked and one hung, so treat the stock camera path as unreliable until it has
+been repeated over USB, where the firmware's own diagnostics are visible.
+
+| Observation | Detail |
+|---|---|
+| `XCr~` started the camera once | Replies `@FE off;`, `sit`, `X`; the robot sits. A second `XC~` gave only `X`, which per `moduleManager.h` means the module was already active, i.e. a device answered at 0x62 and accepted its settings. |
+| No detection in that run | `XCp~` returned `-121.00\t-121.00\tsize = 0\t0` (x = y = -1: nothing seen) and 25 s of `XCP~` printed no line. Nobody was asked to stand in front of the lens, so this says nothing about the model on the camera. Rate and the sign of x are still unmeasured. |
+| The same command hung the second time | `@FE off;` and `sit` arrived, the `X` echo never did, the Bluetooth link dropped within seconds. Afterwards the robot answered late and out of order, then could not be connected to. The user saw violent movements, the LED on pin 27 and repeated loud beeps. Cause not established: either the built-in camera reaction (on by default, `cameraReactionQ = true`, it leans the whole body toward the target and the `r` option had not been taken yet) or a restart loop. |
+| The module state is saved | `reconfigureTheActiveModule` writes the whole module list to flash on every status change, and the firmware starts saved modules at boot. After a failed start the camera stays "on" in flash and is started again at every boot. |
+| A failed start does not clear the saved flag | With the camera unplugged the start fails cleanly and the flag is cleared in RAM only. `Xc~` then changes nothing and saves nothing. Toggling another module forces a save: `Xa~` then `XA~` (voice off and on) wrote the list with the camera off. |
+| Starting the camera switches the IMU updates off | `initModule` sets `updateGyroQ = false` even when the start fails, so `gp` prints nothing for the rest of that boot. `gU` switches the updates back on. |
+
+Rules that follow for anything that enables the camera:
+
+- Put the robot on the floor, away from edges. Never on a table.
+- Prefer USB for the first tests: `Fail to start`, the I2C scan and the `AI.begin()` result are
+  printed to USB only.
+- To recover a robot that misbehaves after a camera test: power it off, unplug the camera, power
+  it on, then `Xc~`, `Xa~`, `XA~`, `gU`.
+
+### Same robot over USB, and the camera on its own USB-C port (2026-11-16)
+
+| Observation | Detail |
+|---|---|
+| The robot did not see the camera on I2C | Three boot scans with the camera plugged into the I2C Grove socket, and two more after re-seating the plug: `0x28 Misc.`, `0x69 ICM42670`, `0x79 Misc.`, `0x7E Misc.`, `GroveVisionQ 0`. Nothing at 0x62, the camera's address. No scan without the camera was taken, so whether 0x28/0x79/0x7E belong to the board or to the camera is open (a forum scan of the same module shows 0x28 next to 0x62). The earlier Bluetooth-only conclusion that the camera had been found was an inference and may be wrong. |
+| The boot log and module list are only on USB | An EN pulse through RTS (DTR low) restarts the board without download mode; the scan is printed about 0.6 s later. `X?~` prints the module letters and flags. |
+| The camera itself is healthy | Plugged into the Mac by its own USB-C port it enumerates as a CH343 serial port (VID:PID 1A86:55D3) and answers the SSCMA AT protocol at 921600 baud: `Grove Vision AI V2`, software `2025.01.02`, model `Face Detection` (YOLO, class `Face`, score threshold 50), sensor `240x240 Auto`. Opening the port restarts the module. |
+| Rate | `AT+INVOKE=-1,0,1` gives 15.4 results per second (median gap 68 ms, max 90 ms; 20 ms of that is inference). `AT+BREAK` stops it. |
+| A face at about 50 cm | Found in 458 of 462 frames, score 72-83, box about 83 x 90 px of 240. Box fields are `[x, y, w, h, score, target]` with x, y the box centre. Positions move in steps of 7 px. |
+| Sign of x | With the camera held in the dog's mouth, a face on the DOG'S LEFT gave x = 41 and a face roughly ahead gave x = 150: x grows toward the dog's right, so a bearing that is positive to the left is `(120 - x) * fov / 240`. This is at the module's default rotation (opt 0); the robot firmware asks for a 90 degree rotation on a "Bittle X", which was not tested. |
+| Field of view | Not measured. From the face box at about 50 cm it is roughly 50-65 degrees across, i.e. the narrow lens rather than a 120 degree one. |
+
+### Resolved the same evening: the plug had been in the wrong socket
+
+On the BiBoard V1.0 the four Grove sockets are labelled, in order along the front edge:
+`GND +5V 34 35`, `GND +5V 36 39`, `SCL SDA +5V GND` (I2C) and `GND +5V TX2(10) RX2(9)` (UART2).
+A video of the incident shows the camera's plug in the end socket by the UART2 label, so the two
+Bluetooth runs above were most likely made with the camera off the I2C bus. That explains "no
+detection"; it does not explain the hang.
+
+With the plug in the I2C socket, six boot scans in a row showed `0x62 AI Vision` and
+`GroveVisionQ 1`. Then, over USB:
+
+| Observation | Detail |
+|---|---|
+| `XCr~` works | `+ enable Camera`, the module list with `C` = 1, `Setting updateGyroQ to false...`, `IMU task exiting`, the I2C scan, `sit`, `Setup Grove Vision AI Module`, `Standard AI.begin() succeeded!`, `Set sensor angle and resolution...`, then the `X` echo 1.5 s after the command, then `Camera task activated.` |
+| A face is reported | `XCp~` returns `=` and e.g. `53.00\t-44.00\tsize = 83\t90`. Box sizes match the direct USB measurement (83-90 px wide). |
+| `XCP~` is not a rate | With a face held still it printed 3 lines in 15 s: it prints only when x or y changes, and positions are quantised in 7 px steps. Measuring the rate needs a moving target or polling `XCp~`. |
+| `Xc~` after a successful start | `- disable Camera`, module list back to `C` = 0 (saved). `gU` then restores IMU prints. |
+| Opening the USB port can restart the board | It did on most opens here, even with DTR and RTS held low. A command sent in the first ~11 s is lost: wait for `Ready!`. |
+| The voice module is on by default | During one session it printed `XA+kdg` and the robot ran `up` by itself. Expect the robot to react to sounds unless voice is switched off (`Xa~`). |
+
+Measured through the firmware with a face swaying in front of the camera (plug in the I2C
+socket, voice switched off first with `Xa~`):
+
+| | Over USB | Over Bluetooth |
+|---|---|---|
+| `XCr~` until the `X` echo | 1.5 s | 2.5 s |
+| Firmware init path | `Standard AI.begin() succeeded!` | `Standard AI.begin() failed, using manual method...` then `Manual initialization succeeded!` |
+| `XCP~` lines with a moving face | 77 in 20 s (3.9/s) | 78 in 20 s (3.9/s) |
+| Shortest steady gap between lines | 63-70 ms, i.e. the camera's own 15 Hz | 60 ms at the 10th percentile, median 151 ms |
+| Longest gap | 1.3 s | 2.5 s |
+
+- A new line can arrive every camera frame (about 68 ms), but only when x or y changed, so a
+  still target produces nothing: treat "no line" as "same place", and use a timeout to decide
+  that the target is gone (there is no "lost" message).
+- Sign of x through the firmware: a face on the DOG'S LEFT gave `x - 120` of about -72. The same
+  as on the camera's own port: negative is left. Bearing positive-left = `-(x - 120) * fov / 240`.
+- Polling `XCp~` every 100 ms is worse than `XCP~`: it answered 8.8 times a second but the value
+  changed only 2.2 times a second, because the camera task yields to incoming commands.
+- Under Bluetooth the standard start of the camera fails and the firmware's fallback takes over.
+  It worked here; it is the part to suspect if a start hangs.
+
+### The camera starts properly only once per boot
+
+Four start/stop cycles in one Bluetooth session, with the firmware's prints logged over USB:
+
+| Cycle | USB print when the camera task is made | Result |
+|---|---|---|
+| 1 (first start after a restart) | `Camera task created successfully` | positions arrive |
+| 2, 3, 4 (after `Xc~`, same boot) | `Failed to create camera task, error code: -1` | `XCr~` still echoes `X` and `XCp~` still answers, but with the LAST position from before: no new reading ever arrives |
+
+- Error -1 from `xTaskCreatePinnedToCore` is "could not allocate memory". `stopModule` for the
+  camera is a stub (`// cameraStop();   // Todo`), so a second start in the same boot finds no
+  room for the task. Over Bluetooth nothing reports this: the failure message is USB-only.
+- So: one camera start per power-on. To use the camera again, restart the board (power button, or
+  an EN pulse over USB). The firmware has no restart command that is safe to send (its
+  `ESP.restart()` calls sit behind the Wi-Fi setup paths).
+- A stale answer looks exactly like a still target. After a start, a program can only tell the
+  two apart by moving the head and seeing whether the position follows.
+- Replies can also go missing over Bluetooth while the camera runs: in two of the four cycles the
+  echo of the first `XCp~` never reached the host, although USB shows the firmware answered at
+  once. Do not treat a missing echo as a hung robot; the command has usually been carried out.
+  This is what the "hang" in the second Bluetooth run most likely was.
+- Head pan with the camera on: `i 0 -25` brought a target that was on the dog's right closer to
+  the image centre, so negative pan looks right and positive looks left (one reading, with an
+  uncontrolled target; repeat with a fixed face before relying on it).
+
+- With a small face photo in view (box only 34 px wide, i.e. a weak target) and the head stepped
+  through known angles, the camera rarely reported a new position after a head move. The two
+  steps that did give one: `i 0 -10` moved a centred target to `x - 120 = -44` (about 4.2 px per
+  degree, i.e. a field of view near 57 degrees, and again negative pan = look right). Sweeping
+  the head +-10 degrees at 4 to 20 joint commands a second gave under 1 line a second. Whether
+  that is the weak target or the commands starving the camera task is not settled.
+- Aiming aid that worked: beep (`b 16 16`) on every new position for 30 s while the person moves
+  the target; 57 positions and 24 beeps in one run.
+
+### The fly-pursuit head loop on the robot (2026-11-18)
+
+`fly-pursuit` with the camera read through the firmware, connectome controller, gain 1, head up
+to 60 deg/s, 8 head commands a second, a person's face about 50 cm away:
+
+| Run | Result |
+|---|---|
+| USB, 45 s, face held still | Clean start (the program restarts the board first) and shut-down. Head settled about 3 degrees off centre and stayed; turn commands near zero. 72 positions, 50 head commands, no missing echo. |
+| Bluetooth, 60 s, face moved left and right by up to about 55 degrees | Head followed between -27 and +44 degrees, lagging by roughly 0.5 to 1 s, with no oscillation (3 reversals, each a movement of the person). 229 positions (3.8 a second), 199 head commands, no missing echo. Measured bearing of the face in the camera: median 0.5, mean 2.5, 90th percentile 7.5, largest 16.8 degrees. |
+
+- Sending 8 head commands a second does not starve the camera task: positions kept arriving at
+  about 4 a second while the head and the face moved.
+- The correction for the head's own motion (subtract how far the head has turned since the
+  position was measured) removed the +-19 degree swings of the first, uncorrected run.
+- When the face moves faster than the head can follow, the camera stops reporting for a moment
+  (the box leaves the frame or blurs) and the head stops where the corrected bearing reaches
+  zero, then catches up on the next position.
+
+### Which I2C addresses are whose (2026-11-18, corrects the above)
+
+A boot scan with the camera unplugged shows only `0x69` (the IMU) and `0x7E`. With the camera in
+the I2C socket and healthy the scan shows `0x28`, `0x62`, `0x69`, `0x79`, `0x7E`. So the camera
+answers at THREE addresses: `0x28`, `0x62` (its SSCMA side, the one the firmware uses) and `0x79`.
+
+That changes the reading of 2026-11-16. The scans then that showed `0x28` and `0x79` but no `0x62`
+were not "the plug in the wrong socket": the camera was on the bus, but its SSCMA side was not
+answering, and it stayed that way across ESP32 restarts until the camera itself lost power. The
+video still shows the plug in the UART2 socket earlier that evening, so both things happened.
+A host or firmware module can recognise this state: `0x28` answers, `0x62` does not; only a power
+cycle of the camera clears it.
+
+### A third failure: the I2C bus stuck after a camera start (2026-11-18)
+
+Started from the Flydeck app over Bluetooth on a freshly restarted board. The robot identified
+itself, then two of the start-up echoes were missing, no camera position ever arrived, and at
+Stop none of `Xc~`, `XA~`, `gU`, `d` was answered. The program reported that the camera might
+still be on, which is the right message.
+
+Over USB afterwards the board restarts but stops at `Scanning I2C network...` and prints nothing
+more, on every restart: the firmware is blocked in its first I2C transaction. An EN restart
+resets only the ESP32; the camera keeps its power from the Grove socket and keeps holding the
+bus. So after this failure the robot does not boot until its power is cycled (which also
+power-cycles the camera) or the camera is unplugged.
+
+This is the same family as "replies go missing": when the camera's I2C side stalls, the main loop
+stalls with it. Two clean runs (USB and Bluetooth) came before it the same day with the same
+commands, so it is intermittent. It is the strongest argument so far for reading the camera on
+its own USB cable, or for a firmware module that does not share the main I2C bus with a blocking
+driver.
+
+### Our own camera module in the firmware (2026-11-18)
+
+The failures above led to `firmware/bittle/fly_pursuit/`: an extension module `P` with its own
+small SSCMA client in its own task, which also runs the pursuit circuit on the board. Flashed to
+this robot (app1, after a verified backup) and run over USB and Bluetooth: 15.4 results a second
+with none missing, "no face" reported every frame, start and stop any number of times in one
+boot, the IMU still answering, every echo back within 0.1 s over Bluetooth, and no error line in
+any run so far. With on-board control (`XPB~`) the head followed a face over +-40 degrees with
+the face a median 1 to 3 degrees from the image centre. Details and the line grammar are in that
+folder's README. The stock camera module `C` is still in the firmware but should not be used on
+this robot any more; do not mix `XC` and `XP` in one power-on.
+
+The fly-pursuit demo reads this module since the same day (`--camera module`, `--onboard`). Over
+Bluetooth, 45 s each: with the robot computing, 703 result lines with 1 missing, and the same
+circuit recomputed on the laptop from the robot's bearing differed from the robot's turn command
+by 0.56 deg/s on average (largest 25, where the laptop times a step differently). With the laptop
+computing, 701 lines with none missing, 246 head commands with every echo back, the face seen
+90 % of the time and 3.2 degrees off centre on average. Started from Flydeck, both modes ran
+too, but the first two starts after the app had been rebuilt and relaunched failed with a
+Bluetooth connect timeout; after one scan from the app the next three starts connected in about
+20 s each. Not explained.
+
+Still open: how fast joint commands can be sent before the camera task falls behind (needs a
+large, fixed face), and a proper field-of-view measurement.
+
+What this suggests: read the camera on the laptop over its own USB cable and steer the robot over
+Bluetooth. That path gives 15 Hz and the score, leaves the robot's IMU and other modules alone,
+and does not use the firmware's camera module at all. The cost is a cable from the dog's mouth to
+the laptop.
+
 ## Checked on a real Bittle X+Arm (firmware B10_250330, USB, 2026-11-11)
 
 Read-only probe only; the robot has not been moved by this code yet.

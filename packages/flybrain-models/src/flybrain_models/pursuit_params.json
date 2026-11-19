@@ -1,0 +1,179 @@
+{
+ "about": "Single fitted scalar of each pursuit model, fitted offline by flybrain_models.pursuit_fit on pursuit_tasks.training_set() (disjoint from the benchmark), loss = time-weighted mean absolute bearing error in degrees + 1.0 x idle turn (deg/s with no target). 'connectome' (k_out, rad/s per unit DNa02 rate difference, mirror-averaged circuit) is applied unchanged to the raw circuit, the rewired/random controls and the ablations; 'proportional' (k, rad/s per rad) and 'bang_bang' (threshold, rad) are the baselines.",
+ "fits": {
+  "bang_bang": {
+   "params": {
+    "threshold": 0.1308996938995747
+   },
+   "train_loss": 13.525,
+   "train_summary": {
+    "mae_deg": 13.5250309666724,
+    "within10": 0.7476019184652277,
+    "in_view": 0.9349880095923262,
+    "n_episodes": 38,
+    "step_settled_fraction": 0.95,
+    "step_settle_s_median": 2.0733333333333333,
+    "step_overshoot_deg_mean": 12.226101913273103,
+    "idle_turn_deg_s": 0.0
+   },
+   "grid": [
+    0.008726646259971648,
+    0.4363323129985824,
+    99
+   ],
+   "fit_seconds": 1.8,
+   "date": "2026-11-16"
+  },
+  "connectome": {
+   "params": {
+    "k_out": 4850.858782414339
+   },
+   "train_loss": 13.3833,
+   "train_summary": {
+    "mae_deg": 13.383345486237118,
+    "within10": 0.754916067146283,
+    "in_view": 0.9343165467625899,
+    "n_episodes": 38,
+    "step_settled_fraction": 0.9,
+    "step_settle_s_median": 2.706666666666667,
+    "step_overshoot_deg_mean": 13.268879874478369,
+    "idle_turn_deg_s": 0.0
+   },
+   "search": {
+    "coarse": [
+     [
+      100.0,
+      46.3356
+     ],
+     [
+      160.8521133455338,
+      44.5434
+     ],
+     [
+      258.7340236772446,
+      40.0602
+     ],
+     [
+      416.17914502878176,
+      33.1462
+     ],
+     [
+      669.4329500821696,
+      28.4775
+     ],
+     [
+      1076.7970476385224,
+      23.9468
+     ],
+     [
+      1732.0508075688776,
+      20.1044
+     ],
+     [
+      2786.040328192925,
+      14.4983
+     ],
+     [
+      4481.404746557166,
+      13.419
+     ],
+     [
+      7208.434242404265,
+      14.8378
+     ],
+     [
+      11594.91881803038,
+      21.4625
+     ],
+     [
+      18650.671959500858,
+      18.3077
+     ],
+     [
+      30000.0,
+      23.5888
+     ]
+    ],
+    "fine": [
+     [
+      2786.040328192925,
+      14.4983
+     ],
+     [
+      3015.7258624224514,
+      14.2669
+     ],
+     [
+      3264.3470323283327,
+      14.2119
+     ],
+     [
+      3533.46492141403,
+      13.9435
+     ],
+     [
+      3824.769311355393,
+      13.6249
+     ],
+     [
+      4140.089292079849,
+      13.5015
+     ],
+     [
+      4481.404746557166,
+      13.419
+     ],
+     [
+      4850.858782414339,
+      13.3833
+     ],
+     [
+      5250.77118843234,
+      13.3999
+     ],
+     [
+      5683.653000417573,
+      13.4983
+     ],
+     [
+      6152.222267906569,
+      13.7952
+     ],
+     [
+      6659.421120702586,
+      14.248
+     ],
+     [
+      7208.434242404265,
+      14.8378
+     ]
+    ]
+   },
+   "fit_seconds": 17.2,
+   "date": "2026-11-16"
+  },
+  "proportional": {
+   "params": {
+    "k": 6.086439774215445
+   },
+   "train_loss": 12.9379,
+   "train_summary": {
+    "mae_deg": 12.937879489714275,
+    "within10": 0.7902158273381297,
+    "in_view": 0.9348681055155876,
+    "n_episodes": 38,
+    "step_settled_fraction": 1.0,
+    "step_settle_s_median": 2.1733333333333333,
+    "step_overshoot_deg_mean": 11.307214155641073,
+    "idle_turn_deg_s": 0.0
+   },
+   "grid": [
+    0.2,
+    20.0,
+    121
+   ],
+   "fit_seconds": 2.2,
+   "date": "2026-11-16"
+  }
+ }
+}

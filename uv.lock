@@ -18,6 +18,7 @@ members = [
     "fly-compass",
     "fly-escape",
     "fly-escape-onboard",
+    "fly-pursuit",
     "flybrain",
     "flybrain-data",
     "flybrain-demo-api",
@@ -180,6 +181,26 @@ requires-dist = [
 ]
 
 [[package]]
+name = "fly-pursuit"
+version = "0.0.1"
+source = { editable = "demos/fly-pursuit" }
+dependencies = [
+    { name = "flybrain-demo-api" },
+    { name = "flybrain-edge" },
+    { name = "flybrain-models" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "flybrain-demo-api", editable = "packages/flybrain-demo-api" },
+    { name = "flybrain-edge", editable = "packages/flybrain-edge" },
+    { name = "flybrain-models", editable = "packages/flybrain-models" },
+    { name = "numpy" },
+]
+
+[[package]]
 name = "flybrain"
 version = "0.0.1"
 source = { virtual = "." }
@@ -187,6 +208,7 @@ dependencies = [
     { name = "fly-compass" },
     { name = "fly-escape" },
     { name = "fly-escape-onboard" },
+    { name = "fly-pursuit" },
     { name = "flybrain-data" },
     { name = "flybrain-demo-api" },
     { name = "flybrain-edge" },
@@ -206,6 +228,7 @@ requires-dist = [
     { name = "fly-compass", editable = "demos/fly-compass" },
     { name = "fly-escape", editable = "demos/fly-escape" },
     { name = "fly-escape-onboard", editable = "demos/fly-escape-onboard" },
+    { name = "fly-pursuit", editable = "demos/fly-pursuit" },
     { name = "flybrain-data", editable = "packages/flybrain-data" },
     { name = "flybrain-demo-api", editable = "packages/flybrain-demo-api" },
     { name = "flybrain-edge", editable = "packages/flybrain-edge" },
@@ -278,7 +301,7 @@ requires-dist = [
 
 [[package]]
 name = "flydeck"
-version = "0.2.1"
+version = "0.3.0"
 source = { editable = "apps/flydeck" }
 dependencies = [
     { name = "flybrain-demo-api" },

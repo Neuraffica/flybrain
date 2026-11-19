@@ -24,10 +24,12 @@ class RemoteFile:
     size: int | None = None
     md5: str | None = None
     page: str = ""  # human-facing source page, for attribution
+    subdir: str = ""  # stored under data_dir / subdir (e.g. "extra")
 
 
 ZENODO_RECORD = "https://zenodo.org/records/10676866"
 ANNOTATIONS_REPO = "https://github.com/flyconnectome/flywire_annotations"
+CODEX_DOWNLOADS = "https://codex.flywire.ai/api/download"
 
 FILES: dict[str, RemoteFile] = {
     "connections": RemoteFile(
@@ -67,8 +69,29 @@ FILES: dict[str, RemoteFile] = {
         md5="bb5999f10920ade803d9f37097a43a56",
         page=ZENODO_RECORD,
     ),
+    # Optional: eye-column assignment of ~45k columnar optic-lobe neurons (Matsliah et al.
+    # 2024, CC BY 4.0), from the FlyWire Codex public bucket. Needed only to build the
+    # ``pursuit`` pack (LC10a receptive-field azimuths).
+    "column_assignment": RemoteFile(
+        name="column_assignment.csv.gz",
+        url=(
+            "https://storage.googleapis.com/flywire-data/codex/data/fafb/783/"
+            "column_assignment.csv.gz"
+        ),
+        size=462_838,
+        md5="a5307208f0f89cad770cbb870d8d1a09",
+        page=CODEX_DOWNLOADS,
+        subdir="extra",
+    ),
 }
 REQUIRED = ("connections", "annotations")
+
+
+def local_path(key: str, data_dir: Path | None = None) -> Path:
+    """Where ``FILES[key]`` lives (or will live) under ``data_dir``."""
+    remote = FILES[key]
+    root = Path(data_dir) if data_dir else default_data_dir()
+    return root / remote.subdir / remote.name
 
 
 def default_data_dir() -> Path:
@@ -109,8 +132,8 @@ def download(
 ) -> Path:
     """Fetch ``remote`` into ``data_dir`` (resuming a ``.part`` file) and return its path."""
     data_dir = Path(data_dir) if data_dir else default_data_dir()
-    data_dir.mkdir(parents=True, exist_ok=True)
-    dest = data_dir / remote.name
+    dest = data_dir / remote.subdir / remote.name
+    dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.exists() and (remote.size is None or dest.stat().st_size == remote.size):
         print(f"[flybrain-data] {remote.name}: already present", file=sys.stderr)
         return dest
@@ -179,6 +202,7 @@ def _fetch(remote: RemoteFile, part: Path) -> None:
 
 def fetch_flywire(data_dir: Path | None = None, optional: bool = True) -> dict[str, Path]:
     """Download the FlyWire v783 connections and neuron annotations (~880 MB), plus, if
-    ``optional``, the per-neuron neuropil counts (~250 MB). Never the 9.5 GB synapse table."""
+    ``optional``, the per-neuron neuropil counts (~250 MB) and the eye-column assignment
+    (0.5 MB). Never the 9.5 GB synapse table."""
     keys = list(FILES) if optional else list(REQUIRED)
     return {key: download(FILES[key], data_dir) for key in keys}
